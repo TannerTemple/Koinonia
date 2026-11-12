@@ -52,11 +52,14 @@ function RootStack() {
         <Stack.Screen name="contact/find" options={{ title: "Find people" }} />
         <Stack.Screen name="note" options={{ ...modal, title: "Note" }} />
         <Stack.Screen name="intention" options={{ ...modal, title: "Intention" }} />
+        <Stack.Screen name="verify-email" options={{ ...modal, title: "Confirm your email" }} />
         <Stack.Screen name="choose-intention" options={{ ...modal, title: "Today's intention" }} />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/register" options={{ title: "Create account", headerBackTitle: "Sign in" }} />
+        <Stack.Screen name="(auth)/forgot-password" options={{ title: "Forgot password", headerBackTitle: "Sign in" }} />
+        <Stack.Screen name="(auth)/reset-password" options={{ title: "New password" }} />
       </Stack.Protected>
     </Stack>
   );

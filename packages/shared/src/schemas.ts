@@ -127,9 +127,23 @@ export const changePasswordSchema = z.object({
 });
 export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
 
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+export type ForgotPasswordInput = z.input<typeof forgotPasswordSchema>;
+
+const emailedToken = z.string().trim().min(20, "That code doesn't look right").max(200);
+export const resetPasswordSchema = z.object({
+  token: emailedToken,
+  password: z.string().min(8, "Use at least 8 characters").max(200),
+});
+export type ResetPasswordInput = z.input<typeof resetPasswordSchema>;
+
+export const verifyEmailSchema = z.object({ token: emailedToken });
+export type VerifyEmailInput = z.input<typeof verifyEmailSchema>;
+
 export interface User {
   id: string;
   email: string;
+  emailVerified: boolean;
   name: string;
   phone: string | null;
   role: Role;

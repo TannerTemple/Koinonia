@@ -1,11 +1,14 @@
-import type { PrismaClient } from "@prisma/client";
+import type { AuthTokenKind, PrismaClient, User } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   registerDeviceSchema,
   registerSchema,
+  resetPasswordSchema,
   updateMeSchema,
+  verifyEmailSchema,
   type AuthResponse,
 } from "@koinonia/shared";
 import { SESSION_DAYS } from "../app";
@@ -29,11 +32,86 @@ async function createSession(prisma: PrismaClient, userId: string, now: Date): P
 // Verified against when the email is unknown, so response time doesn't reveal which emails exist.
 const DUMMY_HASH = hashPassword("not-a-real-password");
 
+const RESET_TTL_MS = 60 * 60_000; // 1 hour
+const VERIFY_TTL_MS = 3 * 86_400_000; // 3 days
+const BAD_LINK = "That link or code is invalid or has expired. Ask for a new one.";
+
 const MAX_FAILED_LOGINS = 8;
 const LOCKOUT_MS = 15 * 60_000;
 
 export async function authRoutes(app: FastifyInstance) {
-  const { prisma, now } = app.deps;
+  const { prisma, now, providers, env } = app.deps;
+  const webUrl = env.WEB_URL.replace(/\/+$/, "");
+
+  /** Issues a fresh single-use token of one kind (replacing unused older ones) and emails it. */
+  async function sendAuthEmail(user: User, kind: AuthTokenKind) {
+    const token = newToken();
+    const ttl = kind === "PASSWORD_RESET" ? RESET_TTL_MS : VERIFY_TTL_MS;
+    await prisma.$transaction([
+      prisma.authToken.deleteMany({ where: { userId: user.id, kind, usedAt: null } }),
+      prisma.authToken.create({
+        data: { userId: user.id, kind, tokenHash: hashToken(token), expiresAt: new Date(now().getTime() + ttl) },
+      }),
+    ]);
+    const first = user.name.split(" ")[0];
+    const message =
+      kind === "PASSWORD_RESET"
+        ? {
+            subject: "Reset your Koinonia password",
+            text: [
+              `Hi ${first},`,
+              "",
+              "Someone asked to reset the password for this Koinonia account. If it was you, open this link within one hour:",
+              "",
+              `${webUrl}/reset-password?token=${token}`,
+              "",
+              "In the iPhone app, choose \"I have a reset code\" and paste this code:",
+              "",
+              token,
+              "",
+              "If it wasn't you, ignore this email. Your password stays the same.",
+            ].join("\n"),
+          }
+        : {
+            subject: "Confirm your email for Koinonia",
+            text: [
+              `Hi ${first},`,
+              "",
+              "Confirm this is your email address by opening this link:",
+              "",
+              `${webUrl}/verify-email?token=${token}`,
+              "",
+              "In the iPhone app, go to Profile, choose \"Enter code\" and paste this code:",
+              "",
+              token,
+              "",
+              "The link works once and expires in three days.",
+            ].join("\n"),
+          };
+    await providers.email.send({ to: user.email, ...message });
+  }
+  /** Email problems must never fail (or slow) the request that triggered them. */
+  const sendInBackground = (user: User, kind: AuthTokenKind) => {
+    const done = sendAuthEmail(user, kind).catch((err) => app.log.error(err, "auth email failed"));
+    pending.add(done);
+    void done.finally(() => pending.delete(done));
+  };
+  const pending = new Set<Promise<unknown>>();
+  app.addHook("onClose", async () => {
+    await Promise.allSettled([...pending]);
+  });
+
+  /** Atomically spends a token: valid only if unused and unexpired, and never twice. */
+  async function consumeToken(token: string, kind: AuthTokenKind) {
+    const tokenHash = hashToken(token);
+    const { count } = await prisma.authToken.updateMany({
+      where: { tokenHash, kind, usedAt: null, expiresAt: { gt: now() } },
+      data: { usedAt: now() },
+    });
+    if (!count) throw badRequest(BAD_LINK, { token: "Invalid or expired" });
+    return prisma.authToken.findUniqueOrThrow({ where: { tokenHash }, include: { user: true } });
+  }
+
   // Failed sign-ins per email, so guessing one account's password is slow no matter how many
   // IP addresses it comes from. In memory: fine for one API instance; move to the database
   // or Redis when there are several.
@@ -72,6 +150,7 @@ export async function authRoutes(app: FastifyInstance) {
         lastSeenAt: now(),
       },
     });
+    sendInBackground(user, "EMAIL_VERIFY");
     reply.status(201);
     return { token: await createSession(prisma, user.id, now()), user: toUser(user) };
   });
@@ -90,6 +169,47 @@ export async function authRoutes(app: FastifyInstance) {
     await prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lte: now() } } });
     await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: now() } });
     return { token: await createSession(prisma, user.id, now()), user: toUser(user) };
+  });
+
+  /**
+   * Always answers 204, whether or not the email has an account, so it can't be used to
+   * find out who is registered. The email (if any) is sent after the response.
+   */
+  app.post("/auth/forgot-password", strict, async (request, reply) => {
+    const input = parse(forgotPasswordSchema, request.body);
+    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    if (user && !user.disabledAt) sendInBackground(user, "PASSWORD_RESET");
+    return reply.status(204).send();
+  });
+
+  app.post("/auth/reset-password", strict, async (request, reply) => {
+    const input = parse(resetPasswordSchema, request.body);
+    const { user } = await consumeToken(input.token, "PASSWORD_RESET");
+    if (user.disabledAt) throw badRequest(BAD_LINK, { token: "Invalid or expired" });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        // Using an emailed link also proves the address is theirs.
+        data: { passwordHash: await hashPassword(input.password), emailVerifiedAt: user.emailVerifiedAt ?? now() },
+      }),
+      // Whoever knew the old password is signed out everywhere.
+      prisma.session.deleteMany({ where: { userId: user.id } }),
+      prisma.authToken.deleteMany({ where: { userId: user.id, kind: "PASSWORD_RESET", usedAt: null } }),
+    ]);
+    failures.delete(user.email);
+    return reply.status(204).send();
+  });
+
+  app.post("/auth/verify-email", strict, async (request, reply) => {
+    const input = parse(verifyEmailSchema, request.body);
+    const { user } = await consumeToken(input.token, "EMAIL_VERIFY");
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: user.emailVerifiedAt ?? now() } });
+    return reply.status(204).send();
+  });
+
+  app.post("/auth/resend-verification", { preHandler: app.authenticate, ...strict }, async (request, reply) => {
+    if (!request.auth.user.emailVerifiedAt) sendInBackground(request.auth.user, "EMAIL_VERIFY");
+    return reply.status(204).send();
   });
 
   app.post("/auth/logout", { preHandler: app.authenticate }, async (request, reply) => {

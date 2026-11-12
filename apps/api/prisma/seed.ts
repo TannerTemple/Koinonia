@@ -112,7 +112,7 @@ async function main() {
   await prisma.user.deleteMany({ where: { email: { endsWith: "@koinonia.app" } } });
 
   await prisma.user.create({
-    data: { email: "admin@koinonia.app", name: "Koinonia Admin", role: "ADMIN", timezone: TZ, passwordHash: await hashPassword("koinonia-admin") },
+    data: { email: "admin@koinonia.app", name: "Koinonia Admin", role: "ADMIN", timezone: TZ, emailVerifiedAt: new Date(), passwordHash: await hashPassword("koinonia-admin") },
   });
   // A few other members, so "Find people" and the admin screen have something to show.
   for (const [name, email, phone] of [
@@ -120,11 +120,11 @@ async function main() {
     ["Sarah Whitfield", "sarah@koinonia.app", "+16175550104"],
     ["Maria Lopez", "maria@koinonia.app", "+13125550150"],
   ] as const) {
-    await prisma.user.create({ data: { email, name, phone, timezone: TZ, passwordHash: await hashPassword("koinonia-demo") } });
+    await prisma.user.create({ data: { email, name, phone, timezone: TZ, emailVerifiedAt: new Date(), passwordHash: await hashPassword("koinonia-demo") } });
   }
 
   const user = await prisma.user.create({
-    data: { email: "demo@koinonia.app", name: "Tanner Temple", phone: "+13125550100", timezone: TZ, passwordHash: await hashPassword("koinonia-demo"), lastSeenAt: new Date() },
+    data: { email: "demo@koinonia.app", name: "Tanner Temple", phone: "+13125550100", timezone: TZ, emailVerifiedAt: new Date(), passwordHash: await hashPassword("koinonia-demo"), lastSeenAt: new Date() },
   });
 
   const logPrayers = async (intentionId: string, daysAgo: number[]) => {

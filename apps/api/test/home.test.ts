@@ -111,12 +111,13 @@ describe("daily digest", () => {
     const deps = { prisma, providers: ctx.providers, env };
     const first = await runDigest(deps, new Date(NOW));
     expect(first).toEqual({ considered: 2, sent: 1 });
-    expect(ctx.providers.email.sent).toHaveLength(1);
-    expect(ctx.providers.email.sent[0]).toMatchObject({
+    const digests = ctx.providers.email.sent.filter((m) => !m.subject.startsWith("Confirm your email"));
+    expect(digests).toHaveLength(1);
+    expect(digests[0]).toMatchObject({
       to: "tanner@example.com",
       subject: "Reach out to Overdue Olive and Today Tom today",
     });
-    expect(ctx.providers.email.sent[0]!.text).toContain("Overdue Olive — 16 days overdue");
+    expect(digests[0]!.text).toContain("Overdue Olive — 16 days overdue");
     expect(ctx.providers.push.sent[0]).toMatchObject({ tokens: ["ExponentPushToken[abc]"] });
     expect(ctx.providers.sms.sent[0]).toMatchObject({ to: "+15550102000" });
 
@@ -129,11 +130,12 @@ describe("daily digest", () => {
   it("waits for the digest hour and respects the opt-out", async () => {
     await seedPeople();
     const deps = { prisma, providers: ctx.providers, env };
-    const before = ctx.providers.email.sent.length;
+    const digestCount = () => ctx.providers.email.sent.filter((m) => !m.subject.startsWith("Confirm your email")).length;
+    const before = digestCount();
     expect((await runDigest(deps, new Date("2026-11-12T05:00:00Z"))).sent).toBe(0);
     await api.call("PATCH", "/me", { digestEnabled: false });
     expect((await runDigest(deps, new Date(NOW))).sent).toBe(0);
-    expect(ctx.providers.email.sent.length).toBe(before);
+    expect(digestCount()).toBe(before);
   });
 });
 

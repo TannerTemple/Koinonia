@@ -18,6 +18,7 @@ export function toUser(row: UserRow): User {
   return {
     id: row.id,
     email: row.email,
+    emailVerified: row.emailVerifiedAt !== null,
     name: row.name,
     phone: row.phone,
     role: row.role,

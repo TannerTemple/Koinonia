@@ -32,3 +32,8 @@ One line each: the decision and why. Newest at the bottom.
 28. **Login lockout is per email, in memory (8 wrong passwords → 15 minutes)** — stops password guessing across IPs with no new infrastructure; noted in REVIEW.md as something to move to shared storage when there is more than one API instance.
 29. **`TRUST_PROXY` is off by default** — forwarded-IP headers are only believed when the owner says the API is behind a proxy, otherwise rate limits can be dodged.
 30. **Phone search matches the exact number only** — suffix matching let members' numbers be fished out.
+31. **The four mobile flows (add note, add intention, log reach-out, mark prayed) were verified in the browser preview against the live API; no app bugs found** — the earlier failures were test selectors. The throwaway script was not added to the repo (it needs Playwright, which is not a project dependency).
+32. **Reset and verification emails carry a web link and the same secret as a pasteable code for the iPhone app** — works on mobile without universal links (which need a real domain and Apple setup); the code is the full 256-bit token, so it needs no guess-limiting.
+33. **Unverified accounts keep full access and see a "Confirm your email" banner** — blocking a free personal app behind verification costs sign-ups; verification mainly protects password reset.
+34. **Reset links last 1 hour, verification links 3 days; a new request cancels older unused ones; a reset signs out every session and marks the email verified.**
+35. **Forgot-password always answers 204 and sends the email after responding** — neither the response nor its timing reveals whether an account exists.

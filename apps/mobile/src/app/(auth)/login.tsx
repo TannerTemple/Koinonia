@@ -44,6 +44,9 @@ export default function LoginScreen() {
           <Field label="Password" value={password} onChangeText={setPassword} error={errors.password} secureTextEntry textContentType="password" autoComplete="current-password" returnKeyType="go" onSubmitEditing={submit} />
           <FormError error={error} />
           <Button label="Sign in" loading={loading} disabled={!email || !password} onPress={submit} />
+          <Link href="/forgot-password" style={{ color: c.primary, fontWeight: "700", fontSize: 15, textAlign: "center", padding: space.sm }}>
+            Forgot password?
+          </Link>
           <Link href="/register" style={{ color: c.primary, fontWeight: "700", fontSize: 16, textAlign: "center", padding: space.sm }}>
             New here? Create an account
           </Link>

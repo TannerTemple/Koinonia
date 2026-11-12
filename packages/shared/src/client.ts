@@ -11,6 +11,7 @@ import type {
   CreateContactInput,
   CreateIntentionInput,
   CreateNoteInput,
+  ForgotPasswordInput,
   Home,
   ImportContactsInput,
   ImportResult,
@@ -21,6 +22,7 @@ import type {
   Note,
   PrayerToday,
   ReachOutInput,
+  ResetPasswordInput,
   RegisterDeviceInput,
   RegisterInput,
   SnoozeInput,
@@ -30,6 +32,7 @@ import type {
   UpdateNoteInput,
   User,
   UserSearchResult,
+  VerifyEmailInput,
 } from "./schemas";
 
 export class ApiError extends Error {
@@ -109,6 +112,11 @@ export function createApiClient(options: ApiClientOptions) {
       register: (input: RegisterInput) => post<AuthResponse>("/auth/register", input),
       login: (input: LoginInput) => post<AuthResponse>("/auth/login", input),
       logout: () => post<void>("/auth/logout"),
+      /** Always succeeds, whether or not the email has an account. */
+      forgotPassword: (input: ForgotPasswordInput) => post<void>("/auth/forgot-password", input),
+      resetPassword: (input: ResetPasswordInput) => post<void>("/auth/reset-password", input),
+      verifyEmail: (input: VerifyEmailInput) => post<void>("/auth/verify-email", input),
+      resendVerification: () => post<void>("/auth/resend-verification"),
     },
     me: {
       get: () => get<User>("/me"),

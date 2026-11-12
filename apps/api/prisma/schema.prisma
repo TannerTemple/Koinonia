@@ -20,6 +20,11 @@ enum Channel {
   OTHER
 }
 
+enum AuthTokenKind {
+  PASSWORD_RESET
+  EMAIL_VERIFY
+}
+
 enum IntentionKind {
   PROMISED
   PERSONAL
@@ -49,6 +54,8 @@ model User {
   lastDigestDay String?
   /// Secret for the private calendar (.ics) feed URL
   calendarToken String?   @unique
+  /// Set when the user proves they control the email address
+  emailVerifiedAt DateTime?
   disabledAt    DateTime?
   lastSeenAt    DateTime?
   createdAt     DateTime  @default(now())
@@ -63,6 +70,7 @@ model User {
   prayerLogs      PrayerLog[]
   dailyIntentions DailyIntention[]
   devices         PushDevice[]
+  authTokens      AuthToken[]
 
   @@index([phone])
 }
@@ -78,6 +86,21 @@ model Session {
   createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+/// Emailed one-time secrets (password reset, email verification). Only the hash is stored.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      AuthTokenKind
+  /// SHA-256 of the emailed token
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, kind])
 }
 
 /// A person the user wants to stay in touch with. Days are "YYYY-MM-DD" in the owner's timezone.

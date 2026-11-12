@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Linking, Switch, Text, View } from "react-native";
 import type { Streak } from "@koinonia/shared";
@@ -48,7 +49,8 @@ export default function ProfileScreen() {
   const user = useUser();
   const { signOut, setUser } = useAuth();
   const { data: home, refetch } = useHome();
-  const refresh = useRefresh(refetch);
+  // Pulling to refresh also picks up an email confirmed from the link in a browser.
+  const refresh = useRefresh(refetch, async () => setUser(await api.me.get()));
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone ?? "");
   const [notifications, setNotifications] = useState(false);
@@ -56,6 +58,7 @@ export default function ProfileScreen() {
   const save = useAction(() => api.me.update({ name, phone }));
   const prefs = useAction((input: { discoverable?: boolean; digestEnabled?: boolean }) => api.me.update(input));
   const remove = useAction(api.me.delete);
+  const resend = useAction(api.auth.resendVerification);
 
   useEffect(() => {
     void remindersAllowed().then(setNotifications);
@@ -94,6 +97,20 @@ export default function ProfileScreen() {
           <Body muted>{user.email}</Body>
         </View>
       </View>
+
+      {user.emailVerified ? null : (
+        <Card style={{ padding: space.lg, gap: space.sm }}>
+          <Text style={{ fontSize: 16, fontWeight: "700", color: c.text }}>Confirm your email</Text>
+          <Body muted style={{ fontSize: 14 }}>
+            {resend.isSuccess ? `A new email is on its way to ${user.email}.` : `We sent a link and a code to ${user.email}. Confirming lets you reset your password if you ever forget it.`}
+          </Body>
+          <FormError error={resend.error} />
+          <View style={{ flexDirection: "row", gap: space.sm }}>
+            <Button small label="Enter code" style={{ flex: 1 }} onPress={() => router.push("/verify-email")} />
+            <Button small variant="secondary" label={resend.isSuccess ? "Sent" : "Resend email"} style={{ flex: 1 }} loading={resend.isPending} disabled={resend.isSuccess} onPress={() => resend.mutate(undefined)} />
+          </View>
+        </Card>
+      )}
 
       {home ? (
         <View>

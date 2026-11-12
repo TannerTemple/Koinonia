@@ -39,6 +39,11 @@ export default function LoginPage() {
       <Field label="Password" error={errors.password}>
         {(p) => <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
       </Field>
+      <p className="-mt-2 text-right text-sm">
+        <Link href="/forgot-password" className="font-semibold text-primary underline-offset-2 hover:underline">
+          Forgot password?
+        </Link>
+      </p>
       <FormError error={error} />
       <Button type="submit" loading={loading} className="w-full">
         Sign in
