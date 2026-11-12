@@ -103,10 +103,10 @@ counters to drift.
 - [x] Tests for each endpoint
 
 ### 3. Web app core
-- [ ] Design system (Marian blue / forest, light + dark)
-- [ ] Auth pages, app shell (responsive)
-- [ ] Today, People, Person detail, Add/Edit, Prayer, Settings, Admin, Find people
-- [ ] Production build passes
+- [x] Design system (Marian blue / forest, light + dark)
+- [x] Auth pages, app shell (responsive)
+- [x] Today, People, Person detail, Add/Edit, Prayer, Settings, Admin, Find people
+- [x] Production build passes
 
 ### 4. iOS app core
 - [ ] Expo app, theme, auth with secure token storage
