@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Koinonia",
+    "slug": "koinonia",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "koinonia",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.koinonia.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.koinonia.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1B2F66",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1B2F66",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Koinonia reads your contacts only when you choose to import people you want to stay in touch with."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2B4C9B"
+        }
+      ]
+    ]
+  }
+}
