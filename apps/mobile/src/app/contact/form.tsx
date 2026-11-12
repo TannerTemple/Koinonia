@@ -1,21 +1,12 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, View } from "react-native";
-import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, MAX_CADENCE_DAYS, addDays, type Channel } from "@koinonia/shared";
+import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, MAX_CADENCE_DAYS, type Channel } from "@koinonia/shared";
 import { Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
+import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
 import { useAction, useContact, useToday } from "@/lib/hooks";
 import { space } from "@/lib/theme";
-
-/** "When did you last talk?" without a date picker: rough answers are all the clock needs. */
-const LAST_TALKED: [string, number | null][] = [
-  ["Not sure", null],
-  ["Today", 0],
-  ["This week", 3],
-  ["~2 weeks ago", 14],
-  ["~1 month ago", 30],
-  ["3+ months ago", 90],
-];
 
 export default function ContactFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -31,7 +22,7 @@ export default function ContactFormScreen() {
   const [cadenceDays, setCadenceDays] = useState<number | null>(14);
   const [custom, setCustom] = useState(false);
   const [preferredChannel, setChannel] = useState<Channel>("TEXT");
-  const [lastTalked, setLastTalked] = useState<number | null>(null);
+  const [lastTalked, setLastTalked] = useState<string | null>(null);
 
   useEffect(() => {
     const c = existing.data;
@@ -49,7 +40,7 @@ export default function ContactFormScreen() {
 
   const save = useAction(() => {
     const input = { name, phone, email, relationship, birthday, cadenceDays, preferredChannel };
-    return id ? api.contacts.update(id, input) : api.contacts.create({ ...input, lastContactedDay: lastTalked === null ? null : addDays(today, -lastTalked) });
+    return id ? api.contacts.update(id, input) : api.contacts.create({ ...input, lastContactedDay: lastTalked });
   });
   const archive = useAction((archived: boolean) => api.contacts.update(id!, { archived }));
   const remove = useAction(() => api.contacts.delete(id!));
@@ -101,14 +92,7 @@ export default function ContactFormScreen() {
       </View>
 
       {!id ? (
-        <View>
-          <Label>When did you last talk?</Label>
-          <ChipRow>
-            {LAST_TALKED.map(([label, days]) => (
-              <Chip key={label} label={label} selected={lastTalked === days} onPress={() => setLastTalked(days)} />
-            ))}
-          </ChipRow>
-        </View>
+        <DateField label="When did you last talk?" value={lastTalked} onChange={setLastTalked} today={today} maxDay={today} emptyLabel="Not sure" hint="Optional. The first reminder counts from this day." />
       ) : null}
 
       <FormError error={save.error} />

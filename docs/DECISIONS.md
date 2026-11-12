@@ -37,3 +37,4 @@ One line each: the decision and why. Newest at the bottom.
 33. **Unverified accounts keep full access and see a "Confirm your email" banner** — blocking a free personal app behind verification costs sign-ups; verification mainly protects password reset.
 34. **Reset links last 1 hour, verification links 3 days; a new request cancels older unused ones; a reset signs out every session and marks the email verified.**
 35. **Forgot-password always answers 204 and sends the email after responding** — neither the response nor its timing reveals whether an account exists.
+36. **The mobile date picker is a small in-house month calendar (pure React Native), replacing the quick choices of decision 22** — no native module, so it works in Expo Go, a development build and the browser preview alike, and could be verified here; `@react-native-community/datetimepicker` could not be run without a simulator. Used for note follow-ups, reach-out day and "last talked".

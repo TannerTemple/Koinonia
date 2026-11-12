@@ -2,26 +2,20 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { CHANNELS, CHANNEL_LABELS, addDays, cadenceLabel, type Channel } from "@koinonia/shared";
+import { CHANNELS, CHANNEL_LABELS, cadenceLabel, type Channel } from "@koinonia/shared";
 import { Body, Button, Chip, ChipRow, ErrorState, Field, FormError, Label, Loading, Screen, Title } from "@/components/ui";
+import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
 import { useAction, useContact, useToday } from "@/lib/hooks";
-
-const WHEN: [string, number][] = [
-  ["Today", 0],
-  ["Yesterday", 1],
-  ["2 days ago", 2],
-  ["Last week", 7],
-];
 
 export default function ReachOutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const today = useToday();
   const { data: contact, error, isPending, refetch } = useContact(id);
   const [channel, setChannel] = useState<Channel | null>(null);
-  const [daysAgo, setDaysAgo] = useState(0);
+  const [day, setDay] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
-  const log = useAction(() => api.contacts.reachOut(id, { channel: channel ?? undefined, summary, day: addDays(today, -daysAgo) }));
+  const log = useAction(() => api.contacts.reachOut(id, { channel: channel ?? undefined, summary, day: day ?? today }));
 
   useEffect(() => {
     if (contact && !channel) setChannel(contact.preferredChannel);
@@ -44,14 +38,7 @@ export default function ReachOutScreen() {
           ))}
         </ChipRow>
       </View>
-      <View>
-        <Label>When?</Label>
-        <ChipRow>
-          {WHEN.map(([label, n]) => (
-            <Chip key={label} label={label} selected={daysAgo === n} onPress={() => setDaysAgo(n)} />
-          ))}
-        </ChipRow>
-      </View>
+      <DateField label="When?" value={day ?? today} onChange={(d) => setDay(d)} today={today} maxDay={today} />
       <Field label="Anything to remember?" hint="Optional. Shows up in their history." value={summary} onChangeText={setSummary} multiline maxLength={500} placeholder="She got the job! Starts in January." />
       <FormError error={log.error} />
       <Button
