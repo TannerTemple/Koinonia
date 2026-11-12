@@ -109,19 +109,19 @@ counters to drift.
 - [x] Production build passes
 
 ### 4. iOS app core
-- [ ] Expo app, theme, auth with secure token storage
-- [ ] Tabs: Today, People, Prayer, Profile
-- [ ] Person detail, add/edit, notes, reach-out, snooze
-- [ ] Import from device contacts
-- [ ] Local notifications for due reach-outs
-- [ ] Typecheck, lint, `expo export` for iOS succeeds
+- [x] Expo app, theme, auth with secure token storage
+- [x] Tabs: Today, People, Prayer, Profile
+- [x] Person detail, add/edit, notes, reach-out, snooze
+- [x] Import from device contacts
+- [x] Local notifications for due reach-outs
+- [x] Typecheck, lint, `expo export` for iOS succeeds
 
 ### 5. Nice-to-haves
-- [ ] Calendar feed (.ics) of upcoming reach-outs
-- [ ] Message templates / share invite
-- [ ] Birthdays on Today
+- [x] Calendar feed (.ics) of upcoming reach-outs
+- [x] Conversation starters and invite sharing
+- [x] Birthdays on Today
 
 ### 6. Polish
-- [ ] Empty / loading / error states
-- [ ] Accessibility pass
-- [ ] README, final STATUS
+- [x] Empty / loading / error states
+- [x] Accessibility pass
+- [x] README, final STATUS

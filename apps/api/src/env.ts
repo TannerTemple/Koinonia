@@ -10,7 +10,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   PORT: z.coerce.number().int().default(4000),
   HOST: z.string().default("0.0.0.0"),
-  CORS_ORIGINS: z.string().default("http://localhost:3000"),
+  CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:8081"),
   WEB_URL: z.string().default("http://localhost:3000"),
   API_PUBLIC_URL: z.string().optional(),
   DIGEST_ENABLED: bool,

@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { ApiError } from "@koinonia/shared";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { serif, useTheme } from "@/lib/theme";
@@ -20,6 +21,7 @@ function RootStack() {
 
   // Tapping a reminder opens the screen it is about.
   useEffect(() => {
+    if (Platform.OS === "web") return;
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const url = response.notification.request.content.data?.url;
       if (typeof url === "string") router.push(url as never);

@@ -1,10 +1,14 @@
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 import type { Home } from "@koinonia/shared";
 import { api } from "./api";
 import { planReminders } from "./reminder-plan";
 
-Notifications.setNotificationHandler({
+/** Local notifications are a native feature; the browser preview skips them. */
+const supported = Platform.OS !== "web";
+
+if (supported) Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
@@ -14,12 +18,14 @@ Notifications.setNotificationHandler({
 });
 
 export async function remindersAllowed(): Promise<boolean> {
+  if (!supported) return false;
   const { granted } = await Notifications.getPermissionsAsync();
   return granted;
 }
 
 /** Asks for notification permission (only prompts the first time). */
 export async function enableReminders(): Promise<boolean> {
+  if (!supported) return false;
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   if (!current.canAskAgain) return false;
@@ -48,6 +54,7 @@ export async function syncReminders(home: Home): Promise<number> {
 }
 
 export async function clearReminders() {
+  if (!supported) return;
   await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
   await Notifications.setBadgeCountAsync(0).catch(() => undefined);
 }

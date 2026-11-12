@@ -23,3 +23,8 @@ One line each: the decision and why. Newest at the bottom.
 19. **A new person's first reminder is one full interval from today** (unless you say when you last talked) — importing 50 contacts shouldn't make 50 people "due today".
 20. **Real adapters for Resend (email), Twilio (SMS) and Expo push are included but only switch on when their keys are set** — mocks are the default and the only ones covered by tests.
 21. **Calendar integration is a private subscribe-able .ics feed** — works with Apple/Google Calendar with no OAuth or API keys.
+22. **Mobile date entry uses quick choices ("Tomorrow", "Next week", "~2 weeks ago") rather than a calendar picker** — faster on a phone and avoids another native dependency that couldn't be tested here.
+23. **The mobile app also runs in a browser (`expo start --web`)** — the only way to exercise its screens without a simulator; the web-only tab layout and storage fallback never ship in the iOS build.
+24. **Contact import uses `expo-contacts/legacy`** — SDK 58 moved the default export to a new API; the legacy entry point is the documented, stable one.
+25. **Bundle identifier `com.koinonia.app` is a placeholder** — the owner must pick one they can register with Apple.
+26. **Mobile preview test automation was stopped at the owner's instruction** after the selector kept matching hidden stacked screens; the unverified flows are listed in STATUS.md.
