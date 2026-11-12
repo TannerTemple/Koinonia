@@ -28,3 +28,4 @@ One line each: the decision and why. Newest at the bottom.
 24. **Contact import uses `expo-contacts/legacy`** — SDK 58 moved the default export to a new API; the legacy entry point is the documented, stable one.
 25. **Bundle identifier `com.koinonia.app` is a placeholder** — the owner must pick one they can register with Apple.
 26. **Mobile preview test automation was stopped at the owner's instruction** after the selector kept matching hidden stacked screens; the unverified flows are listed in STATUS.md.
+27. **`prisma generate` runs from the API package's `postinstall` (and again after `db:migrate`)** — a fresh clone works with only the commands in STATUS.md.
