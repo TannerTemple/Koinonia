@@ -29,3 +29,6 @@ One line each: the decision and why. Newest at the bottom.
 25. **Bundle identifier `com.koinonia.app` is a placeholder** — the owner must pick one they can register with Apple.
 26. **Mobile preview test automation was stopped at the owner's instruction** after the selector kept matching hidden stacked screens; the unverified flows are listed in STATUS.md.
 27. **`prisma generate` runs from the API package's `postinstall` (and again after `db:migrate`)** — a fresh clone works with only the commands in STATUS.md.
+28. **Login lockout is per email, in memory (8 wrong passwords → 15 minutes)** — stops password guessing across IPs with no new infrastructure; noted in REVIEW.md as something to move to shared storage when there is more than one API instance.
+29. **`TRUST_PROXY` is off by default** — forwarded-IP headers are only believed when the owner says the API is behind a proxy, otherwise rate limits can be dodged.
+30. **Phone search matches the exact number only** — suffix matching let members' numbers be fished out.

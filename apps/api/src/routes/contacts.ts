@@ -33,7 +33,7 @@ export async function contactRoutes(app: FastifyInstance) {
       where: {
         userId: request.auth.user.id,
         archivedAt: archived === "true" ? { not: null } : null,
-        ...(q?.trim() ? { name: { contains: q.trim(), mode: "insensitive" as const } } : {}),
+        ...(q?.trim() ? { name: { contains: q.trim().slice(0, 80), mode: "insensitive" as const } } : {}),
       },
       include: contactCounts,
       orderBy: { name: "asc" },

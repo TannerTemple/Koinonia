@@ -86,6 +86,8 @@ export async function prayerRoutes(app: FastifyInstance) {
       where: { intentionId_day: { intentionId: current.id, day: today } },
     });
     if (already) return toIntention(current, today);
+    // Two taps at once: the unique (intention, day) index rejects the second; the error
+    // handler turns that into a 409 rather than double-counting.
     const [, row] = await prisma.$transaction([
       prisma.prayerLog.create({ data: { userId: user.id, intentionId: current.id, day: today } }),
       prisma.prayerIntention.update({

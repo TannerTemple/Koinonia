@@ -35,7 +35,7 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Querystring: { q?: string } }>("/admin/users", async (request) => {
-    const q = request.query.q?.trim();
+    const q = request.query.q?.trim().slice(0, 100);
     const rows = await prisma.user.findMany({
       where: q
         ? {

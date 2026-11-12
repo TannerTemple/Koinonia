@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { call, createTestApp, prisma, resetDb, signUp, type TestContext } from "./helpers";
+import { call, createTestApp, NOW, prisma, resetDb, signUp, type TestContext } from "./helpers";
 
 let ctx: TestContext;
 beforeAll(async () => {
@@ -51,6 +51,24 @@ describe("auth", () => {
     expect(ok.status).toBe(200);
     const me = await call(ctx.app, "GET", "/me", undefined, ok.body.token);
     expect(me.body.email).toBe(creds.email);
+  });
+
+  it("locks an email out after repeated wrong passwords, then lets it back in", async () => {
+    const who = { ...creds, email: "locked@example.com" };
+    await call(ctx.app, "POST", "/auth/register", who);
+    for (let i = 0; i < 8; i++) {
+      const res = await call(ctx.app, "POST", "/auth/login", { email: who.email, password: "wrong password" });
+      expect(res.status).toBe(401);
+    }
+    // Even the right password is refused while locked out.
+    const locked = await call(ctx.app, "POST", "/auth/login", { email: who.email, password: who.password });
+    expect(locked.status).toBe(429);
+    expect(locked.body.error.code).toBe("RATE_LIMITED");
+
+    ctx.setNow("2026-11-12T12:16:00Z");
+    const later = await call(ctx.app, "POST", "/auth/login", { email: who.email, password: who.password });
+    expect(later.status).toBe(200);
+    ctx.setNow(NOW);
   });
 
   it("requires a valid token", async () => {

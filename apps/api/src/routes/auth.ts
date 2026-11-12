@@ -10,7 +10,7 @@ import {
 } from "@koinonia/shared";
 import { SESSION_DAYS } from "../app";
 import { hashPassword, hashToken, newToken, verifyPassword } from "../lib/crypto";
-import { badRequest, conflict, forbidden, parse, unauthorized } from "../lib/errors";
+import { badRequest, conflict, forbidden, parse, tooMany, unauthorized } from "../lib/errors";
 import { toUser } from "../lib/serialize";
 
 async function createSession(prisma: PrismaClient, userId: string, now: Date): Promise<string> {
@@ -29,8 +29,31 @@ async function createSession(prisma: PrismaClient, userId: string, now: Date): P
 // Verified against when the email is unknown, so response time doesn't reveal which emails exist.
 const DUMMY_HASH = hashPassword("not-a-real-password");
 
+const MAX_FAILED_LOGINS = 8;
+const LOCKOUT_MS = 15 * 60_000;
+
 export async function authRoutes(app: FastifyInstance) {
   const { prisma, now } = app.deps;
+  // Failed sign-ins per email, so guessing one account's password is slow no matter how many
+  // IP addresses it comes from. In memory: fine for one API instance; move to the database
+  // or Redis when there are several.
+  const failures = new Map<string, { count: number; resetAt: number }>();
+  const lockedOut = (email: string) => {
+    const entry = failures.get(email);
+    if (!entry) return false;
+    if (entry.resetAt <= now().getTime()) {
+      failures.delete(email);
+      return false;
+    }
+    return entry.count >= MAX_FAILED_LOGINS;
+  };
+  const recordFailure = (email: string) => {
+    if (failures.size > 50_000) failures.clear();
+    const at = now().getTime();
+    const entry = failures.get(email);
+    if (entry && entry.resetAt > at) entry.count += 1;
+    else failures.set(email, { count: 1, resetAt: at + LOCKOUT_MS });
+  };
   const strict = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
   app.post("/auth/register", strict, async (request, reply): Promise<AuthResponse> => {
@@ -55,10 +78,16 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post("/auth/login", strict, async (request): Promise<AuthResponse> => {
     const input = parse(loginSchema, request.body);
+    if (lockedOut(input.email)) throw tooMany("Too many sign-in attempts. Try again in 15 minutes.");
     const user = await prisma.user.findUnique({ where: { email: input.email } });
     const ok = await verifyPassword(input.password, user?.passwordHash ?? (await DUMMY_HASH));
-    if (!user || !ok) throw unauthorized("That email and password don't match.");
+    if (!user || !ok) {
+      recordFailure(input.email);
+      throw unauthorized("That email and password don't match.");
+    }
+    failures.delete(input.email);
     if (user.disabledAt) throw forbidden("This account has been disabled.");
+    await prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lte: now() } } });
     await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: now() } });
     return { token: await createSession(prisma, user.id, now()), user: toUser(user) };
   });

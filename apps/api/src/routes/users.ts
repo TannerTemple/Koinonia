@@ -13,7 +13,7 @@ export async function userRoutes(app: FastifyInstance) {
     "/users/search",
     { preHandler: app.authenticate, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (request): Promise<UserSearchResult[]> => {
-      const q = (request.query.q ?? "").trim();
+      const q = (request.query.q ?? "").trim().slice(0, 100);
       if (q.length < 2) return [];
       const me = request.auth.user.id;
 
@@ -25,8 +25,14 @@ export async function userRoutes(app: FastifyInstance) {
         match = { email: q.toLowerCase() };
       } else if (digits.length >= 7 && /^[\d\s()+.-]+$/.test(q)) {
         matchedBy = "phone";
-        // Match with or without a country code.
-        match = { OR: [{ phone: normalizePhone(q) }, { phone: { endsWith: digits.slice(-10) } }] };
+        // Exact number only. A full 10-digit number also matches with or without a country
+        // code; a shorter fragment never matches, so numbers can't be fished out by suffix.
+        match = {
+          OR: [
+            { phone: normalizePhone(q) },
+            ...(digits.length >= 10 ? [{ phone: { endsWith: digits.slice(-10) } }] : []),
+          ],
+        };
       } else {
         match = { name: { contains: q, mode: "insensitive" } };
       }

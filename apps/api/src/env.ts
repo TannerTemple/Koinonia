@@ -13,6 +13,8 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:8081"),
   WEB_URL: z.string().default("http://localhost:3000"),
   API_PUBLIC_URL: z.string().optional(),
+  /** Only trust X-Forwarded-For when the API really sits behind a proxy. */
+  TRUST_PROXY: bool,
   DIGEST_ENABLED: bool,
   DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   DIGEST_SMS: bool,

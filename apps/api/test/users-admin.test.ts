@@ -30,6 +30,9 @@ describe("finding people on Koinonia", () => {
     const byPhone = await api.call("GET", `/users/search?q=${encodeURIComponent("(555) 010-2000")}`);
     expect(byPhone.body).toMatchObject([{ id: maria.userId, matchedBy: "phone" }]);
 
+    // A fragment of a number must not reveal the whole number.
+    expect((await api.call("GET", "/users/search?q=0102000")).body).toEqual([]);
+    expect((await api.call("GET", "/users/search?q=5550102000")).body).toHaveLength(1);
     expect((await api.call("GET", "/users/search?q=Searcher")).body).toEqual([]);
     expect((await api.call("GET", "/users/search?q=m")).body).toEqual([]);
   });

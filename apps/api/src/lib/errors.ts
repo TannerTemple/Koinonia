@@ -21,6 +21,9 @@ export const notFound = (what = "That") => new HttpError(404, "NOT_FOUND", `${wh
 export const conflict = (message: string, fields?: Record<string, string>) =>
   new HttpError(409, "CONFLICT", message, fields);
 
+export const tooMany = (message = "Too many attempts. Try again in a few minutes.") =>
+  new HttpError(429, "RATE_LIMITED", message);
+
 /** Validate input with a shared zod schema, turning issues into a field → message map. */
 export function parse<S extends z.ZodType>(schema: S, data: unknown): z.output<S> {
   const result = schema.safeParse(data ?? {});

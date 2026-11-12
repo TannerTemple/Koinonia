@@ -50,7 +50,7 @@ declare module "fastify" {
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const now = deps.now ?? (() => new Date());
-  const app = Fastify({ logger: deps.logger ?? false, trustProxy: true });
+  const app = Fastify({ logger: deps.logger ?? false, trustProxy: deps.env.TRUST_PROXY });
   app.decorate("deps", { prisma: deps.prisma, providers: deps.providers, env: deps.env, now });
   app.decorateRequest("auth", null as unknown as AuthContext);
 
@@ -102,6 +102,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply
         .status(error.status)
         .send({ error: { code: error.code, message: error.message, fields: error.fields } });
+    }
+    // Prisma: a unique-constraint race is a conflict, a vanished row is a 404 — not a 500.
+    const prismaCode = (error as { code?: string }).code;
+    if (prismaCode === "P2002") {
+      return reply.status(409).send({ error: { code: "CONFLICT", message: "That already exists." } });
+    }
+    if (prismaCode === "P2025") {
+      return reply.status(404).send({ error: { code: "NOT_FOUND", message: "That wasn't found." } });
     }
     const status = (error as { statusCode?: number }).statusCode;
     if (status && status < 500) {
