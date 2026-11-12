@@ -2,7 +2,7 @@
 
 _Last updated: end of the unattended build (all six milestones)._
 
-> **Not pushed yet.** This session only had read access to GitHub: every `git push` (and the GitHub API) returned 403, so the work is committed locally on `claude/great-turing-vdjm45` and no pull request could be opened. Fix: install the Claude GitHub App on `TannerTemple/Koinonia` (or reconnect GitHub in claude.ai settings), then ask the session to push and open the PR.
+> Pushed to `claude/great-turing-vdjm45` with a pull request open against `main`. (During the unattended build the session had read-only GitHub access, so the push and PR happened afterwards.)
 
 ## What's done and working
 
@@ -89,7 +89,7 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 
 ## What you need to do next
 
-1. **Give the session push access**, push the branch, open the PR, review it.
+1. **Review the pull request.**
 2. **Run the iOS app on a Mac**: `pnpm dev:mobile`, press `i`. Notifications and contact import need a development build rather than Expo Go: `npx expo run:ios` in `apps/mobile`, or `eas build --profile development --platform ios`.
 3. **Walk the four unverified mobile flows** (add note, add intention, log reach-out, pray) and fix anything that looks off.
 4. **Choose the real bundle identifier.** `com.koinonia.app` in `apps/mobile/app.json` is a placeholder; it must be one you register with Apple.
