@@ -1,0 +1,30 @@
+{
+  "name": "koinonia",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @koinonia/api --filter @koinonia/web dev",
+    "dev:api": "pnpm --filter @koinonia/api dev",
+    "dev:web": "pnpm --filter @koinonia/web dev",
+    "dev:mobile": "pnpm --filter @koinonia/mobile start",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "pnpm --filter @koinonia/api db:migrate",
+    "db:seed": "pnpm --filter @koinonia/api db:seed",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.6.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}
