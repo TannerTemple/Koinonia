@@ -354,6 +354,33 @@ export interface Home {
   stats: { contacts: number; reachOutsThisWeek: number; activeIntentions: number };
 }
 
+export interface WeekSummary {
+  /** First and last day of the 7-day window (inclusive). */
+  startDay: string;
+  endDay: string;
+  /** Reach-outs logged. */
+  reachOuts: number;
+  /** Different people reached. */
+  peopleReached: number;
+  /** Prayers said (one per intention per day). */
+  prayers: number;
+  /** Days with at least one reach-out / one prayer, out of 7. */
+  daysReachedOut: number;
+  daysPrayed: number;
+  /** One entry per day of the window, oldest first. */
+  days: { day: string; reachOuts: number; prayers: number }[];
+  /** Who was reached, most often first. */
+  people: { id: string; name: string; reachOuts: number }[];
+}
+
+/** The last 7 days (ending today) next to the 7 days before them. */
+export interface WeeklyReview {
+  today: string;
+  thisWeek: WeekSummary;
+  lastWeek: WeekSummary;
+  streaks: { reachOut: Streak; prayer: Streak };
+}
+
 // ---------------------------------------------------------------------------
 // People lookup, devices, admin
 // ---------------------------------------------------------------------------

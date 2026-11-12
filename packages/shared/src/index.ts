@@ -5,3 +5,4 @@ export * from "./schemas";
 export * from "./client";
 export * from "./theme";
 export * from "./templates";
+export * from "./review";

@@ -129,3 +129,21 @@ describe("templates", () => {
     expect(contactLink("EMAIL", { phone: null, email: null })).toBeNull();
   });
 });
+
+describe("weekly review wording", () => {
+  it("compares two weeks", async () => {
+    const { compareWeeks } = await import("./review");
+    expect(compareWeeks(5, 3)).toEqual({ direction: "up", label: "2 more than the week before" });
+    expect(compareWeeks(1, 4)).toEqual({ direction: "down", label: "3 fewer than the week before" });
+    expect(compareWeeks(2, 2)).toEqual({ direction: "same", label: "Same as the week before" });
+  });
+
+  it("writes a headline for any week", async () => {
+    const { weekHeadline } = await import("./review");
+    expect(weekHeadline(9, 12)).toBe("You reached 9 people and prayed 12 times this week.");
+    expect(weekHeadline(1, 1)).toBe("You reached 1 person and prayed once this week.");
+    expect(weekHeadline(3, 0)).toBe("You reached 3 people this week.");
+    expect(weekHeadline(0, 2)).toContain("prayed 2 times");
+    expect(weekHeadline(0, 0)).toContain("quiet week");
+  });
+});

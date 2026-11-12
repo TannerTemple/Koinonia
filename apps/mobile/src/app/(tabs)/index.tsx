@@ -51,6 +51,10 @@ function TodayHero({ home }: { home: Home }) {
         <Stat icon="heart" value={home.streaks.prayer.current} label="day prayer streak" lit={home.streaks.prayer.doneToday} />
         <Stat icon="checkmark-done" value={home.stats.reachOutsThisWeek} label="this week" />
       </View>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/review")} style={({ pressed }) => ({ minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: pressed ? 0.6 : 1 })}>
+        <Text style={{ color: c.onHero, fontWeight: "700", fontSize: 15 }}>See your week</Text>
+        <Ionicons name="arrow-forward" size={16} color={c.onHero} />
+      </Pressable>
     </Hero>
   );
 }

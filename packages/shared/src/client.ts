@@ -33,6 +33,7 @@ import type {
   User,
   UserSearchResult,
   VerifyEmailInput,
+  WeeklyReview,
 } from "./schemas";
 
 export class ApiError extends Error {
@@ -127,6 +128,7 @@ export function createApiClient(options: ApiClientOptions) {
       resetCalendarFeed: () => post<CalendarFeed>("/me/calendar-feed"),
     },
     home: () => get<Home>("/home"),
+    weeklyReview: () => get<WeeklyReview>("/review/weekly"),
     contacts: {
       list: (params: { q?: string; archived?: boolean } = {}) => {
         const qs = new URLSearchParams();

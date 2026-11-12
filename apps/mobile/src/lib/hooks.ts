@@ -5,6 +5,7 @@ import { api } from "./api";
 import { useUser } from "./auth";
 
 export const useHome = () => useQuery({ queryKey: ["home"], queryFn: api.home });
+export const useWeeklyReview = () => useQuery({ queryKey: ["weeklyReview"], queryFn: api.weeklyReview });
 export const useContacts = (params: { archived?: boolean } = {}) =>
   useQuery({ queryKey: ["contacts", params], queryFn: () => api.contacts.list(params) });
 export const useContact = (id: string | undefined) =>

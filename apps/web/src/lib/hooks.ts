@@ -5,6 +5,7 @@ import type { IntentionStatus } from "@koinonia/shared";
 import { api } from "./api";
 
 export const useHome = () => useQuery({ queryKey: ["home"], queryFn: api.home });
+export const useWeeklyReview = () => useQuery({ queryKey: ["weeklyReview"], queryFn: api.weeklyReview });
 export const useContacts = (params: { q?: string; archived?: boolean } = {}) =>
   useQuery({ queryKey: ["contacts", params], queryFn: () => api.contacts.list(params) });
 export const useContact = (id: string) =>

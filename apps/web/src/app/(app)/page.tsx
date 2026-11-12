@@ -48,13 +48,13 @@ function Hero({ home }: { home: Home }) {
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StreakChip icon={<Flame className="size-6" aria-hidden />} value={home.streaks.reachOut.current} label="day reach-out streak" done={home.streaks.reachOut.doneToday} />
         <StreakChip icon={<HandHeart className="size-6" aria-hidden />} value={home.streaks.prayer.current} label="day prayer streak" done={home.streaks.prayer.doneToday} />
-        <div className="col-span-2 flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 sm:col-span-1">
+        <Link href="/review" aria-label={`${home.stats.reachOutsThisWeek} reach-outs this week. Open your weekly review.`} className="col-span-2 flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 hover:bg-white/20 sm:col-span-1">
           <Check className="size-6 text-on-hero-muted" aria-hidden />
           <div>
             <p className="text-2xl font-bold tabular-nums leading-none">{home.stats.reachOutsThisWeek}</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-on-hero-muted">reach-outs this week</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-on-hero-muted">reach-outs this week · review →</p>
           </div>
-        </div>
+        </Link>
       </div>
     </section>
   );
