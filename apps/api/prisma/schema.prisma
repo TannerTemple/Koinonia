@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Channel {
+  CALL
+  TEXT
+  EMAIL
+  IN_PERSON
+  OTHER
+}
+
+enum IntentionKind {
+  PROMISED
+  PERSONAL
+  THANKSGIVING
+}
+
+enum IntentionStatus {
+  ACTIVE
+  ANSWERED
+  ARCHIVED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  /// Normalized: optional leading + and digits only
+  phone         String?
+  role          Role      @default(USER)
+  timezone      String    @default("UTC")
+  /// Whether other users can find this account by name / email / phone
+  discoverable  Boolean   @default(true)
+  /// Whether to send the daily reminder digest
+  digestEnabled Boolean   @default(true)
+  /// Last calendar day (user's timezone) a digest was sent, to send at most one a day
+  lastDigestDay String?
+  /// Secret for the private calendar (.ics) feed URL
+  calendarToken String?   @unique
+  disabledAt    DateTime?
+  lastSeenAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions        Session[]
+  contacts        Contact[]         @relation("owner")
+  linkedFrom      Contact[]         @relation("linkedUser")
+  interactions    Interaction[]
+  notes           Note[]
+  intentions      PrayerIntention[]
+  prayerLogs      PrayerLog[]
+  dailyIntentions DailyIntention[]
+  devices         PushDevice[]
+
+  @@index([phone])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  /// SHA-256 of the bearer token; the token itself is never stored
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// A person the user wants to stay in touch with. Days are "YYYY-MM-DD" in the owner's timezone.
+model Contact {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation("owner", fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  phone            String?
+  email            String?
+  relationship     String?
+  /// "YYYY-MM-DD" or "MM-DD" when the year is unknown
+  birthday         String?
+  /// Reach-out rhythm in days; null = no reminder
+  cadenceDays      Int?
+  preferredChannel Channel   @default(TEXT)
+  lastContactedDay String?
+  nextDueDay       String?
+  snoozedUntilDay  String?
+  /// Set when this person is also a Koinonia user
+  linkedUserId     String?
+  linkedUser       User?     @relation("linkedUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  interactions Interaction[]
+  notes        Note[]
+  intentions   PrayerIntention[]
+
+  @@index([userId, nextDueDay])
+  @@index([userId, name])
+}
+
+/// A logged reach-out.
+model Interaction {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel    Channel  @default(OTHER)
+  summary    String?
+  day        String
+  occurredAt DateTime @default(now())
+
+  @@index([userId, day])
+  @@index([contactId, day])
+}
+
+model Note {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId    String
+  contact      Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  body         String
+  pinned       Boolean  @default(false)
+  /// "What / when to reach out": surfaces on Today when the day arrives
+  followUpDay  String?
+  followUpDone Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([contactId])
+  @@index([userId, followUpDay])
+}
+
+model PrayerIntention {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The person this intention is for, if any
+  contactId     String?
+  contact       Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  title         String
+  details       String?
+  kind          IntentionKind   @default(PROMISED)
+  status        IntentionStatus @default(ACTIVE)
+  prayedCount   Int             @default(0)
+  lastPrayedDay String?
+  answeredAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  logs  PrayerLog[]
+  daily DailyIntention[]
+
+  @@index([userId, status])
+  @@index([contactId])
+}
+
+/// One row per intention per day prayed.
+model PrayerLog {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intentionId String
+  intention   PrayerIntention @relation(fields: [intentionId], references: [id], onDelete: Cascade)
+  day         String
+  createdAt   DateTime        @default(now())
+
+  @@unique([intentionId, day])
+  @@index([userId, day])
+}
+
+/// The special intention of the day.
+model DailyIntention {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day          String
+  intentionId  String
+  intention    PrayerIntention @relation(fields: [intentionId], references: [id], onDelete: Cascade)
+  chosenByUser Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+
+  @@unique([userId, day])
+}
+
+model PushDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

@@ -20,3 +20,6 @@ One line each: the decision and why. Newest at the bottom.
 16. **Palette: Marian blue primary, lush forest for the prayer side, warm parchment surfaces, gold for streaks; serif display type** — the brief's colors, with Hallow-like depth rather than flat minimalism.
 17. **Admin is web-only** — admins manage from a desk; keeps the iOS app focused.
 18. **No paywall screens** — brief says free / low cost to start.
+19. **A new person's first reminder is one full interval from today** (unless you say when you last talked) — importing 50 contacts shouldn't make 50 people "due today".
+20. **Real adapters for Resend (email), Twilio (SMS) and Expo push are included but only switch on when their keys are set** — mocks are the default and the only ones covered by tests.
+21. **Calendar integration is a private subscribe-able .ics feed** — works with Apple/Google Calendar with no OAuth or API keys.

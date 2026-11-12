@@ -1,11 +1,13 @@
 # Koinonia — Status
 
-_Last updated: start of build._
+_Last updated: after milestone 2 (backend)._
+
+> **Push blocked:** this session has read-only GitHub access (pushes return 403). All work is committed locally on `claude/great-turing-vdjm45` and a push is retried at every milestone.
 
 | Milestone | State |
 | --- | --- |
-| 1. Scaffold | in progress |
-| 2. Backend core | not started |
+| 1. Scaffold | done |
+| 2. Backend core | done — 47 endpoint tests + 17 shared-logic tests passing |
 | 3. Web app core | not started |
 | 4. iOS app core | not started |
 | 5. Nice-to-haves | not started |

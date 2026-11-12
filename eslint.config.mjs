@@ -29,4 +29,8 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    files: ["**/test/**", "**/*.test.ts"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 );

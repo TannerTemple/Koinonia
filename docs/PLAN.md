@@ -86,21 +86,21 @@ counters to drift.
 
 ### 1. Scaffold
 - [x] Docs: BRIEF, PLAN, DECISIONS, STATUS
-- [ ] pnpm workspace, shared tsconfig, ESLint, Prettier, Vitest
-- [ ] Root commands: `pnpm dev`, `pnpm check` (lint + typecheck + test)
-- [ ] `.env.example`
+- [x] pnpm workspace, shared tsconfig, ESLint, Prettier, Vitest
+- [x] Root commands: `pnpm dev`, `pnpm check` (lint + typecheck + test)
+- [x] `.env.example`
 
 ### 2. Backend core
-- [ ] Prisma schema + migration (PostgreSQL)
-- [ ] Shared schemas, cadence + streak logic (unit tested)
-- [ ] Auth (register / login / logout / me), roles
-- [ ] Contacts, reach-outs, snooze, import
-- [ ] Notes with follow-up dates
-- [ ] Prayer intentions, pray log, daily intention
-- [ ] Home endpoint, user search, admin
-- [ ] Provider interfaces + mocks (email, SMS, push), daily digest job
-- [ ] Seed script with demo data
-- [ ] Tests for each endpoint
+- [x] Prisma schema + migration (PostgreSQL)
+- [x] Shared schemas, cadence + streak logic (unit tested)
+- [x] Auth (register / login / logout / me), roles
+- [x] Contacts, reach-outs, snooze, import
+- [x] Notes with follow-up dates
+- [x] Prayer intentions, pray log, daily intention
+- [x] Home endpoint, user search, admin
+- [x] Provider interfaces + mocks (email, SMS, push), daily digest job
+- [x] Seed script with demo data
+- [x] Tests for each endpoint
 
 ### 3. Web app core
 - [ ] Design system (Marian blue / forest, light + dark)

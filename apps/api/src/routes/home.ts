@@ -1,0 +1,8 @@
+import type { FastifyInstance } from "fastify";
+import { buildHome } from "../services/home";
+
+export async function homeRoutes(app: FastifyInstance) {
+  app.get("/home", { preHandler: app.authenticate }, async (request) =>
+    buildHome(app.deps.prisma, request.auth.user.id, request.auth.today),
+  );
+}
