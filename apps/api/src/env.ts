@@ -38,8 +38,11 @@ const schema = z.object({
   DIGEST_ENABLED: bool,
   DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   DIGEST_SMS: bool,
+  /** Which email service sends messages. "mock" records them and sends nothing. */
+  EMAIL_PROVIDER: z.enum(["mock", "resend"]).default("mock"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Koinonia <hello@example.com>"),
+  EMAIL_REPLY_TO: z.string().optional(),
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
@@ -47,10 +50,28 @@ const schema = z.object({
   EXPO_ACCESS_TOKEN: z.string().optional(),
 });
 
+const checked = schema.superRefine((env, ctx) => {
+  // Asking for real email without the means to send it should stop the API at start,
+  // not fail quietly the first time someone needs a password reset.
+  if (env.EMAIL_PROVIDER === "resend") {
+    if (!env.RESEND_API_KEY?.trim()) {
+      ctx.addIssue({ code: "custom", path: ["RESEND_API_KEY"], message: "required when EMAIL_PROVIDER=resend" });
+    }
+    const address = /<([^>]+)>/.exec(env.EMAIL_FROM)?.[1] ?? env.EMAIL_FROM;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.trim()) || /@example\.(com|org|net)$/i.test(address.trim())) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["EMAIL_FROM"],
+        message: "must be a real sender on a domain verified with Resend when EMAIL_PROVIDER=resend",
+      });
+    }
+  }
+});
+
 export type Env = z.infer<typeof schema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = schema.safeParse(source);
+  const parsed = checked.safeParse(source);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`Invalid environment: ${problems}`);

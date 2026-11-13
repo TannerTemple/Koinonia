@@ -28,11 +28,24 @@ describe("provider selection", () => {
     expect(p.push).toBeInstanceOf(MockPushProvider);
   });
 
-  it("switches each real adapter on by its own keys", () => {
+  it("keeps the mock even when a Resend key is present, until EMAIL_PROVIDER says otherwise", () => {
+    expect(createProviders(loadEnv({ ...base, RESEND_API_KEY: "re_x" })).email).toBeInstanceOf(MockEmailProvider);
+    const real = loadEnv({ ...base, EMAIL_PROVIDER: "resend", RESEND_API_KEY: "re_x", EMAIL_FROM: "Koinonia <hello@koinonia.test>" });
+    expect(createProviders(real).email).toBeInstanceOf(ResendEmailProvider);
+  });
+
+  it("refuses to start with EMAIL_PROVIDER=resend and no key or a placeholder sender", () => {
+    expect(() => loadEnv({ ...base, EMAIL_PROVIDER: "resend" })).toThrow(/RESEND_API_KEY/);
+    expect(() => loadEnv({ ...base, EMAIL_PROVIDER: "resend", RESEND_API_KEY: "  " })).toThrow(/RESEND_API_KEY/);
+    expect(() => loadEnv({ ...base, EMAIL_PROVIDER: "resend", RESEND_API_KEY: "re_x" })).toThrow(/EMAIL_FROM/);
+    expect(() => loadEnv({ ...base, EMAIL_PROVIDER: "resend", RESEND_API_KEY: "re_x", EMAIL_FROM: "not an address" })).toThrow(/EMAIL_FROM/);
+    expect(() => loadEnv({ ...base, EMAIL_PROVIDER: "carrier-pigeon" })).toThrow(/EMAIL_PROVIDER/);
+  });
+
+  it("switches SMS and push on by their own settings", () => {
     const p = createProviders(
-      loadEnv({ ...base, RESEND_API_KEY: "re_x", TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_FROM_NUMBER: "+15550001111", PUSH_ENABLED: "true" }),
+      loadEnv({ ...base, TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_FROM_NUMBER: "+15550001111", PUSH_ENABLED: "true" }),
     );
-    expect(p.email).toBeInstanceOf(ResendEmailProvider);
     expect(p.sms).toBeInstanceOf(TwilioSmsProvider);
     expect(p.push).toBeInstanceOf(ExpoPushProvider);
     // Twilio needs all three values.
@@ -45,15 +58,6 @@ describe("provider selection", () => {
 });
 
 describe("real adapters (HTTP stubbed)", () => {
-  it("Resend: posts the message with the API key", async () => {
-    const fetch = stubFetch();
-    await new ResendEmailProvider("re_key", "Koinonia <hi@example.com>").send({ to: "a@b.co", subject: "Hi", text: "Body" });
-    const [url, init] = fetch.mock.calls[0]!;
-    expect(url).toBe("https://api.resend.com/emails");
-    expect(init.headers).toMatchObject({ Authorization: "Bearer re_key" });
-    expect(JSON.parse(init.body as string)).toEqual({ from: "Koinonia <hi@example.com>", to: "a@b.co", subject: "Hi", text: "Body" });
-  });
-
   it("Twilio: posts a form with basic auth", async () => {
     const fetch = stubFetch();
     await new TwilioSmsProvider("AC1", "secret", "+15550001111").send({ to: "+15550002222", body: "Hello" });
@@ -76,8 +80,9 @@ describe("real adapters (HTTP stubbed)", () => {
 
   it("raises when the service says no, so the caller can log it", async () => {
     stubFetch(500);
-    await expect(new ResendEmailProvider("k", "f").send({ to: "a@b.co", subject: "s", text: "t" })).rejects.toThrow(/Resend responded 500/);
+    await expect(new TwilioSmsProvider("AC1", "secret", "+15550001111").send({ to: "+15550002222", body: "Hello" })).rejects.toThrow(/Twilio responded 500/);
   });
+
 });
 
 describe("password and token hashing", () => {

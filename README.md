@@ -49,4 +49,4 @@ API tests need a `koinonia_test` database; `docker compose` creates it, and `TES
 
 ## Outside services
 
-None are required. Email (Resend), SMS (Twilio) and push (Expo) sit behind interfaces in `apps/api/src/providers` and default to mocks that log what they would send. Add keys from `.env.example` to switch on the real ones.
+None are required. Email (Resend), SMS (Twilio) and push (Expo) sit behind interfaces in `apps/api/src/providers` and default to mocks that log what they would send. Real email is switched on with `EMAIL_PROVIDER=resend` plus a key; SMS and push by their own keys. See `.env.example` and [docs/DEPLOY.md](docs/DEPLOY.md).

@@ -1,9 +1,10 @@
 import type { Env } from "../env";
+import { ResendEmailProvider } from "./resend";
 
 /**
  * Outside services live behind these interfaces. Each has a mock that records what it
- * would have sent (and logs it in development), and a real adapter used only when its
- * keys are present in the environment.
+ * would have sent (and logs it in development), and a real adapter that is switched on
+ * from the environment: email by EMAIL_PROVIDER=resend, SMS and push by their keys.
  */
 export interface EmailMessage {
   to: string;
@@ -73,24 +74,7 @@ async function postOrThrow(url: string, init: RequestInit, service: string) {
   if (!res.ok) throw new Error(`${service} responded ${res.status}: ${await res.text()}`);
 }
 
-/** Resend (https://resend.com). Used when RESEND_API_KEY is set. Not exercised by tests. */
-export class ResendEmailProvider implements EmailProvider {
-  constructor(
-    private apiKey: string,
-    private from: string,
-  ) {}
-  async send(message: EmailMessage) {
-    await postOrThrow(
-      "https://api.resend.com/emails",
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: this.from, to: message.to, subject: message.subject, text: message.text }),
-      },
-      "Resend",
-    );
-  }
-}
+export { EmailDeliveryError, ResendEmailProvider } from "./resend";
 
 /** Twilio SMS. Used when the three TWILIO_* variables are set. Not exercised by tests. */
 export class TwilioSmsProvider implements SmsProvider {
@@ -137,9 +121,11 @@ export class ExpoPushProvider implements PushProvider {
 
 export function createProviders(env: Env, log?: Logger): Providers {
   return {
-    email: env.RESEND_API_KEY
-      ? new ResendEmailProvider(env.RESEND_API_KEY, env.EMAIL_FROM)
-      : new MockEmailProvider(log),
+    // Real email is opt-in: EMAIL_PROVIDER=resend (the environment check guarantees the key).
+    email:
+      env.EMAIL_PROVIDER === "resend"
+        ? new ResendEmailProvider({ apiKey: env.RESEND_API_KEY!, from: env.EMAIL_FROM, replyTo: env.EMAIL_REPLY_TO })
+        : new MockEmailProvider(log),
     sms:
       env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM_NUMBER
         ? new TwilioSmsProvider(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_FROM_NUMBER)
