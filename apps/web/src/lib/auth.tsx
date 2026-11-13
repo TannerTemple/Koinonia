@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthResponse, User } from "@koinonia/shared";
-import { api, onUnauthorized, tokenStore } from "./api";
+import { api, dropLegacyToken, onUnauthorized } from "./api";
 
 interface AuthState {
   /** undefined while we check the stored token */
@@ -22,17 +22,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const clear = useCallback(() => {
-    tokenStore.set(null);
     setUser(null);
     queryClient.clear();
   }, [queryClient]);
 
   useEffect(() => {
     onUnauthorized(clear);
-    if (!tokenStore.get()) {
-      setUser(null);
-      return;
-    }
+    dropLegacyToken();
+    // The cookie can't be read from here, so ask the API who we are.
     api.me.get().then(setUser, () => clear());
   }, [clear]);
 
@@ -41,7 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       setUser,
       signIn: (auth) => {
-        tokenStore.set(auth.token);
         queryClient.clear();
         setUser(auth.user);
         router.replace("/");

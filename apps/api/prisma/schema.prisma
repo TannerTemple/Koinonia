@@ -52,8 +52,8 @@ model User {
   digestEnabled Boolean   @default(true)
   /// Last calendar day (user's timezone) a digest was sent, to send at most one a day
   lastDigestDay String?
-  /// Secret for the private calendar (.ics) feed URL
-  calendarToken String?   @unique
+  /// SHA-256 of the secret in the private calendar (.ics) feed URL; the secret itself is shown once
+  calendarTokenHash String? @unique
   /// Set when the user proves they control the email address
   emailVerifiedAt DateTime?
   disabledAt    DateTime?
@@ -86,6 +86,13 @@ model Session {
   createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+/// Wrong-password counter per email, so the sign-in lockout holds across API instances.
+model LoginThrottle {
+  email   String   @id
+  count   Int      @default(0)
+  resetAt DateTime
 }
 
 /// Emailed one-time secrets (password reset, email verification). Only the hash is stored.

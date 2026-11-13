@@ -1,9 +1,11 @@
 import type { AuthTokenKind, PrismaClient, User } from "@prisma/client";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   changePasswordSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   loginSchema,
+  logoutSchema,
   registerDeviceSchema,
   registerSchema,
   resetPasswordSchema,
@@ -11,8 +13,8 @@ import {
   verifyEmailSchema,
   type AuthResponse,
 } from "@koinonia/shared";
-import { SESSION_DAYS } from "../app";
-import { hashPassword, hashToken, newToken, verifyPassword } from "../lib/crypto";
+import { CLIENT_HEADER, SESSION_DAYS, sessionCookie } from "../app";
+import { hashPassword, hashToken, needsRehash, newToken, verifyPassword } from "../lib/crypto";
 import { badRequest, conflict, forbidden, parse, tooMany, unauthorized } from "../lib/errors";
 import { toUser } from "../lib/serialize";
 
@@ -113,28 +115,40 @@ export async function authRoutes(app: FastifyInstance) {
   }
 
   // Failed sign-ins per email, so guessing one account's password is slow no matter how many
-  // IP addresses it comes from. In memory: fine for one API instance; move to the database
-  // or Redis when there are several.
-  const failures = new Map<string, { count: number; resetAt: number }>();
-  const lockedOut = (email: string) => {
-    const entry = failures.get(email);
-    if (!entry) return false;
-    if (entry.resetAt <= now().getTime()) {
-      failures.delete(email);
-      return false;
-    }
-    return entry.count >= MAX_FAILED_LOGINS;
+  // IP addresses it comes from. Kept in the database so every API instance sees the same count.
+  const lockedOut = async (email: string) => {
+    const entry = await prisma.loginThrottle.findUnique({ where: { email } });
+    return Boolean(entry && entry.resetAt > now() && entry.count >= MAX_FAILED_LOGINS);
   };
-  const recordFailure = (email: string) => {
-    if (failures.size > 50_000) failures.clear();
-    const at = now().getTime();
-    const entry = failures.get(email);
-    if (entry && entry.resetAt > at) entry.count += 1;
-    else failures.set(email, { count: 1, resetAt: at + LOCKOUT_MS });
+  const recordFailure = async (email: string) => {
+    const at = now();
+    const fresh = { count: 1, resetAt: new Date(at.getTime() + LOCKOUT_MS) };
+    const { count } = await prisma.loginThrottle.updateMany({
+      where: { email, resetAt: { gt: at } },
+      data: { count: { increment: 1 } },
+    });
+    if (!count) await prisma.loginThrottle.upsert({ where: { email }, create: { email, ...fresh }, update: fresh });
+    // Housekeeping: forget lockouts that ended.
+    await prisma.loginThrottle.deleteMany({ where: { resetAt: { lte: at } } });
   };
-  const strict = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
+  const clearFailures = (email: string) => prisma.loginThrottle.deleteMany({ where: { email } });
 
-  app.post("/auth/register", strict, async (request, reply): Promise<AuthResponse> => {
+  /** Signs the caller in: the web app gets an httpOnly cookie, the iOS app gets the token. */
+  async function startSession(request: FastifyRequest, reply: FastifyReply, user: User): Promise<AuthResponse> {
+    const token = await createSession(prisma, user.id, now());
+    if (request.headers[CLIENT_HEADER] === "web") {
+      reply.header("Set-Cookie", sessionCookie(env, token));
+      return { token: "", user: toUser(user) };
+    }
+    return { token, user: toUser(user) };
+  }
+
+  const strict = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
+  // Sign-up says when an email is taken (it has to, to sign the new user straight in), so
+  // it gets a much tighter limit than sign-in to make checking many addresses impractical.
+  const signUpLimit = { config: { rateLimit: { max: 5, timeWindow: "10 minutes" } } };
+
+  app.post("/auth/register", signUpLimit, async (request, reply): Promise<AuthResponse> => {
     const input = parse(registerSchema, request.body);
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
@@ -152,23 +166,30 @@ export async function authRoutes(app: FastifyInstance) {
     });
     sendInBackground(user, "EMAIL_VERIFY");
     reply.status(201);
-    return { token: await createSession(prisma, user.id, now()), user: toUser(user) };
+    return startSession(request, reply, user);
   });
 
-  app.post("/auth/login", strict, async (request): Promise<AuthResponse> => {
+  app.post("/auth/login", strict, async (request, reply): Promise<AuthResponse> => {
     const input = parse(loginSchema, request.body);
-    if (lockedOut(input.email)) throw tooMany("Too many sign-in attempts. Try again in 15 minutes.");
+    if (await lockedOut(input.email)) throw tooMany("Too many sign-in attempts. Try again in 15 minutes.");
     const user = await prisma.user.findUnique({ where: { email: input.email } });
     const ok = await verifyPassword(input.password, user?.passwordHash ?? (await DUMMY_HASH));
     if (!user || !ok) {
-      recordFailure(input.email);
+      await recordFailure(input.email);
       throw unauthorized("That email and password don't match.");
     }
-    failures.delete(input.email);
+    await clearFailures(input.email);
     if (user.disabledAt) throw forbidden("This account has been disabled.");
     await prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lte: now() } } });
-    await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: now() } });
-    return { token: await createSession(prisma, user.id, now()), user: toUser(user) };
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastSeenAt: now(),
+        // Hashes made with an older, cheaper cost are upgraded while we have the password.
+        ...(needsRehash(user.passwordHash) ? { passwordHash: await hashPassword(input.password) } : {}),
+      },
+    });
+    return startSession(request, reply, user);
   });
 
   /**
@@ -196,7 +217,7 @@ export async function authRoutes(app: FastifyInstance) {
       prisma.session.deleteMany({ where: { userId: user.id } }),
       prisma.authToken.deleteMany({ where: { userId: user.id, kind: "PASSWORD_RESET", usedAt: null } }),
     ]);
-    failures.delete(user.email);
+    await clearFailures(user.email);
     return reply.status(204).send();
   });
 
@@ -213,7 +234,13 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.post("/auth/logout", { preHandler: app.authenticate }, async (request, reply) => {
-    await prisma.session.delete({ where: { id: request.auth.sessionId } });
+    const input = parse(logoutSchema, request.body);
+    await prisma.session.deleteMany({ where: { id: request.auth.sessionId } });
+    // A signed-out phone must stop getting this account's push notifications.
+    if (input.pushToken) {
+      await prisma.pushDevice.deleteMany({ where: { userId: request.auth.user.id, token: input.pushToken } });
+    }
+    reply.header("Set-Cookie", sessionCookie(env, null));
     return reply.status(204).send();
   });
 
@@ -240,8 +267,13 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(204).send();
   });
 
-  app.delete("/me", { preHandler: app.authenticate }, async (request, reply) => {
+  app.delete("/me", { preHandler: app.authenticate, ...strict }, async (request, reply) => {
+    const input = parse(deleteAccountSchema, request.body);
+    if (!(await verifyPassword(input.password, request.auth.user.passwordHash))) {
+      throw badRequest("That password isn't right.", { password: "Incorrect" });
+    }
     await prisma.user.delete({ where: { id: request.auth.user.id } });
+    reply.header("Set-Cookie", sessionCookie(env, null));
     return reply.status(204).send();
   });
 

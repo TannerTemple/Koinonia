@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Flame, HandHeart } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Card, Field, FormError, Input, PageHeader, SectionTitle, fieldErrors } from "@/components/ui";
+import { Button, Card, Field, FormError, Input, Modal, PageHeader, SectionTitle, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -121,39 +121,99 @@ function PasswordForm() {
 
 function CalendarFeed() {
   const feed = useQuery({ queryKey: ["calendarFeed"], queryFn: api.me.calendarFeed });
-  const reset = useAction(api.me.resetCalendarFeed);
+  const create = useAction(api.me.createCalendarFeed);
+  const remove = useAction(api.me.removeCalendarFeed);
   const [copied, setCopied] = useState(false);
-  const url = feed.data?.url ?? "";
+  const url = create.data?.url ?? null;
+  const active = feed.data?.active ?? false;
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
         Subscribe from Apple Calendar (File → New Calendar Subscription) or Google Calendar (Other calendars → From URL) to see upcoming reach-outs, follow-ups and birthdays next to
-        everything else. Keep this link private.
+        everything else. Keep the link private.
       </p>
-      <div className="flex gap-2">
-        <Input readOnly aria-label="Calendar feed URL" value={url} onFocus={(e) => e.target.select()} className="font-mono text-sm" />
+      {url ? (
+        <>
+          <div className="flex gap-2">
+            <Input readOnly aria-label="Calendar feed URL" value={url} onFocus={(e) => e.target.select()} className="font-mono text-sm" />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                void navigator.clipboard?.writeText(url);
+                setCopied(true);
+              }}
+            >
+              {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+          <p role="status" className="text-sm font-semibold">Copy it now. For your safety it is shown only this once.</p>
+        </>
+      ) : (
+        <p className="text-sm">{active ? "You have a calendar link. It can't be shown again; make a new one if you've lost it." : "You don't have a calendar link yet."}</p>
+      )}
+      <FormError error={create.error ?? remove.error} />
+      <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"
-          disabled={!url}
+          size="sm"
+          loading={create.isPending}
           onClick={() => {
-            void navigator.clipboard?.writeText(url);
-            setCopied(true);
+            if (!active || window.confirm("Make a new link? The old one will stop working in any calendar that uses it.")) create.mutate(undefined, { onSuccess: () => setCopied(false) });
           }}
         >
-          {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied ? "Copied" : "Copy"}
+          {active ? "Make a new link" : "Create calendar link"}
         </Button>
+        {active ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={remove.isPending}
+            onClick={() => {
+              if (window.confirm("Turn off the calendar link? Calendars using it will stop updating.")) remove.mutate(undefined, { onSuccess: () => create.reset() });
+            }}
+          >
+            Turn off
+          </Button>
+        ) : null}
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        loading={reset.isPending}
-        onClick={() => {
-          if (window.confirm("Create a new link? The old one will stop working.")) reset.mutate(undefined, { onSuccess: () => setCopied(false) });
-        }}
-      >
-        Reset link
-      </Button>
     </div>
+  );
+}
+
+function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const remove = useAction(() => api.me.delete({ password }));
+  const errors = fieldErrors(remove.error);
+  return (
+    <>
+      <Button variant="danger" onClick={() => setOpen(true)}>
+        Delete my account
+      </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Delete your account?">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            remove.mutate(undefined, { onSuccess: onDeleted });
+          }}
+        >
+          <p className="text-muted">Everything in it will be removed: your people, notes, history and prayer list. This can&rsquo;t be undone.</p>
+          <Field label="Your password" error={errors.password}>
+            {(p) => <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+          </Field>
+          <FormError error={remove.error} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              Keep my account
+            </Button>
+            <Button type="submit" variant="danger" loading={remove.isPending} disabled={!password}>
+              Delete everything
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }
 
@@ -163,7 +223,6 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState<ThemeChoice>("system");
   useEffect(() => setTheme(getThemeChoice()), []);
   const prefs = useAction((input: { discoverable?: boolean; digestEnabled?: boolean }) => api.me.update(input));
-  const remove = useAction(api.me.delete);
   const updatePref = (input: { discoverable?: boolean; digestEnabled?: boolean }) => prefs.mutate(input, { onSuccess: setUser });
 
   return (
@@ -247,17 +306,7 @@ export default function SettingsPage() {
           <Button variant="secondary" onClick={() => void signOut()}>
             Sign out
           </Button>
-          <Button
-            variant="danger"
-            loading={remove.isPending}
-            onClick={() => {
-              if (window.confirm("Delete your account and everything in it? This can't be undone.")) {
-                remove.mutate(undefined, { onSuccess: () => void signOut() });
-              }
-            }}
-          >
-            Delete my account
-          </Button>
+          <DeleteAccount onDeleted={() => void signOut()} />
         </Card>
       </section>
     </div>

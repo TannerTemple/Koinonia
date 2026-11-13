@@ -127,6 +127,31 @@ describe("daily digest", () => {
     expect(tomorrow.sent).toBe(1);
   });
 
+  it("tries again later when the email could not be sent", async () => {
+    await seedPeople();
+    const failing = { ...ctx.providers, email: { send: async () => Promise.reject(new Error("mail service down")) } };
+    const quiet = console.error;
+    console.error = () => undefined;
+    const failed = await runDigest({ prisma, providers: failing, env }, new Date(NOW));
+    console.error = quiet;
+    expect(failed.sent).toBe(0);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: api.userId } })).lastDigestDay).toBeNull();
+
+    const retried = await runDigest({ prisma, providers: ctx.providers, env }, new Date(NOW));
+    expect(retried.sent).toBe(1);
+  });
+
+  it("walks every user in batches", async () => {
+    await prisma.user.createMany({
+      data: Array.from({ length: 450 }, (_, i) => ({ email: `bulk${i}@example.com`, name: `Bulk ${i}`, passwordHash: "x" })),
+    });
+    await seedPeople();
+    const result = await runDigest({ prisma, providers: ctx.providers, env }, new Date(NOW));
+    expect(result).toEqual({ considered: 451, sent: 1 });
+    // Everyone with nothing due is still ticked off for the day.
+    expect(await prisma.user.count({ where: { lastDigestDay: null } })).toBe(0);
+  });
+
   it("waits for the digest hour and respects the opt-out", async () => {
     await seedPeople();
     const deps = { prisma, providers: ctx.providers, env };
@@ -145,9 +170,13 @@ describe("calendar feed", () => {
     const people = (await api.call("GET", "/contacts")).body;
     await api.call("POST", `/contacts/${people[0].id}/notes`, { body: "Bring the book; it's due", followUpDay: "2026-11-15" });
 
-    const feed = await api.call("GET", "/me/calendar-feed");
+    expect((await api.call("GET", "/me/calendar-feed")).body).toEqual({ active: false, url: null });
+    const feed = await api.call("POST", "/me/calendar-feed");
     expect(feed.body.url).toMatch(/\/v1\/calendar\/.+\.ics$/);
-    expect((await api.call("GET", "/me/calendar-feed")).body.url).toBe(feed.body.url);
+    // Shown once: afterwards only "there is one" can be read back, and only a hash is stored.
+    expect((await api.call("GET", "/me/calendar-feed")).body).toEqual({ active: true, url: null });
+    const secret = feed.body.url.split("/").pop().replace(".ics", "");
+    expect(JSON.stringify(await prisma.user.findMany())).not.toContain(secret);
 
     const path = new URL(feed.body.url).pathname.replace("/v1", "");
     const ics = await call<string>(ctx.app, "GET", path);
@@ -163,5 +192,10 @@ describe("calendar feed", () => {
     expect(reset.body.url).not.toBe(feed.body.url);
     expect((await call(ctx.app, "GET", path)).status).toBe(404);
     expect((await call(ctx.app, "GET", "/calendar/.ics")).status).toBe(404);
+
+    const fresh = new URL(reset.body.url).pathname.replace("/v1", "");
+    expect((await call(ctx.app, "GET", fresh)).status).toBe(200);
+    expect((await api.call("DELETE", "/me/calendar-feed")).status).toBe(204);
+    expect((await call(ctx.app, "GET", fresh)).status).toBe(404);
   });
 });

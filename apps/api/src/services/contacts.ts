@@ -22,7 +22,7 @@ export function scheduleFields(
 }
 
 /** Recompute last-contacted / next-due from the interaction log (after a log is added or removed). */
-export async function resyncSchedule(prisma: PrismaClient, contactId: string, today: string) {
+export async function resyncSchedule(prisma: PrismaClient | Prisma.TransactionClient, contactId: string, today: string) {
   const contact = await prisma.contact.findUniqueOrThrow({ where: { id: contactId } });
   const latest = await prisma.interaction.findFirst({
     where: { contactId },

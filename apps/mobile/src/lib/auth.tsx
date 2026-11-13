@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthResponse, User } from "@koinonia/shared";
 import { api, onUnauthorized, tokenStore } from "./api";
-import { clearReminders } from "./notifications";
+import { clearReminders, currentPushToken } from "./notifications";
 
 interface AuthState {
   /** undefined while the stored token is being checked */
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(auth.user);
       },
       signOut: async () => {
-        await api.auth.logout().catch(() => undefined);
+        await api.auth.logout({ pushToken: currentPushToken() }).catch(() => undefined);
         await clear();
       },
     }),

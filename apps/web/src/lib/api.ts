@@ -1,25 +1,5 @@
 import { createApiClient } from "@koinonia/shared";
 
-const TOKEN_KEY = "koinonia.token";
-
-export const tokenStore = {
-  get(): string | null {
-    try {
-      return window.localStorage.getItem(TOKEN_KEY);
-    } catch {
-      return null;
-    }
-  },
-  set(token: string | null) {
-    try {
-      if (token) window.localStorage.setItem(TOKEN_KEY, token);
-      else window.localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* private mode: stay signed in for this page only */
-    }
-  },
-};
-
 let unauthorizedHandler: (() => void) | null = null;
 export function onUnauthorized(handler: () => void) {
   unauthorizedHandler = handler;
@@ -27,8 +7,21 @@ export function onUnauthorized(handler: () => void) {
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+/**
+ * The web session is an httpOnly cookie set by the API, so no script on the page (ours or
+ * an injected one) can read the token. Nothing is kept in localStorage.
+ */
 export const api = createApiClient({
   baseUrl: API_URL,
-  getToken: () => tokenStore.get(),
+  cookieSession: true,
   onUnauthorized: () => unauthorizedHandler?.(),
 });
+
+/** Earlier versions kept the token in localStorage; make sure none is left behind. */
+export function dropLegacyToken() {
+  try {
+    window.localStorage.removeItem("koinonia.token");
+  } catch {
+    /* storage unavailable */
+  }
+}

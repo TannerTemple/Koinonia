@@ -34,17 +34,17 @@ in this branch, with a test where one is named.
 | M3 | **Expired sessions were never deleted**, so the table only grew. | **Fixed**: a user's expired sessions are purged when they sign in. |
 | M4 | **Unbounded search strings** on contact, member and admin search. | **Fixed**: capped. |
 
-## Low (not changed; listed so they are known)
+## Low (fixed in the third round)
 
-| # | Finding | Why it was left |
+| # | Finding | What was done |
 | --- | --- | --- |
-| L1 | Sign-up answers "already registered" for a known email. | Standard trade-off for sign-up that signs you straight in; it is rate-limited. Reset and verification never reveal it. |
-| L2 | Deleting your account needs only a valid session, not the password. | Wants a small UI change on both clients; worth doing before launch. |
-| L3 | The login lockout lives in memory. | Correct for one API instance. Move to the database or Redis when there are several. |
-| L4 | Web keeps the session token in `localStorage`. | Readable by any injected script. Acceptable with no third-party scripts; an httpOnly cookie is the stronger design if the web app grows. |
-| L5 | Push tokens stay registered after sign-out. | A signed-out phone could still get that account's digest push. Remove the device on logout once push is switched on. |
-| L6 | Logging a reach-out is three writes without a transaction. | A crash in between leaves the due date stale until the next change; it self-heals. |
-| L7 | The digest loads every user each tick and marks the day before sending. | Fine at small scale; batch and retry when there are thousands of users. |
-| L8 | Calendar feed secret sits in the URL (and so in access logs) and in the database unhashed. | Inherent to subscribe-able calendar URLs; the user can rotate it. |
-| L9 | scrypt uses Node's default cost (N=16384). | Reasonable today; raise it (with rehash on sign-in) as hardware moves. |
-| L10 | Member name search lets any signed-in user browse discoverable names. | By design (decision 13); users can switch discoverability off. |
+| L1 | Sign-up answers "already registered" for a known email. | **Mitigated, not removed.** Sign-up is now limited to 5 tries per 10 minutes per address, so checking many emails is impractical. Removing it entirely means not signing people in until they confirm their email, which was decided against (decision 33). |
+| L2 | Deleting your account needed only a valid session. | **Fixed**: `DELETE /me` requires the password; both apps ask for it. |
+| L3 | The login lockout lived in memory. | **Fixed**: stored in the database (`LoginThrottle`), so every API instance enforces it. |
+| L4 | Web kept the session token in `localStorage`. | **Fixed**: the web app signs in with an httpOnly, SameSite=Lax cookie that scripts cannot read. The API only honours the cookie together with a custom header, which blocks cross-site request forgery. The iOS app still uses a token in the Keychain. |
+| L5 | Push tokens stayed registered after sign-out. | **Fixed**: sign-out unregisters the phone's push token; disabling an account removes its devices. |
+| L6 | Logging a reach-out was three writes without a transaction. | **Fixed**: logging and removing a reach-out each run in one transaction. |
+| L7 | The digest loaded every user each tick and marked the day before sending. | **Fixed**: users are read 200 at a time, and the day is only marked once the email was sent, so a failed send is retried. |
+| L8 | Calendar feed secret sat in the database unhashed and in access logs. | **Fixed**: only a SHA-256 is stored and the link is shown once, when created; the request log redacts it. It is still part of the URL, which calendar subscriptions require. |
+| L9 | scrypt used Node's default cost (N=2^14). | **Fixed**: N=2^17 (the OWASP minimum), recorded in each hash; older hashes are upgraded at the next sign-in. |
+| L10 | Member name search let any signed-in user browse discoverable names. | **Tightened**: at least 3 letters, matching only the start of a first or last name, 5 results. Finding people by name still exists by design (decision 13); users can switch discoverability off. |

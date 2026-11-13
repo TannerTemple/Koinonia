@@ -71,4 +71,26 @@ describe("api client", () => {
     const api = createApiClient({ baseUrl: "http://api.test", fetch });
     await expect(api.home()).rejects.toMatchObject({ status: 0, code: "NETWORK" });
   });
+
+  it("in cookie mode sends credentials and the client header, and no token", async () => {
+    const onUnauthorized = vi.fn();
+    const { fetch, calls } = fakeFetch(() => json(401, { error: { code: "UNAUTHORIZED", message: "Please sign in." } }));
+    const api = createApiClient({ baseUrl: "http://api.test", cookieSession: true, onUnauthorized, fetch });
+    await expect(api.home()).rejects.toMatchObject({ status: 401 });
+    expect(calls[0]!.init.credentials).toBe("include");
+    expect(calls[0]!.init.headers).toMatchObject({ "X-Koinonia-Client": "web" });
+    expect(calls[0]!.init.headers).not.toHaveProperty("Authorization");
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    // A wrong password at sign-in is not an expired session.
+    await expect(api.auth.login({ email: "a@b.co", password: "x" })).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends the password in the body when deleting the account", async () => {
+    const { fetch, calls } = fakeFetch(() => new Response(null, { status: 204 }));
+    const api = createApiClient({ baseUrl: "http://api.test", getToken: () => "tok", fetch });
+    await api.me.delete({ password: "secret" });
+    expect(calls[0]!.init.method).toBe("DELETE");
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ password: "secret" });
+  });
 });

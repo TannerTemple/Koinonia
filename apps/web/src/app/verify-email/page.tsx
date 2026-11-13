@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
 import { Spinner, errorMessage } from "@/components/ui";
-import { api, tokenStore } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function VerifyEmailPage() {
@@ -24,7 +24,7 @@ export default function VerifyEmailPage() {
     api.auth.verifyEmail({ token }).then(
       () => {
         setState("done");
-        if (tokenStore.get()) void api.me.get().then(setUser, () => undefined);
+        void api.me.get().then(setUser, () => undefined);
       },
       (err) => setState({ error: errorMessage(err) }),
     );

@@ -156,18 +156,21 @@ export async function contactRoutes(app: FastifyInstance) {
     const day = input.day ?? today;
     if (day > today) throw badRequest("You can't log a reach-out in the future.", { day: "In the future" });
 
-    const interaction = await prisma.interaction.create({
-      data: {
-        userId: user.id,
-        contactId: current.id,
-        channel: input.channel ?? current.preferredChannel,
-        summary: input.summary,
-        day,
-        occurredAt: now(),
-      },
+    // All or nothing: the log entry, the cleared snooze and the new due date move together.
+    const { interaction, contact } = await prisma.$transaction(async (tx) => {
+      const interaction = await tx.interaction.create({
+        data: {
+          userId: user.id,
+          contactId: current.id,
+          channel: input.channel ?? current.preferredChannel,
+          summary: input.summary,
+          day,
+          occurredAt: now(),
+        },
+      });
+      await tx.contact.update({ where: { id: current.id }, data: { snoozedUntilDay: null } });
+      return { interaction, contact: await resyncSchedule(tx, current.id, today) };
     });
-    await prisma.contact.update({ where: { id: current.id }, data: { snoozedUntilDay: null } });
-    const contact = await resyncSchedule(prisma, current.id, today);
     reply.status(201);
     return { contact: toContact(contact), interaction: toInteraction(interaction) };
   });
@@ -176,8 +179,10 @@ export async function contactRoutes(app: FastifyInstance) {
     const { user, today } = request.auth;
     const row = await prisma.interaction.findFirst({ where: { id: request.params.id, userId: user.id } });
     if (!row) throw notFound("That reach-out");
-    await prisma.interaction.delete({ where: { id: row.id } });
-    await resyncSchedule(prisma, row.contactId, today);
+    await prisma.$transaction(async (tx) => {
+      await tx.interaction.delete({ where: { id: row.id } });
+      await resyncSchedule(tx, row.contactId, today);
+    });
     return reply.status(204).send();
   });
 

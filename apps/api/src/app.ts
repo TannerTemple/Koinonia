@@ -2,7 +2,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { PrismaClient, User } from "@prisma/client";
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { dayInTimezone } from "@koinonia/shared";
 import type { Env } from "./env";
 import { hashToken } from "./lib/crypto";
@@ -18,6 +18,44 @@ import { prayerRoutes } from "./routes/prayer";
 import { userRoutes } from "./routes/users";
 
 export const SESSION_DAYS = 30;
+export const SESSION_COOKIE = "koinonia_session";
+/** Browsers send this on every call; a cookie is only honoured alongside it (see sessionToken). */
+export const CLIENT_HEADER = "x-koinonia-client";
+
+/** Set-Cookie value for the web session: httpOnly so page scripts can never read the token. */
+export function sessionCookie(env: Env, token: string | null): string {
+  return [
+    `${SESSION_COOKIE}=${token ?? ""}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${token ? SESSION_DAYS * 86_400 : 0}`,
+    ...(env.NODE_ENV === "production" ? ["Secure"] : []),
+    ...(env.COOKIE_DOMAIN ? [`Domain=${env.COOKIE_DOMAIN}`] : []),
+  ].join("; ");
+}
+
+/**
+ * The session token of a request: a bearer header (iOS app), or the web cookie. The cookie
+ * only counts together with the custom client header, which another site cannot send without
+ * passing our CORS allowlist, so a forged cross-site request never carries a session.
+ */
+function sessionToken(request: FastifyRequest): { token: string; fromCookie: boolean } | null {
+  const header = request.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    const token = header.slice(7).trim();
+    return token ? { token, fromCookie: false } : null;
+  }
+  if (request.headers[CLIENT_HEADER] !== "web") return null;
+  for (const part of (request.headers.cookie ?? "").split(";")) {
+    const [name, ...value] = part.trim().split("=");
+    if (name === SESSION_COOKIE && value.join("=")) return { token: value.join("="), fromCookie: true };
+  }
+  return null;
+}
+
+/** Keeps secrets that live in URLs (the calendar feed) out of the request log. */
+export const redactUrl = (url: string) => url.replace(/(\/calendar\/)[^/?]+/, "$1[redacted].ics");
 const DAY_MS = 86_400_000;
 
 export interface AppDeps {
@@ -40,8 +78,8 @@ export interface AuthContext {
 declare module "fastify" {
   interface FastifyInstance {
     deps: Required<Pick<AppDeps, "prisma" | "providers" | "env" | "now">>;
-    authenticate: (request: FastifyRequest) => Promise<void>;
-    requireAdmin: (request: FastifyRequest) => Promise<void>;
+    authenticate: (request: FastifyRequest, reply?: FastifyReply) => Promise<void>;
+    requireAdmin: (request: FastifyRequest, reply?: FastifyReply) => Promise<void>;
   }
   interface FastifyRequest {
     auth: AuthContext;
@@ -50,7 +88,16 @@ declare module "fastify" {
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const now = deps.now ?? (() => new Date());
-  const app = Fastify({ logger: deps.logger ?? false, trustProxy: deps.env.TRUST_PROXY });
+  const app = Fastify({
+    logger: deps.logger
+      ? {
+          serializers: {
+            req: (req) => ({ method: req.method, url: redactUrl(req.url), remoteAddress: req.ip }),
+          },
+        }
+      : false,
+    trustProxy: deps.env.TRUST_PROXY,
+  });
   app.decorate("deps", { prisma: deps.prisma, providers: deps.providers, env: deps.env, now });
   app.decorateRequest("auth", null as unknown as AuthContext);
 
@@ -58,15 +105,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: deps.env.CORS_ORIGINS.split(",").map((o) => o.trim()),
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    // The web app signs in with an httpOnly cookie.
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-Koinonia-Client"],
   });
   if (deps.rateLimit ?? true) {
     await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   }
 
-  app.decorate("authenticate", async (request: FastifyRequest) => {
-    const header = request.headers.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice(7).trim() : null;
-    if (!token) throw unauthorized();
+  app.decorate("authenticate", async (request: FastifyRequest, reply?: FastifyReply) => {
+    const found = sessionToken(request);
+    if (!found) throw unauthorized();
+    const { token, fromCookie } = found;
 
     const session = await deps.prisma.session.findUnique({
       where: { tokenHash: hashToken(token) },
@@ -83,6 +133,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         data: { lastUsedAt: at, expiresAt: new Date(at.getTime() + SESSION_DAYS * DAY_MS) },
       });
       await deps.prisma.user.update({ where: { id: session.userId }, data: { lastSeenAt: at } });
+      if (fromCookie) reply?.header("Set-Cookie", sessionCookie(deps.env, token));
     }
 
     request.auth = {
@@ -92,8 +143,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     };
   });
 
-  app.decorate("requireAdmin", async (request: FastifyRequest) => {
-    await app.authenticate(request);
+  app.decorate("requireAdmin", async (request: FastifyRequest, reply?: FastifyReply) => {
+    await app.authenticate(request, reply);
     if (request.auth.user.role !== "ADMIN") throw forbidden("Admins only.");
   });
 

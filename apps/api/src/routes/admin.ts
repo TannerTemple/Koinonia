@@ -68,7 +68,10 @@ export async function adminRoutes(app: FastifyInstance) {
       include: counts,
     });
     // A disabled account is signed out everywhere.
-    if (input.disabled) await prisma.session.deleteMany({ where: { userId: target.id } });
+    if (input.disabled) {
+      await prisma.session.deleteMany({ where: { userId: target.id } });
+      await prisma.pushDevice.deleteMany({ where: { userId: target.id } });
+    }
     return toAdminUser(row);
   });
 }

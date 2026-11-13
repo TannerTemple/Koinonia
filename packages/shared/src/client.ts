@@ -11,6 +11,7 @@ import type {
   CreateContactInput,
   CreateIntentionInput,
   CreateNoteInput,
+  DeleteAccountInput,
   ForgotPasswordInput,
   Home,
   ImportContactsInput,
@@ -19,6 +20,7 @@ import type {
   IntentionStatus,
   Interaction,
   LoginInput,
+  LogoutInput,
   Note,
   PrayerToday,
   ReachOutInput,
@@ -52,6 +54,11 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** Returns the bearer token, if signed in. */
   getToken?: () => string | null | undefined | Promise<string | null | undefined>;
+  /**
+   * Web only: the session lives in an httpOnly cookie instead of a token the page can read.
+   * Requests are sent with credentials and the client header the API requires next to a cookie.
+   */
+  cookieSession?: boolean;
   /** Called when the API rejects the token (expired / revoked). */
   onUnauthorized?: () => void;
   fetch?: typeof fetch;
@@ -68,6 +75,7 @@ export function createApiClient(options: ApiClientOptions) {
     const headers: Record<string, string> = { Accept: "application/json" };
     if (body !== undefined) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (options.cookieSession) headers["X-Koinonia-Client"] = "web";
 
     let res: Response;
     try {
@@ -75,6 +83,7 @@ export function createApiClient(options: ApiClientOptions) {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
+        ...(options.cookieSession ? { credentials: "include" as const } : {}),
       });
     } catch {
       throw new ApiError(0, "NETWORK", "Can't reach Koinonia right now. Check your connection.");
@@ -91,7 +100,8 @@ export function createApiClient(options: ApiClientOptions) {
 
     if (!res.ok) {
       const err = (data as ApiErrorBody | null)?.error;
-      if (res.status === 401 && token) options.onUnauthorized?.();
+      const hadSession = Boolean(token) || (options.cookieSession && !path.startsWith("/auth/"));
+      if (res.status === 401 && hadSession) options.onUnauthorized?.();
       throw new ApiError(
         res.status,
         err?.code ?? "UNKNOWN",
@@ -106,13 +116,13 @@ export function createApiClient(options: ApiClientOptions) {
   const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
   const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
   const put = <T>(path: string, body: unknown) => request<T>("PUT", path, body);
-  const del = (path: string) => request<void>("DELETE", path);
+  const del = (path: string, body?: unknown) => request<void>("DELETE", path, body);
 
   return {
     auth: {
       register: (input: RegisterInput) => post<AuthResponse>("/auth/register", input),
       login: (input: LoginInput) => post<AuthResponse>("/auth/login", input),
-      logout: () => post<void>("/auth/logout"),
+      logout: (input: LogoutInput = {}) => post<void>("/auth/logout", input),
       /** Always succeeds, whether or not the email has an account. */
       forgotPassword: (input: ForgotPasswordInput) => post<void>("/auth/forgot-password", input),
       resetPassword: (input: ResetPasswordInput) => post<void>("/auth/reset-password", input),
@@ -123,9 +133,13 @@ export function createApiClient(options: ApiClientOptions) {
       get: () => get<User>("/me"),
       update: (input: UpdateMeInput) => patch<User>("/me", input),
       changePassword: (input: ChangePasswordInput) => post<void>("/me/password", input),
-      delete: () => del("/me"),
+      /** Deleting the account needs the password again, not just a session. */
+      delete: (input: DeleteAccountInput) => del("/me", input),
+      /** Whether a calendar link exists (the link itself is only returned by createCalendarFeed). */
       calendarFeed: () => get<CalendarFeed>("/me/calendar-feed"),
-      resetCalendarFeed: () => post<CalendarFeed>("/me/calendar-feed"),
+      /** Makes a new link, shown once, and turns off the old one. */
+      createCalendarFeed: () => post<CalendarFeed>("/me/calendar-feed"),
+      removeCalendarFeed: () => del("/me/calendar-feed"),
     },
     home: () => get<Home>("/home"),
     weeklyReview: () => get<WeeklyReview>("/review/weekly"),

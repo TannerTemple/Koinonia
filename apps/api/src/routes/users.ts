@@ -14,7 +14,7 @@ export async function userRoutes(app: FastifyInstance) {
     { preHandler: app.authenticate, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (request): Promise<UserSearchResult[]> => {
       const q = (request.query.q ?? "").trim().slice(0, 100);
-      if (q.length < 2) return [];
+      if (q.length < 3) return [];
       const me = request.auth.user.id;
 
       let matchedBy: UserSearchResult["matchedBy"] = "name";
@@ -34,13 +34,20 @@ export async function userRoutes(app: FastifyInstance) {
           ],
         };
       } else {
-        match = { name: { contains: q, mode: "insensitive" } };
+        // The start of a first or last name, not any fragment: you can find someone you know,
+        // but you can't page through the member list a letter at a time.
+        match = {
+          OR: [
+            { name: { startsWith: q, mode: "insensitive" } },
+            { name: { contains: ` ${q}`, mode: "insensitive" } },
+          ],
+        };
       }
 
       const users = await prisma.user.findMany({
         where: { AND: [match, { discoverable: true, disabledAt: null, NOT: { id: me } }] },
         orderBy: { name: "asc" },
-        take: 10,
+        take: 5,
       });
       const linked = await prisma.contact.findMany({
         where: { userId: me, linkedUserId: { in: users.map((u) => u.id) } },

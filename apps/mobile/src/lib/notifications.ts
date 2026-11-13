@@ -63,11 +63,16 @@ export async function clearReminders() {
  * Registers this phone for server-sent pushes (the daily digest). Needs an EAS project id,
  * so it quietly does nothing in Expo Go / before EAS is set up.
  */
+let pushToken: string | undefined;
+/** This phone's push token, if it was registered, so sign-out can unregister it. */
+export const currentPushToken = () => pushToken;
+
 export async function registerForPush(projectId: string | undefined) {
   if (!Device.isDevice || !projectId || !(await remindersAllowed())) return;
   try {
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     await api.devices.register({ token: data, platform: Device.osName === "iOS" ? "ios" : "android" });
+    pushToken = data;
   } catch {
     /* push is optional; local reminders still work */
   }

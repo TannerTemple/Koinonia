@@ -15,6 +15,8 @@ const schema = z.object({
   API_PUBLIC_URL: z.string().optional(),
   /** Only trust X-Forwarded-For when the API really sits behind a proxy. */
   TRUST_PROXY: bool,
+  /** Optional Domain attribute for the web session cookie, e.g. ".example.com". */
+  COOKIE_DOMAIN: z.string().optional(),
   DIGEST_ENABLED: bool,
   DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   DIGEST_SMS: bool,

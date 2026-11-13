@@ -35,6 +35,10 @@ describe("finding people on Koinonia", () => {
     expect((await api.call("GET", "/users/search?q=5550102000")).body).toHaveLength(1);
     expect((await api.call("GET", "/users/search?q=Searcher")).body).toEqual([]);
     expect((await api.call("GET", "/users/search?q=m")).body).toEqual([]);
+    // Names match from the start of a first or last name only, so the list can't be browsed by fragment.
+    expect((await api.call("GET", "/users/search?q=ma")).body).toEqual([]);
+    expect((await api.call("GET", "/users/search?q=ari")).body).toEqual([]);
+    expect((await api.call("GET", "/users/search?q=lop")).body.map((u: any) => u.name)).toEqual(["Maria Lopez"]);
   });
 
   it("respects the discoverable setting", async () => {

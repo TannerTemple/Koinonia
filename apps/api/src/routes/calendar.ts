@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { addDays, cadenceLabel, dayInTimezone, nextBirthday, type CalendarFeed } from "@koinonia/shared";
-import { newToken } from "../lib/crypto";
+import { hashToken, newToken } from "../lib/crypto";
 import { notFound } from "../lib/errors";
 import { toContact } from "../lib/serialize";
 
@@ -32,25 +32,27 @@ export async function calendarRoutes(app: FastifyInstance) {
   const feedUrl = (token: string, origin: string) =>
     `${(env.API_PUBLIC_URL ?? origin).replace(/\/+$/, "")}/v1/calendar/${token}.ics`;
 
+  /** Whether a feed exists. The link itself can't be shown again: only its hash is stored. */
   app.get("/me/calendar-feed", { preHandler: app.authenticate }, async (request): Promise<CalendarFeed> => {
-    let token = request.auth.user.calendarToken;
-    if (!token) {
-      token = newToken();
-      await prisma.user.update({ where: { id: request.auth.user.id }, data: { calendarToken: token } });
-    }
-    return { url: feedUrl(token, `${request.protocol}://${request.host}`) };
+    return { active: request.auth.user.calendarTokenHash !== null, url: null };
   });
 
-  /** Replaces the secret, which turns off any previously shared URL. */
+  /** Makes a new link (shown this once) and turns off any earlier one. */
   app.post("/me/calendar-feed", { preHandler: app.authenticate }, async (request): Promise<CalendarFeed> => {
     const token = newToken();
-    await prisma.user.update({ where: { id: request.auth.user.id }, data: { calendarToken: token } });
-    return { url: feedUrl(token, `${request.protocol}://${request.host}`) };
+    await prisma.user.update({ where: { id: request.auth.user.id }, data: { calendarTokenHash: hashToken(token) } });
+    return { active: true, url: feedUrl(token, `${request.protocol}://${request.host}`) };
+  });
+
+  /** Turns the feed off. */
+  app.delete("/me/calendar-feed", { preHandler: app.authenticate }, async (request, reply) => {
+    await prisma.user.update({ where: { id: request.auth.user.id }, data: { calendarTokenHash: null } });
+    return reply.status(204).send();
   });
 
   app.get<{ Params: { file: string } }>("/calendar/:file", async (request, reply) => {
     const token = request.params.file.replace(/\.ics$/, "");
-    const user = token ? await prisma.user.findUnique({ where: { calendarToken: token } }) : null;
+    const user = token ? await prisma.user.findUnique({ where: { calendarTokenHash: hashToken(token) } }) : null;
     if (!user || user.disabledAt) throw notFound("That calendar");
 
     const today = dayInTimezone(now(), user.timezone);

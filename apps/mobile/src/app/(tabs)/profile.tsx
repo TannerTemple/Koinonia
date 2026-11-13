@@ -57,7 +57,6 @@ export default function ProfileScreen() {
 
   const save = useAction(() => api.me.update({ name, phone }));
   const prefs = useAction((input: { discoverable?: boolean; digestEnabled?: boolean }) => api.me.update(input));
-  const remove = useAction(api.me.delete);
   const resend = useAction(api.auth.resendVerification);
 
   useEffect(() => {
@@ -79,10 +78,23 @@ export default function ProfileScreen() {
   };
 
   const copyCalendar = async () => {
+    // The link is only ever shown when it is made, so copying means making a fresh one.
+    const make = async () => {
+      try {
+        const { url } = await api.me.createCalendarFeed();
+        if (url) await Clipboard.setStringAsync(url);
+        Alert.alert("Calendar link copied", "In the Calendar app: Calendars → Add Calendar → Add Subscription Calendar, then paste. Keep the link private.");
+      } catch {
+        Alert.alert("Couldn't get the link", "Check your connection and try again.");
+      }
+    };
     try {
-      const { url } = await api.me.calendarFeed();
-      await Clipboard.setStringAsync(url);
-      Alert.alert("Calendar link copied", "In the Calendar app: Calendars → Add Calendar → Add Subscription Calendar, then paste. Keep the link private.");
+      const { active } = await api.me.calendarFeed();
+      if (!active) return await make();
+      Alert.alert("Make a new calendar link?", "You already have one. For safety it can't be shown again, so this makes a new link and the old one stops working.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Make new link", onPress: () => void make() },
+      ]);
     } catch {
       Alert.alert("Couldn't get the link", "Check your connection and try again.");
     }
@@ -163,17 +175,7 @@ export default function ProfileScreen() {
       <View style={{ gap: space.md }}>
         <SectionTitle tone="danger">Account</SectionTitle>
         <Button variant="secondary" icon="log-out-outline" label="Sign out" onPress={() => void signOut()} />
-        <Button
-          variant="danger"
-          label="Delete my account"
-          loading={remove.isPending}
-          onPress={() =>
-            Alert.alert("Delete your account?", "Everything in it will be removed. This can't be undone.", [
-              { text: "Cancel", style: "cancel" },
-              { text: "Delete", style: "destructive", onPress: () => remove.mutate(undefined, { onSuccess: () => void signOut() }) },
-            ])
-          }
-        />
+        <Button variant="danger" label="Delete my account" onPress={() => router.push("/delete-account")} />
       </View>
     </Screen>
   );

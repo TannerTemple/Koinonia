@@ -127,6 +127,15 @@ export const changePasswordSchema = z.object({
 });
 export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
 
+export const logoutSchema = z.object({
+  /** The phone's push token, so it stops receiving this account's notifications. */
+  pushToken: z.string().max(200).optional(),
+});
+export type LogoutInput = z.input<typeof logoutSchema>;
+
+export const deleteAccountSchema = z.object({ password: z.string().min(1, "Enter your password").max(200) });
+export type DeleteAccountInput = z.input<typeof deleteAccountSchema>;
+
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 export type ForgotPasswordInput = z.input<typeof forgotPasswordSchema>;
 
@@ -424,8 +433,13 @@ export const adminUpdateUserSchema = z
 export type AdminUpdateUserInput = z.input<typeof adminUpdateUserSchema>;
 
 export interface CalendarFeed {
-  /** Subscribe to this URL from Apple Calendar / Google Calendar. */
-  url: string;
+  /** Whether a feed link exists for this account. */
+  active: boolean;
+  /**
+   * Subscribe to this URL from Apple Calendar / Google Calendar. Only present right after the
+   * link is created: the server keeps a hash, so it can never show the link again.
+   */
+  url: string | null;
 }
 
 export interface ApiErrorBody {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadEnv } from "../src/env";
-import { hashPassword, hashToken, newToken, verifyPassword } from "../src/lib/crypto";
+import { hashPassword, hashToken, needsRehash, newToken, SCRYPT_LOG_N, verifyPassword } from "../src/lib/crypto";
 import {
   createProviders,
   ExpoPushProvider,
@@ -94,6 +94,18 @@ describe("password and token hashing", () => {
     expect(await verifyPassword("x", "")).toBe(false);
     expect(await verifyPassword("x", "bcrypt$abc$def")).toBe(false);
     expect(await verifyPassword("x", "scrypt$onlysalt")).toBe(false);
+    expect(await verifyPassword("x", "scrypt$99$c2FsdA==$aGFzaA==")).toBe(false);
+  });
+
+  it("records the cost in the hash and still reads hashes from before it did", async () => {
+    const { scryptSync } = await import("node:crypto");
+    const salt = Buffer.from("0123456789abcdef");
+    const legacy = ["scrypt", salt.toString("base64"), scryptSync("old password", salt, 64).toString("base64")].join("$");
+    expect(await verifyPassword("old password", legacy)).toBe(true);
+    expect(needsRehash(legacy)).toBe(SCRYPT_LOG_N > 14);
+    const fresh = await hashPassword("new password");
+    expect(fresh.split("$")[1]).toBe(String(SCRYPT_LOG_N));
+    expect(needsRehash(fresh)).toBe(false);
   });
 
   it("makes long random tokens and stable hashes", () => {

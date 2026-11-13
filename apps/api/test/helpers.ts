@@ -28,7 +28,7 @@ export async function createTestApp(): Promise<TestContext> {
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User", "Session", "Contact", "Interaction", "Note", "PrayerIntention", "PrayerLog", "DailyIntention", "PushDevice", "AuthToken" RESTART IDENTITY CASCADE`,
+    `TRUNCATE "User", "Session", "Contact", "Interaction", "Note", "PrayerIntention", "PrayerLog", "DailyIntention", "PushDevice", "AuthToken", "LoginThrottle" RESTART IDENTITY CASCADE`,
   );
 }
 
