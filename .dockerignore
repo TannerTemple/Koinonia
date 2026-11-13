@@ -1,0 +1,14 @@
+# Keep secrets, local state and build output out of images.
+**/.env
+**/.env.*
+!.env.example
+**/node_modules
+**/dist
+**/.next
+**/.expo
+.git
+*.log
+coverage
+apps/mobile
+apps/web
+docs

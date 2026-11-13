@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "@fontsource-variable/fraunces";
+
+/* Colors come from packages/shared/src/theme.ts and are injected as --k-* variables in layout.tsx. */
+@theme inline {
+  --color-bg: var(--k-bg);
+  --color-surface: var(--k-surface);
+  --color-surface-alt: var(--k-surfaceAlt);
+  --color-border: var(--k-border);
+  --color-text: var(--k-text);
+  --color-muted: var(--k-textMuted);
+  --color-primary: var(--k-primary);
+  --color-primary-strong: var(--k-primaryStrong);
+  --color-primary-soft: var(--k-primarySoft);
+  --color-on-primary: var(--k-onPrimary);
+  --color-forest: var(--k-forest);
+  --color-forest-strong: var(--k-forestStrong);
+  --color-forest-soft: var(--k-forestSoft);
+  --color-gold: var(--k-gold);
+  --color-gold-soft: var(--k-goldSoft);
+  --color-danger: var(--k-danger);
+  --color-danger-soft: var(--k-dangerSoft);
+  --color-hero: var(--k-hero);
+  --color-hero-forest: var(--k-heroForest);
+  --color-on-hero: var(--k-onHero);
+  --color-on-hero-muted: var(--k-onHeroMuted);
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html {
+  background: var(--k-bg);
+  color: var(--k-text);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--k-primary);
+  outline-offset: 2px;
+}
+
+/* The deep hero panels: a soft light from the top corner, so they read as depth, not flat fill. */
+.hero-blue {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(125, 155, 234, 0.35) 0%, transparent 55%),
+    linear-gradient(160deg, #22397a 0%, var(--k-hero) 55%, #131f47 100%);
+}
+.hero-forest {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(93, 185, 145, 0.3) 0%, transparent 55%),
+    linear-gradient(160deg, #1b4a37 0%, var(--k-heroForest) 60%, #0d2a1e 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

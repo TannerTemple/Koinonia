@@ -1,0 +1,53 @@
+# Render Blueprint for the Koinonia API.
+#
+# Render dashboard > New > Blueprint > pick this repository and the branch to deploy.
+# Render reads this file, creates the service below, and asks for the values marked
+# "sync: false". Full walkthrough: docs/DEPLOY.md.
+services:
+  - type: web
+    name: koinonia-api
+    runtime: docker
+    plan: starter
+    region: oregon
+    # Built from the repository root, because the API needs packages/shared.
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    # Deploys only go live once the API can reach its database.
+    healthCheckPath: /health/ready
+    # Redeploy on every push to the branch the Blueprint was created from.
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # --- Neon: asked for when the Blueprint is created --------------------
+      # Pooled connection string (host contains "-pooler"). Used by the running API.
+      - key: DATABASE_URL
+        sync: false
+      # Direct connection string (no "-pooler"). Used only to apply migrations at start.
+      - key: DIRECT_URL
+        sync: false
+      # --- Addresses: asked for when the Blueprint is created ---------------
+      # The web app's address on Vercel, e.g. https://koinonia.vercel.app (no trailing slash).
+      - key: WEB_URL
+        sync: false
+      # Browser origins allowed to call the API. Same value as WEB_URL.
+      - key: CORS_ORIGINS
+        sync: false
+      # This service's own public address, e.g. https://koinonia-api.onrender.com
+      - key: API_PUBLIC_URL
+        sync: false
+      # --- Fixed settings ---------------------------------------------------
+      # Render puts one proxy in front of the service.
+      - key: TRUST_PROXY
+        value: "1"
+      - key: LOG_LEVEL
+        value: info
+      # Real email is switched on later (DEPLOY.md, "Real email").
+      - key: EMAIL_PROVIDER
+        value: mock
+      # Starter instances stay awake, so the daily digest can run inside the API.
+      # Turn it on (true) once real email works.
+      - key: DIGEST_ENABLED
+        value: "false"
+      - key: DIGEST_HOUR
+        value: "8"
