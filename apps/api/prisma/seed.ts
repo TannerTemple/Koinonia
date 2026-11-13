@@ -109,6 +109,10 @@ const personalIntentions = [
 ];
 
 async function main() {
+  // The demo accounts have published passwords: never create them on a real deployment.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Refusing to seed: NODE_ENV is production. The seed creates demo accounts with public passwords.");
+  }
   await prisma.user.deleteMany({ where: { email: { endsWith: "@koinonia.app" } } });
 
   await prisma.user.create({

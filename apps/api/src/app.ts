@@ -13,6 +13,7 @@ import { authRoutes } from "./routes/auth";
 import { calendarRoutes } from "./routes/calendar";
 import { contactRoutes } from "./routes/contacts";
 import { homeRoutes } from "./routes/home";
+import { jobRoutes } from "./routes/jobs";
 import { noteRoutes } from "./routes/notes";
 import { prayerRoutes } from "./routes/prayer";
 import { userRoutes } from "./routes/users";
@@ -88,15 +89,20 @@ declare module "fastify" {
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const now = deps.now ?? (() => new Date());
+  const hops = deps.env.TRUST_PROXY;
   const app = Fastify({
     logger: deps.logger
       ? {
+          level: deps.env.LOG_LEVEL,
           serializers: {
             req: (req) => ({ method: req.method, url: redactUrl(req.url), remoteAddress: req.ip }),
           },
         }
       : false,
-    trustProxy: deps.env.TRUST_PROXY,
+    // A number means "trust that many proxy hops", counted from the API outwards.
+    trustProxy: typeof hops === "number" ? (_address: string, hop: number) => hop < hops : hops,
+    // The largest legitimate body is a 500-person import (well under this).
+    bodyLimit: 512 * 1024,
   });
   app.decorate("deps", { prisma: deps.prisma, providers: deps.providers, env: deps.env, now });
   app.decorateRequest("auth", null as unknown as AuthContext);
@@ -110,7 +116,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     allowedHeaders: ["Content-Type", "Authorization", "X-Koinonia-Client"],
   });
   if (deps.rateLimit ?? true) {
-    await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+    await app.register(rateLimit, {
+      max: 300,
+      timeWindow: "1 minute",
+      // Hosts poll these constantly; they must never be throttled into "unhealthy".
+      allowList: (request) => request.url === "/health" || request.url === "/health/ready",
+    });
   }
 
   app.decorate("authenticate", async (request: FastifyRequest, reply?: FastifyReply) => {
@@ -178,7 +189,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     reply.status(404).send({ error: { code: "NOT_FOUND", message: "No such endpoint." } }),
   );
 
-  app.get("/health", async () => ({ ok: true }));
+  // Liveness: the process is up. Cheap, touches nothing, safe for frequent polling.
+  app.get("/health", { logLevel: "silent" }, async () => ({ ok: true }));
+
+  // Readiness: the API can reach its database. Use this for deploy checks and uptime monitors.
+  app.get("/health/ready", { logLevel: "silent" }, async (_request, reply) => {
+    try {
+      await deps.prisma.$queryRaw`SELECT 1`;
+      return { ok: true, database: "up" };
+    } catch {
+      return reply.status(503).send({ ok: false, database: "down" });
+    }
+  });
 
   await app.register(
     async (v1) => {
@@ -190,6 +212,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       await v1.register(userRoutes);
       await v1.register(adminRoutes);
       await v1.register(calendarRoutes);
+      await v1.register(jobRoutes);
     },
     { prefix: "/v1" },
   );

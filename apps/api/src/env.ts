@@ -10,11 +10,29 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   PORT: z.coerce.number().int().default(4000),
   HOST: z.string().default("0.0.0.0"),
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:8081"),
   WEB_URL: z.string().default("http://localhost:3000"),
   API_PUBLIC_URL: z.string().optional(),
-  /** Only trust X-Forwarded-For when the API really sits behind a proxy. */
-  TRUST_PROXY: bool,
+  /**
+   * How many reverse proxies sit in front of the API: "false"/0 for none, a number for that
+   * many hops (1 on most hosts), or "true" to trust every forwarded address (only safe when
+   * the API cannot be reached except through the proxy).
+   */
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v || v === "false" || v === "0") return false;
+      if (v === "true") return true;
+      const hops = Number(v);
+      return Number.isInteger(hops) && hops > 0 ? hops : false;
+    }),
+  /**
+   * Lets an outside scheduler run the daily digest: POST /v1/jobs/digest with this value in
+   * the X-Cron-Secret header. Unset = the endpoint does not exist.
+   */
+  CRON_SECRET: z.string().min(24, "CRON_SECRET must be at least 24 characters").optional(),
   /** Optional Domain attribute for the web session cookie, e.g. ".example.com". */
   COOKIE_DOMAIN: z.string().optional(),
   DIGEST_ENABLED: bool,

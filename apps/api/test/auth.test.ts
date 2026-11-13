@@ -136,6 +136,9 @@ describe("auth", () => {
 
   it("serves a health check and 404s unknown routes", async () => {
     expect((await ctx.app.inject({ url: "/health" })).statusCode).toBe(200);
+    const ready = await ctx.app.inject({ url: "/health/ready" });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json()).toEqual({ ok: true, database: "up" });
     expect((await call(ctx.app, "GET", "/nope")).status).toBe(404);
   });
 
