@@ -97,7 +97,7 @@ export function productionWarnings(env: Env): string[] {
   else if (env.WEB_URL.startsWith("http://")) warnings.push("WEB_URL is http://; use https:// so emailed links are private.");
   if (env.TRUST_PROXY === false) warnings.push("TRUST_PROXY is off; behind a host's proxy every visitor shares one rate limit. Set TRUST_PROXY=1.");
   if (env.TRUST_PROXY === true) warnings.push("TRUST_PROXY=true trusts any forwarded address; prefer a hop count such as 1.");
-  if (env.EMAIL_PROVIDER === "mock") warnings.push("EMAIL_PROVIDER=mock: no email is sent, so password reset and email confirmation reach nobody. See docs/DEPLOY.md, "Real email".");
+  if (env.EMAIL_PROVIDER === "mock") warnings.push("EMAIL_PROVIDER=mock: no email is sent, so password reset and email confirmation reach nobody. See the Real email step in docs/DEPLOY.md.");
   if (!env.API_PUBLIC_URL) warnings.push("API_PUBLIC_URL is not set; calendar links are built from the request's host.");
   return warnings;
 }
