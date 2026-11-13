@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Field, FormError, Screen, fieldErrors } from "@/components/ui";
-import { api } from "@/lib/api";
+import { Button, Field, FormError, Screen, fieldErrors, LegalLinks } from "@/components/ui";
+import { WEB_URL, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function RegisterScreen() {
@@ -33,6 +33,7 @@ export default function RegisterScreen() {
       <Field label="Password" hint="At least 8 characters." value={password} onChangeText={setPassword} error={errors.password} secureTextEntry textContentType="newPassword" autoComplete="new-password" />
       <FormError error={error} />
       <Button label="Create account" loading={loading} disabled={!name || !email || password.length < 8} onPress={submit} />
+      <LegalLinks webUrl={WEB_URL} prefix="By creating an account you agree to the" />
     </Screen>
   );
 }

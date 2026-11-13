@@ -1,19 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type PressableProps,
-  type StyleProp,
-  type TextInputProps,
-  type TextStyle,
-  type ViewStyle,
-} from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type PressableProps, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError, avatarColor, initials } from "@koinonia/shared";
 import { radius, serif, space, useTheme } from "@/lib/theme";
@@ -331,5 +317,22 @@ export function FormError({ error }: { error: unknown }) {
     <View accessibilityRole="alert" style={{ backgroundColor: c.dangerSoft, borderRadius: radius.md, padding: space.md }}>
       <Text style={{ color: c.danger, fontWeight: "600" }}>{errorMessage(error)}</Text>
     </View>
+  );
+}
+
+/** "Privacy Policy · Terms of Use": opens the pages on the web app. */
+export function LegalLinks({ webUrl, prefix }: { webUrl: string; prefix?: string }) {
+  const { c } = useTheme();
+  const link = (label: string, path: string) => (
+    <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${webUrl}${path}`)} style={{ color: c.primary, fontWeight: "700" }}>
+      {label}
+    </Text>
+  );
+  return (
+    <Text style={{ fontSize: 13, lineHeight: 19, color: c.textMuted, textAlign: "center" }}>
+      {prefix ? `${prefix} ` : ""}
+      {link("Terms of Use", "/terms")} {prefix ? "and" : "·"} {link("Privacy Policy", "/privacy")}
+      {prefix ? "." : ""}
+    </Text>
   );
 }

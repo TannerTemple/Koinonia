@@ -37,6 +37,8 @@ export function onUnauthorized(handler: () => void) {
 }
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
+/** Where the web app lives; the privacy policy and terms are pages there. */
+export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 
 export const api = createApiClient({
   baseUrl: API_URL,

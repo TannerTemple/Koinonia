@@ -5,8 +5,8 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Linking, Switch, Text, View } from "react-native";
 import type { Streak } from "@koinonia/shared";
-import { Avatar, Body, Button, Card, Field, FormError, Screen, SectionTitle, Title, fieldErrors, type IconName } from "@/components/ui";
-import { api } from "@/lib/api";
+import { Avatar, Body, Button, Card, Field, FormError, LegalLinks, Screen, SectionTitle, Title, fieldErrors, type IconName } from "@/components/ui";
+import { WEB_URL, api } from "@/lib/api";
 import { useAuth, useUser } from "@/lib/auth";
 import { useAction, useHome, useRefresh } from "@/lib/hooks";
 import { enableReminders, registerForPush, remindersAllowed, syncReminders } from "@/lib/notifications";
@@ -176,6 +176,7 @@ export default function ProfileScreen() {
         <SectionTitle tone="danger">Account</SectionTitle>
         <Button variant="secondary" icon="log-out-outline" label="Sign out" onPress={() => void signOut()} />
         <Button variant="danger" label="Delete my account" onPress={() => router.push("/delete-account")} />
+        <LegalLinks webUrl={WEB_URL} />
       </View>
     </Screen>
   );

@@ -50,6 +50,17 @@ export default function RegisterPage() {
       <Button type="submit" loading={loading} className="w-full">
         Create account
       </Button>
+      <p className="text-center text-xs text-muted">
+        By creating an account you agree to the{" "}
+        <Link href="/terms" className="font-semibold underline underline-offset-2">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="font-semibold underline underline-offset-2">
+          Privacy Policy
+        </Link>
+        .
+      </p>
       <p className="text-center text-sm text-muted">
         Already have one?{" "}
         <Link href="/login" className="font-semibold text-primary underline-offset-2 hover:underline">

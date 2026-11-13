@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Logo } from "@/components/logo";
@@ -31,7 +32,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <p className="text-sm text-on-hero-muted">&ldquo;They devoted themselves to the apostles&rsquo; teaching and fellowship.&rdquo; Acts 2:42</p>
       </aside>
       <main className="flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-sm">{children}</div>
+        <div className="w-full max-w-sm">
+          {children}
+          <p className="mt-10 flex justify-center gap-5 text-xs text-muted">
+            <Link href="/privacy" className="underline underline-offset-2">
+              Privacy
+            </Link>
+            <Link href="/terms" className="underline underline-offset-2">
+              Terms
+            </Link>
+          </p>
+        </div>
       </main>
     </div>
   );

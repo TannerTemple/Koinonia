@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Flame, HandHeart } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button, Card, Field, FormError, Input, Modal, PageHeader, SectionTitle, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -308,6 +309,14 @@ export default function SettingsPage() {
           </Button>
           <DeleteAccount onDeleted={() => void signOut()} />
         </Card>
+        <p className="mt-4 flex gap-5 text-sm text-muted">
+          <Link href="/privacy" className="underline underline-offset-2">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="underline underline-offset-2">
+            Terms of Use
+          </Link>
+        </p>
       </section>
     </div>
   );
