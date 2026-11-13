@@ -137,6 +137,33 @@ describe("contacts", () => {
     expect(one).toMatchObject({ email: null, cadenceDays: 28, nextDueDay: "2026-12-10" });
   });
 
+  it("matches phone numbers written differently, and keeps two people who share a name", async () => {
+    await api.call("POST", "/contacts", { name: "Maria Lopez", phone: "+1 (555) 010-2000" });
+    await api.call("POST", "/contacts", { name: "No Details" });
+    const res = await api.call("POST", "/contacts/import", {
+      cadenceDays: null,
+      contacts: [
+        { name: "Maria L.", phone: "555 010 2000" }, // same number without the country code
+        { name: "Maria Lopez", phone: "555-010-9999" }, // another Maria Lopez
+        { name: "Maria Lopez" }, // nothing to tell her apart from the first
+        { name: "No Details", phone: "555-010-7777" }, // the existing one has no details: same person
+        { name: "Sam Hill", email: "SAM@example.com" },
+        { name: "Samuel Hill", email: "sam@example.com" },
+      ],
+    });
+    expect(res.body).toEqual({ created: 2, skipped: 4 });
+    const all = (await api.call("GET", "/contacts")).body;
+    expect(all.map((c: any) => c.name).sort()).toEqual(["Maria Lopez", "Maria Lopez", "No Details", "Sam Hill"]);
+    expect(all.find((c: any) => c.name === "Sam Hill")).toMatchObject({ cadenceDays: null, nextDueDay: null });
+  });
+
+  it("imports the largest batch and refuses a bigger one", async () => {
+    const people = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Person ${i}`, phone: `555${String(1000000 + i)}` }));
+    expect((await api.call("POST", "/contacts/import", { cadenceDays: 28, contacts: people(500) })).body).toEqual({ created: 500, skipped: 0 });
+    expect((await api.call("POST", "/contacts/import", { cadenceDays: 28, contacts: people(501) })).status).toBe(400);
+    expect((await api.call("POST", "/contacts/import", { cadenceDays: 28, contacts: [] })).status).toBe(400);
+  });
+
   it("deletes a contact with its notes and history", async () => {
     const created = await api.call("POST", "/contacts", { name: "Ana", cadenceDays: 7 });
     await api.call("POST", `/contacts/${created.body.id}/notes`, { body: "Likes hiking" });

@@ -1,12 +1,12 @@
 # Koinonia — Status
 
-_Last updated: end of the second unattended round (setup fix, review, account recovery, date picker, weekly review, more tests)._
+_Last updated: end of the third unattended round (low review findings, browser runs of the account screens, contact import)._
 
 > Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it.
 
 ## After `git pull`, run exactly this
 
-There is one new database migration (`auth_tokens`) and no new dependencies, but run the install anyway: it now generates the Prisma client for you.
+There is one new database migration since the last round (`login_throttle_calendar_hash`; two since the first build) and no new dependencies. Run the install anyway: it generates the Prisma client for you.
 
 ```bash
 pnpm install
@@ -36,7 +36,37 @@ cp .env.example apps/api/.env
 
 `pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Optional new setting in `.env`: `TRUST_PROXY=true`, only if the API runs behind a reverse proxy.
 
-## What changed in this round
+## What changed in this round (third)
+
+| Step | Result |
+| --- | --- |
+| 1. Low review findings | All ten addressed; see the table at the end of [docs/REVIEW.md](docs/REVIEW.md). Eight are fixed outright. Two are narrowed rather than removed, because removing them changes how the app works: sign-up still says when an email is taken (now behind a 5-per-10-minutes limit), and members can still be found by name (now only by the start of a first or last name). |
+| 2. Browser runs | **Web:** sign-up, staying signed in, the verification link, sign-out, forgot password, reset password (including a too-short password and a reused link), sign-in with the new password, the calendar link and account deletion all pass in a headless browser. **Mobile preview:** the confirm-email card, verifying with a pasted code (wrong code, then right code), sign-out, resetting with a pasted code, sign-in with the new password and account deletion all pass. No app bugs were found. One gap is listed below. |
+| 3. Contact import | Reworked on mobile, added on web, and the duplicate matching on the server was fixed. Details below. |
+
+**What changed for you as a user**
+
+- **Web sign-in uses a cookie now.** You will be signed out of the web app once after pulling; sign in again. Nothing is kept in the browser's local storage any more.
+- **Deleting an account asks for the password** on web and mobile.
+- **The calendar link is shown once**, when you create it. Existing links keep working, but they can't be displayed again; "Make a new link" replaces the old one.
+- **Existing passwords keep working.** They are re-hashed at a stronger setting the next time each person signs in.
+- **Finding members by name** needs at least 3 letters and matches the start of a first or last name.
+
+**Contact import: what was wrong and what changed**
+
+- Any failure while reading the address book was reported as "Koinonia can't see your contacts", with a button to Settings, even when permission was fine. Failures now show what went wrong and offer "Try again"; a real refusal offers "Allow access" or "Open Settings" as appropriate.
+- Contacts saved with only a first and last name, or only a company, were dropped. They are now included.
+- The same person was added twice when the phone number was written differently (`+1 312 555 0112` and `312-555-0112`). Numbers are now compared by their last 10 digits.
+- Two different people with the same name could not both be imported. They can now, as long as each has a phone or email to tell them apart.
+- More than 500 selected people silently disabled the button. Any number can be imported now, sent in batches.
+- Added: "Select all", search by phone or email, a note when iOS is sharing only some contacts, and the mobile or primary number is preferred over the first one listed.
+- **New on web:** People → Import reads a vCard (.vcf) file exported from iCloud, Google Contacts or Outlook. The browser preview of the mobile app uses the same file import, since a browser has no address book.
+- Checked in a browser on web and in the mobile preview with a sample file: the right people were added with phone, email, birthday and rhythm, and the one already in the list was skipped. **Reading the real iPhone address book is still untested** (it needs a device); the conversion from address-book entries is covered by unit tests.
+
+Tests: 140 now (API 95, shared 31, mobile 14).
+
+
+## What changed in the second round
 
 | Step | Result |
 | --- | --- |
@@ -55,9 +85,9 @@ cp .env.example apps/api/.env
 | Milestone | State | How it was verified |
 | --- | --- | --- |
 | 1. Scaffold | Done | `pnpm check` (lint + typecheck + tests) passes |
-| 2. Backend core | Done | 85 API tests against real PostgreSQL, 26 shared-logic tests |
+| 2. Backend core | Done | 95 API tests against real PostgreSQL, 31 shared-logic tests |
 | 3. Web app core | Done | Production build; full flow run in a headless browser (desktop light, phone dark) with no console errors |
-| 4. iOS app core | Done, see caveat | Typecheck, lint, 10 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
+| 4. iOS app core | Done, see caveat | Typecheck, lint, 14 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
 | 5. Nice-to-haves | Done (three) | Calendar feed covered by API tests; starters and birthdays seen in the browser runs |
 | 6. Polish | Done | Empty, loading and error states on every screen; labels and roles on controls; README |
 
@@ -72,16 +102,15 @@ cp .env.example apps/api/.env
 ## Stubbed, unfinished, or not verified
 
 - **iOS app has not been run on a simulator or device** (none available here). It typechecks, bundles for iOS, and its screens and main flows (sign-in, sign-up, add person, add note, add intention, log reach-out, mark prayed, date picker, weekly review) ran in a browser preview with no errors. Expect small layout fixes on a real iPhone.
-- **Web forgot-password and reset-password forms were not clicked through in a browser.** The pages build and the API behind them is covered by tests; my browser check of the form submit failed twice (the test clicked before the dev page finished loading), so I stopped there. The sign-up banner and the verification link were checked in a browser and work. The mobile forgot / reset / verify screens were not run at all.
+- **The mobile forgot-password screen was opened but its "Send reset email" button was not pressed in the preview.** My test picked the wrong element twice (the button's name also contains "email"), so I stopped there under the two-attempt rule. The screen renders correctly, the request behind it is covered by API tests, and the reset screen that follows it was run and works.
 - **Reset and verification links open the web app.** In the iPhone app you paste the code from the same email. Opening the app straight from the email (universal links) needs a real domain and Apple setup.
 - **Unverified accounts are not restricted**; they see a "Confirm your email" banner (decision 33).
-- **The sign-in lockout is kept in memory**, which is right for one API instance only (REVIEW.md, L3).
-- **Low-severity review findings are open**, for example account deletion does not ask for the password (REVIEW.md, L1 to L10).
-- **Native-only features are untested at runtime:** local notifications, contact import (expo-contacts), Keychain storage, haptics, the native tab bar.
+- **Web and API must share a domain in production** (for example `app.example.com` and `api.example.com`, with `COOKIE_DOMAIN=.example.com`), because the web session is now a same-site cookie (decision 39). Locally nothing changes.
+- **Native-only features are untested at runtime:** local notifications, reading the address book for contact import (expo-contacts), Keychain storage, haptics, the native tab bar.
 - **Email, SMS and push run on mocks** that log what they would send. Real adapters for Resend, Twilio and Expo push are written but have never been called against the real services.
 - **Daily digest is off by default** (`DIGEST_ENABLED=false`).
 - **No Sign in with Apple / Google. No way to change your email address.**
-- **Web has no address-book import** (manual add, or use the iOS app).
+- **Web import reads vCard (.vcf) files only**, not CSV.
 - **Snooze on mobile still uses fixed choices** ("Tomorrow", "Next week"); the calendar picker covers follow-ups, reach-out day and "last talked". Birthday is still typed.
 - **Admin is web only.**
 - **Android** is configured but untried.
@@ -151,12 +180,12 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 
 ## Suggested next features
 
-- Sign in with Apple; change email address; ask for the password before deleting an account
+- Sign in with Apple; change email address
 - Home-screen widget and lock-screen "who's due" on iOS
 - Share an intention with the person you're praying for ("I prayed for you today")
 - Groups (family, small group) with shared prayer lists
 - Per-person reminder time; calendar picker for snooze and birthday
-- Import on web (vCard / CSV); merge duplicates
+- CSV import on web; merge duplicates
 - Liturgical touches: saint of the day, novena tracking, rosary intentions
 - Weekly review as a Sunday email or push; month and year views
 

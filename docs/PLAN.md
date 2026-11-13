@@ -77,7 +77,7 @@ counters to drift.
 | People list + search/filter | `/people` | `/(tabs)/people` |
 | Add / edit person (cadence picker) | `/people/new`, `/people/[id]/edit` | `/contact/new`, `/contact/[id]/edit` |
 | Person detail: contact info, quick actions (call/text/email), log reach-out, snooze, notes, linked intentions, history | `/people/[id]` | `/contact/[id]` |
-| Import from phone contacts | — (manual add) | `/contact/import` |
+| Import contacts | `/people/import` (vCard file) | `/contact/import` (address book) |
 | Find people on Koinonia | `/people/find` | `/contact/find` |
 | Prayer: today's intention, promised list, pray/answer, add | `/prayer` | `/(tabs)/prayer` |
 | Profile & settings: streaks, timezone, reminders, theme, sign out | `/settings` | `/(tabs)/profile` |
@@ -135,3 +135,8 @@ counters to drift.
 - [x] Calendar date picker on mobile
 - [x] Weekly review (`GET /review/weekly`, web `/review`, mobile `/review`)
 - [x] Tests for isolation, recovery, review, client, providers, hardening
+
+### 8. Third round
+- [x] Ten low review findings addressed (see `docs/REVIEW.md`)
+- [x] Web and mobile account screens run in a browser
+- [x] Contact import reworked on mobile, added on web (`/people/import`), duplicate matching fixed

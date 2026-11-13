@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, UserSearch, Users } from "lucide-react";
+import { FileUp, Plus, Search, UserSearch, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { dayInTimezone, dueStatus, type Contact } from "@koinonia/shared";
@@ -42,10 +42,15 @@ export default function PeoplePage() {
         title="People"
         subtitle={data ? `${data.length} ${data.length === 1 ? "person" : "people"}${filter === "archived" ? " archived" : " you're keeping up with"}` : undefined}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href="/people/find">
               <Button variant="secondary">
                 <UserSearch className="size-4" aria-hidden /> Find
+              </Button>
+            </Link>
+            <Link href="/people/import">
+              <Button variant="secondary">
+                <FileUp className="size-4" aria-hidden /> Import
               </Button>
             </Link>
             <Link href="/people/new">
@@ -88,7 +93,7 @@ export default function PeoplePage() {
           <EmptyState
             icon={<Users className="size-6" />}
             title="No one here yet"
-            body="Add the people you want to stay close to. On your phone, the Koinonia app can import them straight from your contacts."
+            body="Add the people you want to stay close to, or import them from a contacts file. On your phone, the Koinonia app can import them straight from your address book."
             action={
               <Link href="/people/new">
                 <Button>Add your first person</Button>

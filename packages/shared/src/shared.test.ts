@@ -147,3 +147,60 @@ describe("weekly review wording", () => {
     expect(weekHeadline(0, 0)).toContain("quiet week");
   });
 });
+
+describe("vCard import", () => {
+  const file = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "N:Lopez;Maria;;;",
+    "FN:Maria Lopez",
+    "item1.TEL;type=HOME:+1 312 555 0100",
+    "TEL;type=CELL;type=pref:(312) 555-0150",
+    "EMAIL;type=INTERNET:maria@example.com",
+    "EMAIL:second@example.com",
+    "BDAY:1990-04-12",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "VERSION:4.0",
+    "N:Okafor;Daniel;;;",
+    "TEL;VALUE=uri:tel:+13125550102",
+    "BDAY:--0704",
+    "NOTE:a folded line that",
+    "  continues here",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "VERSION:2.1",
+    "ORG:Corner Bakery\\, Inc.;Front desk",
+    "BDAY;value=date:1604-12-25",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:Jos=C3=A9 Mart=C3=ADn",
+    "BDAY:19850230",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "TEL:555-0000",
+    "END:VCARD",
+  ].join("\r\n");
+
+  it("reads names, the best phone, the first email and birthdays", async () => {
+    const { parseVCards } = await import("./vcard");
+    expect(parseVCards(file)).toEqual([
+      { name: "Maria Lopez", phone: "(312) 555-0150", email: "maria@example.com", birthday: "1990-04-12" },
+      { name: "Daniel Okafor", phone: "+13125550102", email: null, birthday: "07-04" },
+      { name: "Corner Bakery, Inc.", phone: null, email: null, birthday: "12-25" },
+      { name: "José Martín", phone: null, email: null, birthday: null },
+    ]);
+  });
+
+  it("returns nothing for files that aren't vCards", async () => {
+    const { parseVCards } = await import("./vcard");
+    expect(parseVCards("name,phone\nAna,555")).toEqual([]);
+    expect(parseVCards("")).toEqual([]);
+  });
+
+  it("splits long lists into batches", async () => {
+    const { chunk } = await import("./vcard");
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+    expect(chunk([], 2)).toEqual([]);
+  });
+});

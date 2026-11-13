@@ -45,3 +45,6 @@ One line each: the decision and why. Newest at the bottom.
 41. **Sign-up still says when an email is taken, behind a 5-per-10-minutes limit** — hiding it would mean no sign-in until the email is confirmed (against decision 33).
 42. **scrypt cost N=2^17, stored in each hash, upgraded at sign-in; `SCRYPT_LOG_N` lowers it for the test suite only.**
 43. **Member name search matches the start of a first or last name, 3+ letters, 5 results** — enough to find someone you know, not enough to page through the directory.
+44. **Web gets contact import from a vCard (.vcf) file; the mobile browser preview uses the same file import** — "fix the import contact feature" was not specific, so every weakness found was fixed (errors mislabelled as a permission refusal, nameless-but-real contacts dropped, duplicate matching, the 500 cap) and the feature was added where it was missing. A browser has no address book, and vCard is the one format iCloud, Google and Outlook all export.
+45. **Import duplicates are matched by the last 10 digits of the phone, or the email, or the name when one side has nothing else** — numbers are written many ways; two people can share a name.
+46. **The mobile forgot-password submit was left unverified after two failed test attempts** (selector matched the "Send reset email" button); noted in STATUS.md.

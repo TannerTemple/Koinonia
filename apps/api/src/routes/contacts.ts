@@ -67,20 +67,36 @@ export async function contactRoutes(app: FastifyInstance) {
       where: { userId: user.id },
       select: { name: true, phone: true, email: true },
     });
-    // Skip people already in the list (same phone, same email, or same name with no other info).
+    // Skip people already in the list: the same phone number (compared by its last 10 digits,
+    // so "+1 555 010 2000" and "(555) 010-2000" are one number), the same email, or the same
+    // name when one side has nothing else to tell two people apart.
+    const phoneKey = (phone: string | null | undefined) => {
+      const digits = (phone ?? "").replace(/\D/g, "");
+      return digits.length >= 7 ? `p:${digits.slice(-10)}` : null;
+    };
     const seen = new Set<string>();
-    for (const c of existing) {
-      if (c.phone) seen.add(`p:${c.phone}`);
-      if (c.email) seen.add(`e:${c.email}`);
-      seen.add(`n:${c.name.toLowerCase()}`);
-    }
+    const names = new Set<string>();
+    const bareNames = new Set<string>();
+    const remember = (c: { name: string; phone?: string | null; email?: string | null }) => {
+      const phone = phoneKey(c.phone);
+      if (phone) seen.add(phone);
+      if (c.email) seen.add(`e:${c.email.toLowerCase()}`);
+      names.add(c.name.toLowerCase());
+      if (!phone && !c.email) bareNames.add(c.name.toLowerCase());
+    };
+    existing.forEach(remember);
+
     const toCreate = [];
     for (const c of input.contacts) {
-      const keys = [c.phone && `p:${c.phone}`, c.email && `e:${c.email}`, `n:${c.name.toLowerCase()}`].filter(
-        Boolean,
-      ) as string[];
-      if (keys.some((k) => seen.has(k))) continue;
-      keys.forEach((k) => seen.add(k));
+      const phone = phoneKey(c.phone);
+      const name = c.name.toLowerCase();
+      const duplicate =
+        (phone !== null && seen.has(phone)) ||
+        (c.email !== null && seen.has(`e:${c.email}`)) ||
+        bareNames.has(name) ||
+        (!phone && !c.email && names.has(name));
+      if (duplicate) continue;
+      remember(c);
       toCreate.push({
         userId: user.id,
         name: c.name,
