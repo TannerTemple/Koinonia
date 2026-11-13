@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app";
-import { loadEnv } from "../src/env";
+import { loadEnv, productionWarnings } from "../src/env";
+import { safeError, safeUrl, scrub } from "../src/lib/log";
 import { createMockProviders } from "../src/providers";
 import { call, createTestApp, prisma, resetDb, signUp, type Api, type TestContext } from "./helpers";
 
@@ -164,5 +165,107 @@ describe("hosting", () => {
     await app.close();
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toMatchObject({ considered: 1, sent: 0 });
+  });
+});
+
+describe("what reaches the logs", () => {
+  it("scrubs emails, long secrets and phone numbers from text", () => {
+    const text = scrub("Unique constraint failed for maria.lopez@example.com token aB3dE5gH7jK9mN1pQ3sT5vX7zA9cE1gH phone +1 (312) 555-0100 code P2002");
+    expect(text).toBe("Unique constraint failed for [email] token [redacted] phone [number] code P2002");
+  });
+
+  it("logs the path only: no search terms, no calendar secret", () => {
+    expect(safeUrl("/v1/users/search?q=maria%40example.com")).toBe("/v1/users/search");
+    expect(safeUrl("/v1/contacts?q=Grandma")).toBe("/v1/contacts");
+    expect(safeUrl("/v1/calendar/aB3dE5gH7jK9mN1pQ3sT5vX7zA9cE1gH.ics")).toBe("/v1/calendar/[redacted].ics");
+    expect(safeUrl("/v1/home")).toBe("/v1/home");
+  });
+
+  it("reduces an error to its type, code and a scrubbed first line", () => {
+    const err = Object.assign(new Error("\nInvalid `prisma.user.create()` invocation:\n\nUnique constraint failed on the fields: (`email`) for tanner@example.com"), {
+      name: "PrismaClientKnownRequestError",
+      code: "P2002",
+      meta: { target: ["email"], value: "tanner@example.com" },
+    });
+    const safe = safeError(err);
+    expect(safe).toEqual({ type: "PrismaClientKnownRequestError", code: "P2002", message: "Unique constraint failed on the fields: (`email`) for [email]" });
+    expect(JSON.stringify(safe)).not.toContain("tanner");
+    expect(safeError("boom")).toEqual({ type: "string", message: "non-error thrown" });
+  });
+
+  it("writes request lines without query strings and failures without personal data", async () => {
+    const lines: string[] = [];
+    const stream = { write: (line: string) => void lines.push(line) };
+    const broken = {
+      session: { findUnique: async () => Promise.reject(new Error("db exploded while reading maria@example.com")) },
+    } as unknown as typeof prisma;
+    const app = await buildApp({ prisma: broken, providers: createMockProviders(), env: loadEnv(process.env), logger: true, logStream: stream, rateLimit: false });
+    const res = await app.inject({ url: "/v1/users/search?q=secret-search-term", headers: { authorization: "Bearer some-token-value" } });
+    await app.close();
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json().error.message).toBe("Something went wrong on our side.");
+    const log = lines.join("");
+    expect(log).toContain('"url":"/v1/users/search"');
+    expect(log).toContain("request failed");
+    expect(log).toContain("db exploded while reading [email]");
+    expect(log).not.toContain("secret-search-term");
+    expect(log).not.toContain("maria@example.com");
+    expect(log).not.toContain("some-token-value");
+  });
+});
+
+describe("hosted configuration", () => {
+  it("marks every API answer as not cacheable, except the calendar file", async () => {
+    const home = await ctx.app.inject({ url: "/v1/home", headers: { authorization: `Bearer ${api.token}` } });
+    expect(home.headers["cache-control"]).toBe("no-store");
+    const denied = await ctx.app.inject({ url: "/v1/home" });
+    expect(denied.headers["cache-control"]).toBe("no-store");
+    const feed = (await api.call("POST", "/me/calendar-feed")).body.url as string;
+    const ics = await ctx.app.inject({ url: new URL(feed).pathname });
+    expect(ics.headers["cache-control"]).toBe("private, max-age=900");
+  });
+
+  it("answers CORS only for the listed origins, with credentials", async () => {
+    const app = await buildApp({ prisma, providers: createMockProviders(), env: loadEnv({ ...process.env, CORS_ORIGINS: "https://app.koinonia.test" }), rateLimit: false });
+    const preflight = (origin: string) =>
+      app.inject({ method: "OPTIONS", url: "/v1/home", headers: { origin, "access-control-request-method": "GET", "access-control-request-headers": "x-koinonia-client" } });
+    const good = await preflight("https://app.koinonia.test");
+    const bad = await preflight("https://evil.example");
+    await app.close();
+    expect(good.headers["access-control-allow-origin"]).toBe("https://app.koinonia.test");
+    expect(good.headers["access-control-allow-credentials"]).toBe("true");
+    expect(bad.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("refuses a wildcard or malformed CORS list and a malformed web address", () => {
+    const env = (extra: Record<string, string>) => () => loadEnv({ ...process.env, ...extra });
+    expect(env({ CORS_ORIGINS: "*" })).toThrow(/CORS_ORIGINS/);
+    expect(env({ CORS_ORIGINS: "https://app.example.com/" })).toThrow(/CORS_ORIGINS/);
+    expect(env({ CORS_ORIGINS: "app.example.com" })).toThrow(/CORS_ORIGINS/);
+    expect(env({ CORS_ORIGINS: "" })).toThrow(/CORS_ORIGINS/);
+    expect(env({ WEB_URL: "app.example.com" })).toThrow(/WEB_URL/);
+    expect(env({ CORS_ORIGINS: "https://app.example.com, https://www.example.com", WEB_URL: "https://app.example.com/" })).not.toThrow();
+  });
+
+  it("warns about settings that are wrong for a public deployment, and only in production", () => {
+    const base = { ...process.env, DATABASE_URL: "postgresql://x" };
+    expect(productionWarnings(loadEnv(base))).toEqual([]);
+    const sloppy = productionWarnings(loadEnv({ ...base, NODE_ENV: "production" })).join(" ");
+    for (const word of ["CORS_ORIGINS", "WEB_URL", "TRUST_PROXY", "EMAIL_PROVIDER", "API_PUBLIC_URL"]) expect(sloppy).toContain(word);
+    const tidy = productionWarnings(
+      loadEnv({
+        ...base,
+        NODE_ENV: "production",
+        CORS_ORIGINS: "https://app.koinonia.test",
+        WEB_URL: "https://app.koinonia.test",
+        API_PUBLIC_URL: "https://api.koinonia.test",
+        TRUST_PROXY: "1",
+        EMAIL_PROVIDER: "resend",
+        RESEND_API_KEY: "re_x",
+        EMAIL_FROM: "Koinonia <hello@koinonia.test>",
+      }),
+    );
+    expect(tidy).toEqual([]);
   });
 });

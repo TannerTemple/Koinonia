@@ -50,7 +50,22 @@ const schema = z.object({
   EXPO_ACCESS_TOKEN: z.string().optional(),
 });
 
+const isOrigin = (value: string) => /^https?:\/\/[^/\s?#]+$/.test(value);
+
 const checked = schema.superRefine((env, ctx) => {
+  // CORS: an explicit list of origins. The API sends credentials, so "anything" is never right.
+  const origins = env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean);
+  if (origins.length === 0 || origins.some((o) => !isOrigin(o))) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["CORS_ORIGINS"],
+      message: "must be a comma-separated list of origins like https://app.example.com (no paths, no trailing slash, never *)",
+    });
+  }
+  if (!isOrigin(env.WEB_URL.replace(/\/+$/, ""))) {
+    ctx.addIssue({ code: "custom", path: ["WEB_URL"], message: "must be the web app's address, like https://app.example.com" });
+  }
+
   // Asking for real email without the means to send it should stop the API at start,
   // not fail quietly the first time someone needs a password reset.
   if (env.EMAIL_PROVIDER === "resend") {
@@ -69,6 +84,23 @@ const checked = schema.superRefine((env, ctx) => {
 });
 
 export type Env = z.infer<typeof schema>;
+
+/** Settings that work but are wrong for a public deployment. Logged at start, never fatal. */
+export function productionWarnings(env: Env): string[] {
+  if (env.NODE_ENV !== "production") return [];
+  const warnings: string[] = [];
+  const local = (url: string) => /\/\/(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(url);
+  const origins = env.CORS_ORIGINS.split(",").map((o) => o.trim());
+  if (origins.some(local)) warnings.push("CORS_ORIGINS still allows localhost; set it to the web app's address only.");
+  if (origins.some((o) => o.startsWith("http://") && !local(o))) warnings.push("CORS_ORIGINS contains an http:// origin; use https://.");
+  if (local(env.WEB_URL)) warnings.push("WEB_URL points at localhost; links in emails will not work.");
+  else if (env.WEB_URL.startsWith("http://")) warnings.push("WEB_URL is http://; use https:// so emailed links are private.");
+  if (env.TRUST_PROXY === false) warnings.push("TRUST_PROXY is off; behind a host's proxy every visitor shares one rate limit. Set TRUST_PROXY=1.");
+  if (env.TRUST_PROXY === true) warnings.push("TRUST_PROXY=true trusts any forwarded address; prefer a hop count such as 1.");
+  if (env.EMAIL_PROVIDER === "mock") warnings.push("EMAIL_PROVIDER=mock: no email is sent, so password reset and email confirmation reach nobody. See docs/DEPLOY.md, step 5.");
+  if (!env.API_PUBLIC_URL) warnings.push("API_PUBLIC_URL is not set; calendar links are built from the request's host.");
+  return warnings;
+}
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = checked.safeParse(source);

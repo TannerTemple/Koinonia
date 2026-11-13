@@ -23,6 +23,9 @@ describe("finding people on Koinonia", () => {
     expect(byName.body.map((u: any) => u.name)).toEqual(["Maria Lopez", "Mario Rossi"]);
     expect(byName.body[0]).toMatchObject({ matchedBy: "name", email: null, phone: null, alreadyContact: false });
 
+    // An address nobody has confirmed can't be found: anyone could have typed it at sign-up.
+    expect((await api.call("GET", "/users/search?q=maria@example.com")).body).toEqual([]);
+    await prisma.user.update({ where: { id: maria.userId }, data: { emailVerifiedAt: new Date() } });
     const byEmail = await api.call("GET", "/users/search?q=MARIA@example.com");
     expect(byEmail.body).toMatchObject([{ id: maria.userId, matchedBy: "email", email: "maria@example.com" }]);
     expect((await api.call("GET", "/users/search?q=mar@example.com")).body).toEqual([]);

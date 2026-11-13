@@ -23,10 +23,16 @@ export async function createTestApp(): Promise<TestContext> {
   const providers = createMockProviders();
   const env = loadEnv({ ...process.env, DIGEST_HOUR: "8" });
   const app = await buildApp({ prisma, providers, env, now: () => current, rateLimit: false });
+  apps.add(app);
+  app.addHook("onClose", async () => void apps.delete(app));
   return { app, providers, setNow: (iso) => (current = new Date(iso)) };
 }
 
+const apps = new Set<FastifyInstance>();
+
 export async function resetDb() {
+  // Emails are recorded after the response; let that finish so it can't collide with the wipe.
+  await Promise.all([...apps].map((app) => app.background.idle()));
   await prisma.$executeRawUnsafe(
     `TRUNCATE "User", "Session", "Contact", "Interaction", "Note", "PrayerIntention", "PrayerLog", "DailyIntention", "PushDevice", "AuthToken", "LoginThrottle" RESTART IDENTITY CASCADE`,
   );

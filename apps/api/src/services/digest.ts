@@ -2,6 +2,7 @@ import type { PrismaClient, PushDevice, User } from "@prisma/client";
 import { dayInTimezone, dueLabel, hourInTimezone } from "@koinonia/shared";
 import type { Env } from "../env";
 import type { Providers } from "../providers";
+import { safeError } from "../lib/log";
 import { buildHome } from "./home";
 
 const BATCH_SIZE = 200;
@@ -98,7 +99,7 @@ async function sendDigest(
         ? providers.sms.send({ to: user.phone, body: `Koinonia: ${headline}. ${env.WEB_URL}` })
         : Promise.resolve(),
     ]);
-    for (const r of results) if (r.status === "rejected") console.error("[digest] delivery failed:", r.reason);
+    for (const r of results) if (r.status === "rejected") console.error("[digest] delivery failed:", JSON.stringify(safeError(r.reason)));
     // Only tick the day off once the email got out; otherwise the next run tries again.
     if (results[0].status === "rejected") return false;
     await markDone();

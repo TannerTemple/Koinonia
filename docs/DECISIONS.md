@@ -64,3 +64,9 @@ One line each: the decision and why. Newest at the bottom.
 60. **`eas.json` has `simulator`, `preview` and `production` profiles and no development-client profile** — `expo-dev-client` is not installed and could not be tried here; TestFlight via the production profile is the shortest path to a real phone. Server addresses in it are placeholders the owner must replace.
 61. **App version set to 1.0.0; build numbers are managed by EAS (`appVersionSource: remote`, `autoIncrement`).**
 62. **App Store privacy answers declare Sensitive Info and Device ID** — prayer intentions can reveal religious beliefs and the push token identifies a device; over-declaring is safer than a rejection or a misleading label.
+63. **Logs hold paths, status codes, IP addresses and scrubbed error summaries; never query strings, bodies, or raw errors** — hosted logs are kept for weeks and readable from a dashboard.
+64. **`CORS_ORIGINS` and `WEB_URL` are validated at start (fatal if malformed or `*`); risky-but-working production settings are logged as warnings, not fatal** — a typo should stop a deploy, but a missing nice-to-have should not take the service down.
+65. **One reset email and one confirmation email per account per minute** — stops inbox flooding without telling the caller anything.
+66. **Member search by email finds confirmed addresses only** — an unconfirmed address proves nothing about who owns it.
+67. **The web Content-Security-Policy allows inline scripts (`'unsafe-inline'`)** — Next.js needs them unless every page is rendered per request with a nonce; the policy still restricts script sources, data destinations, framing and form targets. Applied in production builds only.
+68. **Every `/v1` response is `Cache-Control: no-store`.**

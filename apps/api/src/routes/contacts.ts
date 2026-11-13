@@ -60,7 +60,7 @@ export async function contactRoutes(app: FastifyInstance) {
     return toContact(row);
   });
 
-  app.post("/contacts/import", async (request, reply): Promise<ImportResult> => {
+  app.post("/contacts/import", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (request, reply): Promise<ImportResult> => {
     const input = parse(importContactsSchema, request.body);
     const { user, today } = request.auth;
     const existing = await prisma.contact.findMany({

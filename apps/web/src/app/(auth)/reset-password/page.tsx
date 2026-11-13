@@ -15,6 +15,8 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     setToken(new URLSearchParams(window.location.search).get("token") ?? "");
+    // Keep the one-time secret out of the address bar, history and screenshots.
+    window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   if (done) {

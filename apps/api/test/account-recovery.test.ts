@@ -57,6 +57,13 @@ describe("email verification", () => {
     const reg = await post("/auth/register", creds);
     const first = await emailedToken(/Confirm your email/);
     expect((await post("/auth/resend-verification")).status).toBe(401);
+
+    // Asking again straight away sends nothing: one email a minute at most.
+    expect((await post("/auth/resend-verification", undefined, reg.body.token)).status).toBe(204);
+    await settle();
+    expect(ctx.providers.email.sent).toHaveLength(0);
+
+    ctx.setNow("2026-11-12T12:02:00Z");
     expect((await post("/auth/resend-verification", undefined, reg.body.token)).status).toBe(204);
     const second = await emailedToken(/Confirm your email/);
     expect(second).not.toBe(first);
@@ -119,13 +126,25 @@ describe("password reset", () => {
     await post("/auth/register", creds);
     await post("/auth/forgot-password", { email: creds.email });
     const first = await emailedToken(/Reset your Koinonia password/);
+    ctx.setNow("2026-11-12T12:02:00Z");
     await post("/auth/forgot-password", { email: creds.email });
     const second = await emailedToken(/Reset your Koinonia password/);
     expect((await post("/auth/reset-password", { token: first, password: "a brand new password" })).status).toBe(400);
 
-    ctx.setNow("2026-11-12T13:01:00Z");
+    ctx.setNow("2026-11-12T13:03:00Z");
     expect((await post("/auth/reset-password", { token: second, password: "a brand new password" })).status).toBe(400);
     expect((await post("/auth/login", { email: creds.email, password: creds.password })).status).toBe(200);
+  });
+
+  it("can't be used to flood an inbox: one reset email a minute, same answer every time", async () => {
+    await post("/auth/register", creds);
+    await emailedToken(/Confirm your email/);
+    for (let i = 0; i < 5; i++) expect((await post("/auth/forgot-password", { email: creds.email })).status).toBe(204);
+    const token = await emailedToken(/Reset your Koinonia password/);
+    await settle();
+    expect(ctx.providers.email.sent).toHaveLength(0);
+    // The one link that was sent still works.
+    expect((await post("/auth/reset-password", { token, password: "a brand new password" })).status).toBe(204);
   });
 
   it("sends nothing to a disabled account", async () => {

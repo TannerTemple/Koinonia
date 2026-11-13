@@ -17,6 +17,8 @@ export default function VerifyEmailPage() {
     if (started.current) return;
     started.current = true;
     const token = new URLSearchParams(window.location.search).get("token");
+    // Keep the one-time secret out of the address bar, history and screenshots.
+    window.history.replaceState(null, "", window.location.pathname);
     if (!token) {
       setState({ error: "This link isn't complete. Open it from your email again." });
       return;

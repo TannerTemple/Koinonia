@@ -16,6 +16,7 @@ import {
 import { CLIENT_HEADER, SESSION_DAYS, sessionCookie } from "../app";
 import { hashPassword, hashToken, needsRehash, newToken, verifyPassword } from "../lib/crypto";
 import { badRequest, conflict, forbidden, parse, tooMany, unauthorized } from "../lib/errors";
+import { safeError } from "../lib/log";
 import { toUser } from "../lib/serialize";
 
 async function createSession(prisma: PrismaClient, userId: string, now: Date): Promise<string> {
@@ -36,6 +37,7 @@ const DUMMY_HASH = hashPassword("not-a-real-password");
 
 const RESET_TTL_MS = 60 * 60_000; // 1 hour
 const VERIFY_TTL_MS = 3 * 86_400_000; // 3 days
+const EMAIL_COOLDOWN_MS = 60_000;
 const BAD_LINK = "That link or code is invalid or has expired. Ask for a new one.";
 
 const MAX_FAILED_LOGINS = 8;
@@ -47,12 +49,18 @@ export async function authRoutes(app: FastifyInstance) {
 
   /** Issues a fresh single-use token of one kind (replacing unused older ones) and emails it. */
   async function sendAuthEmail(user: User, kind: AuthTokenKind) {
+    // At most one email of a kind per minute per account, so the forms can't be used to
+    // flood someone's inbox. The caller is told nothing either way.
+    const recent = await prisma.authToken.findFirst({
+      where: { userId: user.id, kind, usedAt: null, createdAt: { gt: new Date(now().getTime() - EMAIL_COOLDOWN_MS) } },
+    });
+    if (recent) return;
     const token = newToken();
     const ttl = kind === "PASSWORD_RESET" ? RESET_TTL_MS : VERIFY_TTL_MS;
     await prisma.$transaction([
       prisma.authToken.deleteMany({ where: { userId: user.id, kind, usedAt: null } }),
       prisma.authToken.create({
-        data: { userId: user.id, kind, tokenHash: hashToken(token), expiresAt: new Date(now().getTime() + ttl) },
+        data: { userId: user.id, kind, tokenHash: hashToken(token), createdAt: now(), expiresAt: new Date(now().getTime() + ttl) },
       }),
     ]);
     const first = user.name.split(" ")[0];
@@ -94,14 +102,17 @@ export async function authRoutes(app: FastifyInstance) {
   }
   /** Email problems must never fail (or slow) the request that triggered them. */
   const sendInBackground = (user: User, kind: AuthTokenKind) => {
-    const done = sendAuthEmail(user, kind).catch((err) => app.log.error(err, "auth email failed"));
-    pending.add(done);
-    void done.finally(() => pending.delete(done));
+    // Requests arriving while one is still being sent would slip past the one-a-minute
+    // check (its record isn't saved yet), so they are dropped here.
+    const key = `${user.id}:${kind}`;
+    if (sending.has(key)) return;
+    sending.add(key);
+    const done = sendAuthEmail(user, kind)
+      .catch((err) => app.log.error({ err: safeError(err), kind }, "auth email failed"))
+      .finally(() => sending.delete(key));
+    app.background.track(done);
   };
-  const pending = new Set<Promise<unknown>>();
-  app.addHook("onClose", async () => {
-    await Promise.allSettled([...pending]);
-  });
+  const sending = new Set<string>();
 
   /** Atomically spends a token: valid only if unused and unexpired, and never twice. */
   async function consumeToken(token: string, kind: AuthTokenKind) {

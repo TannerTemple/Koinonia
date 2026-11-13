@@ -22,7 +22,9 @@ export async function userRoutes(app: FastifyInstance) {
       const digits = q.replace(/\D/g, "");
       if (q.includes("@")) {
         matchedBy = "email";
-        match = { email: q.toLowerCase() };
+        // Only confirmed addresses: otherwise anyone could sign up with someone else's email
+        // and appear under it.
+        match = { email: q.toLowerCase(), emailVerifiedAt: { not: null } };
       } else if (digits.length >= 7 && /^[\d\s()+.-]+$/.test(q)) {
         matchedBy = "phone";
         // Exact number only. A full 10-digit number also matches with or without a country

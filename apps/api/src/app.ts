@@ -7,6 +7,7 @@ import { dayInTimezone } from "@koinonia/shared";
 import type { Env } from "./env";
 import { hashToken } from "./lib/crypto";
 import { forbidden, HttpError, unauthorized } from "./lib/errors";
+import { safeError, safeUrl } from "./lib/log";
 import type { Providers } from "./providers";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
@@ -55,8 +56,6 @@ function sessionToken(request: FastifyRequest): { token: string; fromCookie: boo
   return null;
 }
 
-/** Keeps secrets that live in URLs (the calendar feed) out of the request log. */
-export const redactUrl = (url: string) => url.replace(/(\/calendar\/)[^/?]+/, "$1[redacted].ics");
 const DAY_MS = 86_400_000;
 
 export interface AppDeps {
@@ -66,6 +65,8 @@ export interface AppDeps {
   /** Injectable clock so tests can move time. */
   now?: () => Date;
   logger?: boolean;
+  /** Where log lines go (default: stdout). Lets tests read what would be logged. */
+  logStream?: { write: (line: string) => void };
   rateLimit?: boolean;
 }
 
@@ -79,6 +80,8 @@ export interface AuthContext {
 declare module "fastify" {
   interface FastifyInstance {
     deps: Required<Pick<AppDeps, "prisma" | "providers" | "env" | "now">>;
+    /** Work that continues after a response was sent (emails). */
+    background: { track: (work: Promise<unknown>) => void; idle: () => Promise<void> };
     authenticate: (request: FastifyRequest, reply?: FastifyReply) => Promise<void>;
     requireAdmin: (request: FastifyRequest, reply?: FastifyReply) => Promise<void>;
   }
@@ -94,8 +97,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     logger: deps.logger
       ? {
           level: deps.env.LOG_LEVEL,
+          ...(deps.logStream ? { stream: deps.logStream } : {}),
           serializers: {
-            req: (req) => ({ method: req.method, url: redactUrl(req.url), remoteAddress: req.ip }),
+            // Path only: query strings carry search terms (names, emails, phone numbers).
+            req: (req) => ({ method: req.method, url: safeUrl(req.url), remoteAddress: req.ip }),
           },
         }
       : false,
@@ -107,12 +112,27 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("deps", { prisma: deps.prisma, providers: deps.providers, env: deps.env, now });
   app.decorateRequest("auth", null as unknown as AuthContext);
 
+  const pending = new Set<Promise<unknown>>();
+  app.decorate("background", {
+    track: (work: Promise<unknown>) => {
+      pending.add(work);
+      void work.finally(() => pending.delete(work));
+    },
+    idle: async () => {
+      while (pending.size) await Promise.allSettled([...pending]);
+    },
+  });
+  // Let emails that are mid-send finish before the process exits on a deploy.
+  app.addHook("onClose", () => app.background.idle());
+
   await app.register(helmet);
   await app.register(cors, {
     origin: deps.env.CORS_ORIGINS.split(",").map((o) => o.trim()),
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     // The web app signs in with an httpOnly cookie.
     credentials: true,
+    // Let browsers remember the preflight answer for ten minutes.
+    maxAge: 600,
     allowedHeaders: ["Content-Type", "Authorization", "X-Koinonia-Client"],
   });
   if (deps.rateLimit ?? true) {
@@ -179,10 +199,16 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       const message = status === 429 ? "Too many requests. Give it a minute." : (error as Error).message;
       return reply.status(status).send({ error: { code, message } });
     }
-    request.log.error(error);
+    // Never the raw error: database errors can quote the values of the failed query.
+    request.log.error({ err: safeError(error) }, "request failed");
     return reply
       .status(500)
       .send({ error: { code: "INTERNAL", message: "Something went wrong on our side." } });
+  });
+
+  // Responses hold personal data: no browser, proxy or CDN may keep a copy.
+  app.addHook("onSend", async (request, reply) => {
+    if (request.url.startsWith("/v1/") && !reply.hasHeader("Cache-Control")) reply.header("Cache-Control", "no-store");
   });
 
   app.setNotFoundHandler((_request, reply) =>

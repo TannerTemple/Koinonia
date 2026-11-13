@@ -50,7 +50,7 @@ export async function calendarRoutes(app: FastifyInstance) {
     return reply.status(204).send();
   });
 
-  app.get<{ Params: { file: string } }>("/calendar/:file", async (request, reply) => {
+  app.get<{ Params: { file: string } }>("/calendar/:file", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (request, reply) => {
     const token = request.params.file.replace(/\.ics$/, "");
     const user = token ? await prisma.user.findUnique({ where: { calendarTokenHash: hashToken(token) } }) : null;
     if (!user || user.disabledAt) throw notFound("That calendar");

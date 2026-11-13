@@ -5,6 +5,6 @@ import { createProviders } from "../providers";
 import { runDigest } from "../services/digest";
 
 const env = loadEnv();
-const result = await runDigest({ prisma, providers: createProviders(env, console.log), env });
+const result = await runDigest({ prisma, providers: createProviders(env, env.NODE_ENV === "production" ? undefined : console.log), env });
 console.log(`Digest: ${result.sent} sent of ${result.considered} users considered.`);
 await prisma.$disconnect();
