@@ -55,8 +55,9 @@ counters to drift.
 
 ## API surface (all JSON, `/v1`)
 
-- Auth: `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /me`, `PATCH /me`, `DELETE /me`
+- Auth: `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `GET /me`, `PATCH /me`, `DELETE /me`
 - Home: `GET /home` — overdue / due today / upcoming, follow-ups, today's intention, streaks
+- Weekly review: `GET /review/weekly` — last 7 days next to the 7 before
 - Contacts: `GET/POST /contacts`, `GET/PATCH/DELETE /contacts/:id`, `POST /contacts/import`,
   `POST /contacts/:id/reach-out`, `POST /contacts/:id/snooze`, `GET /contacts/:id/interactions`
 - Notes: `GET/POST /contacts/:id/notes`, `PATCH/DELETE /notes/:id`
@@ -125,3 +126,12 @@ counters to drift.
 - [x] Empty / loading / error states
 - [x] Accessibility pass
 - [x] README, final STATUS
+
+### 7. Second round
+- [x] Fresh clone works with only the documented commands (Prisma client generated on install)
+- [x] Code review (`docs/REVIEW.md`); high and medium findings fixed
+- [x] Four mobile flows verified
+- [x] Password reset and email verification (API, web, mobile; mock email)
+- [x] Calendar date picker on mobile
+- [x] Weekly review (`GET /review/weekly`, web `/review`, mobile `/review`)
+- [x] Tests for isolation, recovery, review, client, providers, hardening
