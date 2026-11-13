@@ -1,12 +1,12 @@
 # Koinonia — Status
 
-_Last updated: end of the third unattended round (low review findings, browser runs of the account screens, contact import)._
+_Last updated: end of the fourth unattended round (deployment readiness, real email adapter, legal pages, App Store guide, hosted security pass)._
 
 > Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it.
 
 ## After `git pull`, run exactly this
 
-There is one new database migration since the last round (`login_throttle_calendar_hash`; two since the first build) and no new dependencies. Run the install anyway: it generates the Prisma client for you.
+No new database migration and no new dependencies this round. Run the install anyway (it regenerates the Prisma client; the schema gained a second connection setting). Your local `apps/api/.env` needs no changes: `DIRECT_URL` defaults to `DATABASE_URL`.
 
 ```bash
 pnpm install
@@ -36,7 +36,33 @@ cp .env.example apps/api/.env
 
 `pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Optional new setting in `.env`: `TRUST_PROXY=true`, only if the API runs behind a reverse proxy.
 
-## What changed in this round (third)
+## What changed in this round (fourth)
+
+| Step | Result |
+| --- | --- |
+| 1. Deployment readiness | [docs/DEPLOY.md](docs/DEPLOY.md): click-by-click for **Neon + Render + Vercel**, with every environment variable and which service it goes in. `apps/api/Dockerfile`, `render.yaml` (Docker web service, Starter, health check, auto-deploy), health checks (`/health`, and `/health/ready` which also checks the database), and Prisma now takes a pooled `DATABASE_URL` plus a direct `DIRECT_URL` for migrations. |
+| 2. Real email | Resend adapter behind `EMAIL_PROVIDER=resend`; mock stays the default. Retries temporary failures, times out, never retries a rejected request, and its errors contain no recipient or message. With the switch on, a missing key or placeholder sender stops the API at start. `pnpm --filter @koinonia/api email:test you@example.com` sends one message through whatever is configured. |
+| 3. Privacy policy and terms | Draft pages at `/privacy` and `/terms`, linked from sign-up, Settings and the iPhone app. They describe what the code actually does with contacts, notes and prayer intentions, and how account deletion works. |
+| 4. App Store guide | [docs/APP_STORE.md](docs/APP_STORE.md): checklist, listing copy (within Apple's length limits), App Privacy answers, review notes, and the EAS build, submit and TestFlight commands. `apps/mobile/eas.json` added; app version set to 1.0.0. |
+| 5. Hosted security pass | Fifteen findings fixed, eight left with reasons: second half of [docs/REVIEW.md](docs/REVIEW.md). Main ones below. |
+
+**Hosted security pass, the main fixes**
+
+- **Logs:** request logs recorded search terms (`/users/search?q=someone@example.com`). They now hold the path only, and errors are reduced to a scrubbed one-line summary.
+- **CORS:** `CORS_ORIGINS` is validated when the API starts; a `*`, a path or a typo stops the deploy with a clear message.
+- **Wrong-for-production settings** (localhost addresses, proxy trust off, mock email) are listed as warnings at the top of the API log.
+- **Rate limits:** `TRUST_PROXY` is now a hop count (`1` on Render), so limits work per visitor and a made-up forwarded address is ignored.
+- **Inbox flooding:** one reset email and one confirmation email per account per minute. The test for this found and fixed a race.
+- **Web headers:** Content-Security-Policy, HSTS and related headers in production builds; the whole web account flow was re-run against a production build with no violations.
+- **One-time links:** reset and confirmation pages send no referrer, are not cached, and remove the secret from the address bar.
+- **Member search by email** only finds confirmed addresses.
+
+**One thing to know about hosting.** On Vercel, `NEXT_PUBLIC_API_URL` is `/api`, not the Render address. The web app forwards `/api/*` to Render (`API_PROXY_TARGET`), because a browser will not keep a sign-in cookie between a `vercel.app` site and an `onrender.com` site. DEPLOY.md explains it where the variable is listed, and how to drop the forwarding if you use your own domain.
+
+Tests: 164 now (API 119 plus 2 opt-in live email tests that are skipped by default, shared 31, mobile 14).
+
+
+## What changed in the third round
 
 | Step | Result |
 | --- | --- |
@@ -85,7 +111,7 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 | Milestone | State | How it was verified |
 | --- | --- | --- |
 | 1. Scaffold | Done | `pnpm check` (lint + typecheck + tests) passes |
-| 2. Backend core | Done | 95 API tests against real PostgreSQL, 31 shared-logic tests |
+| 2. Backend core | Done | 119 API tests against real PostgreSQL, 31 shared-logic tests |
 | 3. Web app core | Done | Production build; full flow run in a headless browser (desktop light, phone dark) with no console errors |
 | 4. iOS app core | Done, see caveat | Typecheck, lint, 14 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
 | 5. Nice-to-haves | Done (three) | Calendar feed covered by API tests; starters and birthdays seen in the browser runs |
@@ -97,7 +123,7 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 2. **Prayer list.** Intentions, optionally linked to a person; "people I said I'd pray for" separate from personal ones; mark prayed once a day; answered and archived; one special intention each day, chosen by you or suggested (the one that has waited longest).
 3. **Personal notes.** Notes on each person, pinning, and a follow-up date ("ask how the interview went") that surfaces on Today and as a reminder.
 
-**Also built:** email + password accounts with password reset and email verification, weekly review, admin role (web: usage stats, promote / disable members), find members by name / exact email / phone and add them, import from the phone's address book (iOS app), reach-out and prayer streaks, call / text / email shortcuts, conversation starters, birthdays, private calendar (.ics) feed, light and dark themes, account deletion.
+**Also built:** email + password accounts with password reset and email verification, weekly review, privacy and terms pages, deployment files and guides, admin role (web: usage stats, promote / disable members), find members by name / exact email / phone and add them, import from the phone's address book (iOS app), reach-out and prayer streaks, call / text / email shortcuts, conversation starters, birthdays, private calendar (.ics) feed, light and dark themes, account deletion.
 
 ## Stubbed, unfinished, or not verified
 
@@ -105,9 +131,14 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 - **The mobile forgot-password screen was opened but its "Send reset email" button was not pressed in the preview.** My test picked the wrong element twice (the button's name also contains "email"), so I stopped there under the two-attempt rule. The screen renders correctly, the request behind it is covered by API tests, and the reset screen that follows it was run and works.
 - **Reset and verification links open the web app.** In the iPhone app you paste the code from the same email. Opening the app straight from the email (universal links) needs a real domain and Apple setup.
 - **Unverified accounts are not restricted**; they see a "Confirm your email" banner (decision 33).
-- **Web and API must share a domain in production** (for example `app.example.com` and `api.example.com`, with `COOKIE_DOMAIN=.example.com`), because the web session is now a same-site cookie (decision 39). Locally nothing changes.
+- **Nothing has been deployed.** DEPLOY.md and `render.yaml` have not been followed on real Neon, Render or Vercel accounts (none may be created here). `render.yaml` was checked for valid syntax only. A pooled Neon connection has not been tried.
+- **The Docker image was not built.** Two attempts failed at `apt-get` because the build environment blocks Debian's package mirrors. The same steps (clean filtered install, build, migrations through `DIRECT_URL`, production start, both health checks) were run successfully outside Docker.
+- **The Resend adapter has never talked to Resend.** It is covered by 9 tests with the network stubbed; the build environment cannot reach api.resend.com. Run the opt-in live test (command at the top of `apps/api/test/resend.test.ts`) or `email:test` once you have a key.
+- **The privacy policy and terms are drafts, not legal advice.** They show a "Draft" banner and [BRACKETED] placeholders (operator name, contact address, governing law, hosting region, backup retention, liability cap) until you fill in `apps/web/src/lib/legal.ts`, have them reviewed, and set `LEGAL_DRAFT = false`.
+- **No EAS build or App Store submission has been made.** `eas.json` and the commands in APP_STORE.md are untested, and `eas.json` holds placeholder server addresses.
+- **Screen labels on Neon, Render, Vercel, Resend, Expo and App Store Connect are from memory** and change often; prices and free-tier terms too.
 - **Native-only features are untested at runtime:** local notifications, reading the address book for contact import (expo-contacts), Keychain storage, haptics, the native tab bar.
-- **Email, SMS and push run on mocks** that log what they would send. Real adapters for Resend, Twilio and Expo push are written but have never been called against the real services.
+- **Email, SMS and push run on mocks by default.** Email switches to Resend with `EMAIL_PROVIDER=resend`. The Twilio and Expo push adapters are written and unit-tested with the network stubbed, but have never been called for real.
 - **Daily digest is off by default** (`DIGEST_ENABLED=false`).
 - **No Sign in with Apple / Google. No way to change your email address.**
 - **Web import reads vCard (.vcf) files only**, not CSV.
@@ -169,14 +200,12 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 
 ## What you need to do next
 
-1. **Review the pull request.**
-2. **Run the iOS app on a Mac**: `pnpm dev:mobile`, press `i`. Notifications and contact import need a development build rather than Expo Go: `npx expo run:ios` in `apps/mobile`, or `eas build --profile development --platform ios`.
-3. **On the phone, walk the flows once** (add person, note with a follow-up date, intention, reach-out, pray, forgot password, confirm email, weekly review) and fix anything that looks off.
-4. **Choose the real bundle identifier.** `com.koinonia.app` in `apps/mobile/app.json` is a placeholder; it must be one you register with Apple.
-5. **Apple and EAS**: Apple Developer Program ($99/yr), `eas init` (adds the project id that push registration needs), `eas build --platform ios`, `eas submit`. App Store listing needs a privacy policy URL, screenshots, and the contacts and notifications usage answers.
-6. **Host the API and database**: any Node host plus managed Postgres. Set `DATABASE_URL`, `CORS_ORIGINS`, `WEB_URL`, `API_PUBLIC_URL`; run `pnpm db:migrate`; build with `pnpm --filter @koinonia/api build`. Host the web app (for example Vercel) with `NEXT_PUBLIC_API_URL`.
-7. **Keys, only when you want real delivery** (all listed in `.env.example`): `RESEND_API_KEY` + `EMAIL_FROM` for email, the three `TWILIO_*` values for SMS, `PUSH_ENABLED=true` for push, then `DIGEST_ENABLED=true`.
-8. **Make yourself admin** on a real database: `UPDATE "User" SET role = 'ADMIN' WHERE email = 'you@example.com';`
+1. **Merge the pull request** (or deploy its branch).
+2. **Deploy** by following [docs/DEPLOY.md](docs/DEPLOY.md) top to bottom: Neon, then Render, then Vercel, then real email. About an hour the first time. Tell me where a step did not match what you saw and I will correct the guide.
+3. **Finish the legal pages**: fill in `apps/web/src/lib/legal.ts`, get them reviewed, set `LEGAL_DRAFT = false`.
+4. **Ship to TestFlight** by following [docs/APP_STORE.md](docs/APP_STORE.md): choose the real bundle identifier, put the server addresses in `apps/mobile/eas.json`, `eas init`, build, submit.
+5. **On the phone, walk the flows once** (the list is in APP_STORE.md) and send me anything that looks off. The iPhone app has still never run on a device.
+6. **Turn on two-factor sign-in** on GitHub, Neon, Render, Vercel, Resend, Expo and Apple before real people's data is in there.
 
 ## Suggested next features
 
@@ -189,4 +218,4 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 - Liturgical touches: saint of the day, novena tracking, rosary intentions
 - Weekly review as a Sunday email or push; month and year views
 
-See [docs/PLAN.md](docs/PLAN.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/REVIEW.md](docs/REVIEW.md) and [README.md](README.md).
+See [docs/PLAN.md](docs/PLAN.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/REVIEW.md](docs/REVIEW.md), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/APP_STORE.md](docs/APP_STORE.md) and [README.md](README.md).

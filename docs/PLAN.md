@@ -140,3 +140,10 @@ counters to drift.
 - [x] Ten low review findings addressed (see `docs/REVIEW.md`)
 - [x] Web and mobile account screens run in a browser
 - [x] Contact import reworked on mobile, added on web (`/people/import`), duplicate matching fixed
+
+### 9. Fourth round
+- [x] Deployment: Dockerfile, `render.yaml`, health checks, `DIRECT_URL`, `docs/DEPLOY.md` (Neon + Render + Vercel)
+- [x] Resend email adapter behind `EMAIL_PROVIDER`
+- [x] Draft privacy policy and terms (`/privacy`, `/terms`)
+- [x] `docs/APP_STORE.md` and `apps/mobile/eas.json`
+- [x] Hosted-environment security pass (second half of `docs/REVIEW.md`)
