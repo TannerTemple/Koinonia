@@ -17,7 +17,7 @@ exact commands, the listing text, and the answers to Apple's privacy questions.
       can take a day or two.
 - [ ] **Expo account** (free, expo.dev).
 - [ ] A Mac is **not** required: EAS builds in the cloud. An iPhone is needed to test.
-- [ ] The API and web app are deployed ([DEPLOY.md](DEPLOY.md)) and real email is on (step 5 there).
+- [ ] The API and web app are deployed ([DEPLOY.md](DEPLOY.md)) and real email is on (step 6 there).
       Apple's reviewer must be able to sign in, and the privacy policy must be reachable.
 
 ### In the code (each is one small edit)

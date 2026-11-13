@@ -10,8 +10,8 @@ export default function setup() {
   process.env.DATABASE_URL = url;
   // Production cost (2^17) would make every sign-up in the suite take a third of a second.
   process.env.SCRYPT_LOG_N = "14";
-  execSync("pnpm exec prisma migrate deploy", {
-    env: { ...process.env, DATABASE_URL: url },
+  execSync("node scripts/prisma.mjs migrate deploy", {
+    env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url },
     stdio: "pipe",
   });
 }

@@ -4,7 +4,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // What the running API connects with. On Neon this is the pooled address ("-pooler").
+  url       = env("DATABASE_URL")
+  // What migrations connect with: a direct, unpooled connection. Locally it is the same
+  // database, and scripts/prisma.mjs fills it in from DATABASE_URL when it is not set.
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {

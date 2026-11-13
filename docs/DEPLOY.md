@@ -1,307 +1,351 @@
-# Deploying Koinonia
+# Deploying Koinonia: Neon + Render + Vercel
 
-Three pieces go online: the **database** (PostgreSQL), the **API** (`apps/api`, a Docker image) and
-the **web app** (`apps/web`, Next.js). The iPhone app is separate: see [APP_STORE.md](APP_STORE.md).
+| Piece | Host | What it is |
+| --- | --- | --- |
+| Database | **Neon** | PostgreSQL. Two connection strings: pooled (`DATABASE_URL`) and direct (`DIRECT_URL`). |
+| API | **Render** | `apps/api` as a Docker web service, Starter instance, health-checked, redeployed on every push. |
+| Web app | **Vercel** | `apps/web` (Next.js), redeployed on every push. |
+| iPhone app | EAS / App Store | Built separately; it only needs the API's address. See [APP_STORE.md](APP_STORE.md). |
 
-This guide uses **Neon** (database), **Render** (API) and **Vercel** (web). Each had a free tier when
-this was written; free tiers and menu names change, so check the provider's pricing page before you
-rely on one. Other hosts are covered at the end; the settings are the same everywhere.
+> **What was and wasn't tested.** The API was installed, built and started exactly as the Dockerfile
+> does it (clean filtered install, build, migrations through `DIRECT_URL`, production start, both
+> health checks), and the web app was run against it through the proxy described below, in a real
+> browser. Three things could not be done in the build environment: building the Docker image itself
+> (it blocks the Debian package mirrors; two attempts), connecting to a real Neon database, and
+> deploying to Render or Vercel (no accounts may be created). `render.yaml` was checked for valid
+> syntax only. Button names on the three dashboards change; where a label differs from what is
+> written here, look for the nearest equivalent. Expect to adjust a setting or two the first time.
 
-> **What was and wasn't tested.** The API was built and started exactly as the Dockerfile does it
-> (clean install, build, `migrate deploy`, start in production mode, health checks) and the web app
-> was run against it through the proxy described below. The Docker image itself could not be built
-> in the build environment (it blocks the Debian package mirrors), and nothing was deployed to any
-> of these hosts. Expect to adjust a setting or two the first time.
+## Every environment variable, and where it goes
 
-## How the pieces talk to each other
+Variables marked **you choose** are addresses you only know after the service exists; the steps
+below tell you when.
+
+### On Render (the API)
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | Neon **pooled** connection string | Host contains `-pooler`. Used by the running API. |
+| `DIRECT_URL` | Neon **direct** connection string | Host has no `-pooler`. Used only to apply migrations when the API starts. |
+| `WEB_URL` | `https://YOUR-WEB.vercel.app` | **You choose.** The web app's address. Goes into the links in emails. No trailing slash. |
+| `CORS_ORIGINS` | same as `WEB_URL` | Browser origins allowed to call the API. Comma-separate if there are several. Never `*`. |
+| `API_PUBLIC_URL` | `https://YOUR-API.onrender.com` | **You choose.** The API's own address. Used to build calendar links. |
+| `NODE_ENV` | `production` | Set by `render.yaml`. |
+| `TRUST_PROXY` | `1` | Set by `render.yaml`. Render has one proxy in front of the service. |
+| `EMAIL_PROVIDER` | `mock`, later `resend` | Set by `render.yaml`. See "Real email". |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | from Resend | Only with `EMAIL_PROVIDER=resend`. |
+| `DIGEST_ENABLED`, `DIGEST_HOUR` | `false` / `8` | Set by `render.yaml`. Turn on after email works. |
+| `LOG_LEVEL` | `info` | Set by `render.yaml`. |
+| `PORT` | do not set | Render sets it; the API follows. |
+| `COOKIE_DOMAIN`, `CRON_SECRET`, `TWILIO_*`, `PUSH_ENABLED`, `EXPO_ACCESS_TOKEN`, `DIGEST_SMS` | optional | See "Optional settings". |
+
+### On Vercel (the web app). Read at build time: redeploy after changing one.
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_URL` | `/api` | Yes, a path, not the Render address. See "Why `/api`" below. |
+| `API_PROXY_TARGET` | `https://YOUR-API.onrender.com` | The web app forwards `/api/*` here. No trailing slash. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | your contact address | Shown on the privacy and terms pages. |
+| `NEXT_PUBLIC_OPERATOR_NAME` | your name or company | Shown on the privacy and terms pages. |
+
+### In the iPhone app (`apps/mobile/eas.json`, used by EAS builds)
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `EXPO_PUBLIC_API_URL` | `https://YOUR-API.onrender.com` | The phone calls the API directly. Must be `https://`. |
+| `EXPO_PUBLIC_WEB_URL` | `https://YOUR-WEB.vercel.app` | For the privacy and terms links inside the app. |
+
+### On your own computer (unchanged)
+
+`apps/api/.env` keeps `DATABASE_URL` pointing at local Postgres. You do not need `DIRECT_URL`
+locally: it defaults to `DATABASE_URL`.
+
+### Why `/api`
+
+The web app signs you in with a cookie, and browsers only send that cookie to the site that set
+it. `something.vercel.app` and `something.onrender.com` are unrelated sites to a browser, so if the
+web app called the Render address directly you would be signed out on every page load. Instead the
+web app forwards everything under `/api/` to Render behind the scenes:
 
 ```
-iPhone app ───────────────────────────────►  API  ──►  PostgreSQL
-browser ──► web app (Vercel) ── /api/* ───►  API
+browser ──► https://YOUR-WEB.vercel.app/api/v1/...  ──►  https://YOUR-API.onrender.com/v1/...
+iPhone app ──────────────────────────────────────────►  https://YOUR-API.onrender.com/v1/...
 ```
 
-The browser never calls the API directly. The web app forwards anything under `/api/` to the API
-(`API_PROXY_TARGET`). That keeps the sign-in cookie on the web app's own address, so it works on a
-free `*.vercel.app` address with no custom domain. (If you do have a domain, see
-[Option B](#option-b-your-own-domain-no-proxy).)
+If you own a domain you can skip the forwarding: see "Using your own domain".
 
 ## Before you start
 
-- The code is on GitHub (it is) and the branch you want is merged or selected.
-- Accounts on Neon, Render and Vercel (sign in with GitHub on each).
-- 30 to 45 minutes.
+1. **Merge the pull request** on GitHub so that `main` contains this code. (To deploy without
+   merging, choose the branch `claude/great-turing-vdjm45` wherever a step says `main`.)
+2. Have accounts on neon.tech, render.com and vercel.com. Sign in to each with GitHub.
+3. Render's Starter instance is paid (a few dollars a month; check render.com/pricing). Neon and
+   Vercel have free tiers that are enough to start.
+4. Open a text file to paste four things into as you go: the two Neon strings, the Render address,
+   the Vercel address.
 
-Generate two random secrets now and keep them somewhere safe. Run this twice:
+## Step 1. Neon: create the database and copy two connection strings
 
-```bash
-openssl rand -base64 32
-```
+1. Go to **console.neon.tech**. Click **New Project** (or **Create project**).
+2. **Project name:** `koinonia`. **Postgres version:** leave the default (16 or newer).
+   **Region:** pick the one nearest Render's Oregon region, for example **AWS US West (Oregon)**.
+   Click **Create**.
+3. On the project dashboard click **Connect** (top right).
+4. In the dialog, make sure **Connection pooling** is switched **on**. Click **Copy** (or "Copy
+   snippet"). Paste it into your text file and label it `DATABASE_URL`. Check that the host part
+   contains `-pooler`, like this:
 
-Call the first one `CRON_SECRET`. (The second is spare; nothing else needs a secret you invent.)
-
-## Step 1. Database (Neon)
-
-1. Go to neon.tech, create a project. Name: `koinonia`. PostgreSQL version: 16 or newer. Pick the
-   region closest to you.
-2. On the project dashboard open **Connect** (or "Connection string").
-3. **Turn connection pooling off** for the string you copy (you want the *direct* connection; its
-   host name does **not** contain `-pooler`). Database migrations need the direct one.
-4. Copy the string. It looks like:
-   `postgresql://USER:PASSWORD@ep-something.REGION.aws.neon.tech/neondb?sslmode=require`
-5. Keep it for step 2. This is `DATABASE_URL`. Treat it like a password.
-
-You do not create tables yourself. The API creates and updates them every time it starts.
-
-## Step 2. API (Render)
-
-1. render.com → **New** → **Web Service** → connect your GitHub account → choose the `Koinonia`
-   repository.
-2. Settings:
-
-   | Setting | Value |
-   | --- | --- |
-   | Name | `koinonia-api` (this becomes `https://koinonia-api.onrender.com`; if taken, pick another and use it below) |
-   | Branch | `main` (or the branch you deploy) |
-   | Language / Runtime | **Docker** |
-   | Root Directory | leave empty |
-   | Dockerfile Path | `apps/api/Dockerfile` |
-   | Docker Build Context Directory | `.` |
-   | Instance type | Free (sleeps when idle) or the smallest paid one (always on) |
-   | Health Check Path | `/health/ready` |
-
-3. Add **Environment Variables** (the "Production settings" table below explains each):
-
-   | Key | Value |
-   | --- | --- |
-   | `DATABASE_URL` | the Neon string from step 1 |
-   | `NODE_ENV` | `production` |
-   | `WEB_URL` | `https://YOUR-WEB.vercel.app` (you get this in step 3; put a guess now and fix it after) |
-   | `CORS_ORIGINS` | same value as `WEB_URL` |
-   | `API_PUBLIC_URL` | `https://koinonia-api.onrender.com` |
-   | `TRUST_PROXY` | `1` |
-   | `CRON_SECRET` | the secret you generated |
-   | `EMAIL_PROVIDER` | `mock` for now; step 5 switches on real email |
-
-   Do **not** set `PORT`; Render sets it and the API follows.
-
-4. **Create Web Service**. The first build takes several minutes. Watch the log: it should end with
-   `No pending migrations to apply` or a list of applied migrations, then `Server listening`.
-5. Check it. Both should answer with `"ok":true`:
-
-   ```bash
-   curl https://koinonia-api.onrender.com/health
+   ```
+   postgresql://neondb_owner:PASSWORD@ep-cool-name-123456-pooler.us-west-2.aws.neon.tech/neondb?sslmode=require
    ```
 
-   ```bash
-   curl https://koinonia-api.onrender.com/health/ready
+5. In the same dialog switch **Connection pooling off**. Copy again, paste, and label it
+   `DIRECT_URL`. Same string, but the host has **no** `-pooler`:
+
+   ```
+   postgresql://neondb_owner:PASSWORD@ep-cool-name-123456.us-west-2.aws.neon.tech/neondb?sslmode=require
    ```
 
-   `/health` only says the process is up. `/health/ready` also proves the database is reachable; if
-   it answers `"database":"down"`, the `DATABASE_URL` is wrong.
+6. Both must end with `?sslmode=require` (other parameters after it, such as `&channel_binding=require`,
+   are fine). Treat both strings like passwords.
 
-## Step 3. Web app (Vercel)
+You do not create any tables. The API creates and updates them each time it starts.
 
-1. vercel.com → **Add New** → **Project** → import the `Koinonia` repository.
-2. Settings:
+## Step 2. Render: create the API from the Blueprint
 
-   | Setting | Value |
+The repository contains `render.yaml`, which describes the service (Docker, Starter instance,
+health check, auto-deploy), so most settings are filled in for you.
+
+1. Go to **dashboard.render.com**. Click **New +** (top right) → **Blueprint**.
+2. If asked, click **Connect GitHub** and give Render access to the `Koinonia` repository.
+3. Pick the **Koinonia** repository from the list.
+4. **Blueprint Name:** `koinonia`. **Branch:** `main`.
+5. Render shows one service, **koinonia-api**, and asks for five values. Fill them in:
+
+   | Field | What to paste |
    | --- | --- |
-   | Framework Preset | Next.js |
-   | Root Directory | `apps/web` |
-   | Build / Install commands | leave the defaults |
-   | "Include files outside the root directory" | on (it is by default; the web app needs `packages/shared`) |
+   | `DATABASE_URL` | the **pooled** Neon string |
+   | `DIRECT_URL` | the **direct** Neon string |
+   | `WEB_URL` | `https://koinonia.vercel.app` for now (corrected in step 4) |
+   | `CORS_ORIGINS` | the same as `WEB_URL` |
+   | `API_PUBLIC_URL` | `https://koinonia-api.onrender.com` for now (corrected in a moment) |
 
-3. **Environment Variables**:
+6. Click **Deploy Blueprint** (or **Apply**). Render asks for a payment method if you have none,
+   because the Starter instance is paid.
+7. Click the **koinonia-api** service to watch the build log. The first build takes 5 to 10
+   minutes. A good start ends like this:
+
+   ```
+   3 migrations found in prisma/migrations
+   All migrations have been successfully applied.
+   Server listening at http://0.0.0.0:10000
+   ```
+
+   (The number of migrations grows over time. On later deploys the middle line reads
+   `No pending migrations to apply.`)
+8. At the top of the service page is its address, something like
+   `https://koinonia-api.onrender.com` (Render adds a suffix if the name is taken). Paste it into
+   your text file as **the Render address**.
+9. If it differs from what you typed for `API_PUBLIC_URL`: left menu → **Environment** → edit
+   `API_PUBLIC_URL` → **Save Changes** (Render redeploys).
+10. Check it from your computer. Both must answer with `"ok":true`:
+
+    ```bash
+    curl https://koinonia-api.onrender.com/health
+    ```
+
+    ```bash
+    curl https://koinonia-api.onrender.com/health/ready
+    ```
+
+    `/health` only says the program is running. `/health/ready` also proves it reached the database.
+    If it says `"database":"down"`, `DATABASE_URL` is wrong.
+
+**What the Blueprint set up, so you can check it under Settings:** Runtime **Docker**; Dockerfile
+Path `./apps/api/Dockerfile`; Docker Build Context Directory `.`; Instance Type **Starter**;
+Health Check Path `/health/ready`; Auto-Deploy **On Commit** for the branch you chose.
+
+**Prefer to click it together without the Blueprint?** New + → **Web Service** → pick the
+repository → Language **Docker** → Branch `main` → Root Directory *empty* → Dockerfile Path
+`./apps/api/Dockerfile` → Instance Type **Starter** → under **Advanced**: Health Check Path
+`/health/ready`, Docker Build Context Directory `.`, Auto-Deploy **Yes** → add every variable from
+the Render table above → **Create Web Service**.
+
+## Step 3. Vercel: create the web app
+
+1. Go to **vercel.com/new**.
+2. Under **Import Git Repository** find `Koinonia` and click **Import**. (If it is not listed,
+   click **Adjust GitHub App Permissions** and allow the repository.)
+3. **Project Name:** `koinonia`. **Framework Preset:** Next.js (detected).
+4. **Root Directory:** click **Edit**, choose `apps/web`, click **Continue**.
+5. Leave **Build and Output Settings** alone.
+6. Open **Environment Variables** and add these, one at a time (Key, Value, **Add**):
 
    | Key | Value |
    | --- | --- |
    | `NEXT_PUBLIC_API_URL` | `/api` |
-   | `API_PROXY_TARGET` | `https://koinonia-api.onrender.com` |
-   | `NEXT_PUBLIC_CONTACT_EMAIL` | the address people should write to about privacy (shown on the privacy and terms pages) |
+   | `API_PROXY_TARGET` | the Render address, e.g. `https://koinonia-api.onrender.com` |
+   | `NEXT_PUBLIC_CONTACT_EMAIL` | the address people should write to |
+   | `NEXT_PUBLIC_OPERATOR_NAME` | your name or company |
 
-4. **Deploy**. Note the address Vercel gives you, for example `https://koinonia-abc.vercel.app`.
-5. Go back to Render → `koinonia-api` → **Environment** and set `WEB_URL` and `CORS_ORIGINS` to that
-   exact address (no trailing slash). Save; Render redeploys.
-6. Both variables above are read when the web app is **built**. If you change either later, redeploy
-   the web app (Vercel → Deployments → Redeploy).
+7. Click **Deploy**. It takes 2 to 4 minutes.
+8. When it finishes, click **Continue to Dashboard**. Under **Domains** is the address, for example
+   `https://koinonia.vercel.app` (Vercel changes the name if it is taken). Paste it into your text
+   file as **the Vercel address**. Use the short production address, not one of the long
+   per-deployment ones.
+9. Vercel deploys the repository's default branch to production. To deploy another branch instead:
+   **Settings** → **Environments** → **Production** → **Branch Tracking** → choose the branch.
 
-## Step 4. First sign-in and your admin account
+## Step 4. Tell the API the web app's real address
 
-1. Open the Vercel address, choose **Create an account**, sign up with your real email.
-2. Make yourself an admin. In Neon open the **SQL Editor** and run (with your email):
+1. Render → **koinonia-api** → **Environment**.
+2. Set `WEB_URL` to the Vercel address, exactly, with `https://` and no trailing slash.
+3. Set `CORS_ORIGINS` to the same value.
+4. **Save Changes**. Wait for the redeploy to finish (a minute or two).
+5. Open **Logs**. Near the start, lines beginning with a warning tell you about any setting that is
+   still wrong for a public site. Right now you should see only the one about `EMAIL_PROVIDER=mock`.
+
+## Step 5. First sign-in and your admin account
+
+1. Open the Vercel address. Click **Create an account** and sign up with your real email.
+2. You should land on Today and stay signed in when you reload the page. (If reloading signs you
+   out, see "If something goes wrong".)
+3. Make yourself an admin: Neon console → your project → **SQL Editor** → paste, with your email →
+   **Run**:
 
    ```sql
    UPDATE "User" SET role = 'ADMIN' WHERE email = 'you@example.com';
    ```
 
-3. Reload the web app; an **Admin** entry appears in the menu.
+4. Reload the web app. **Admin** appears in the menu.
 
-Never run `pnpm db:seed` against the production database. It creates demo accounts with published
-passwords (and it refuses to run when `NODE_ENV=production`).
+Never run `pnpm db:seed` against this database: it creates demo accounts with published passwords.
+(It refuses to run when `NODE_ENV=production`.)
 
-## Step 5. Real email (needed for password reset)
+## Step 6. Real email (needed for "Forgot password")
 
-Until this is done, "Forgot password" and "Confirm your email" send nothing: the default is a mock
-that discards messages in production.
+Until this is done, password reset and email confirmation send nothing.
 
-1. Create an account at resend.com.
-2. **Domains** → add a domain you own and add the DNS records it shows. Wait until it says verified.
-   (No domain yet? Resend's test sender `onboarding@resend.dev` can only deliver to the email address
-   of your own Resend account. Fine for trying it out, not for real users.)
-3. **API Keys** → create a key with "Sending access". Copy it once.
-4. In Render → Environment set:
+1. Create an account at **resend.com**.
+2. **Domains** → **Add Domain** → enter a domain you own → add the DNS records it lists at your
+   domain registrar → wait for **Verified**. (No domain? Resend's test sender
+   `onboarding@resend.dev` only delivers to your own Resend account's address: enough to try it,
+   not for real users.)
+3. **API Keys** → **Create API Key** → Permission **Sending access** → **Add**. Copy the key now;
+   it is shown once.
+4. Render → **koinonia-api** → **Environment** → set or add:
 
    | Key | Value |
    | --- | --- |
    | `EMAIL_PROVIDER` | `resend` |
-   | `RESEND_API_KEY` | the key |
+   | `RESEND_API_KEY` | the key (starts with `re_`) |
    | `EMAIL_FROM` | `Koinonia <hello@yourdomain.com>` (an address on the verified domain) |
    | `EMAIL_REPLY_TO` | optional: where replies should go |
 
-5. After the redeploy, test it from your computer. This sends one real email through whatever the
-   API is configured to use:
+5. **Save Changes**. If the key is missing or the sender is still an `example.com` address, the API
+   refuses to start and the log names the setting.
+6. Test it: on the web app's sign-in page click **Forgot password?**, enter your email, and check
+   your inbox. If nothing arrives, search the Render logs for `auth email failed` and look at
+   **Emails** in the Resend dashboard.
 
-   ```bash
-   curl -X POST https://koinonia-api.onrender.com/v1/auth/forgot-password -H "Content-Type: application/json" -d '{"email":"you@example.com"}'
-   ```
+## Step 7. Daily reminder email (optional)
 
-   It always answers with an empty 204. If the email does not arrive, look in Render's logs for a
-   line containing `auth email failed`, and in Resend's dashboard under Emails.
+Once email works: Render → Environment → set `DIGEST_ENABLED` to `true` → Save. The API then checks
+every 15 minutes and emails each person who has someone due, once a day at `DIGEST_HOUR` (8) in
+their own timezone. A Starter instance stays awake, so nothing else is needed.
 
-If `EMAIL_PROVIDER=resend` is set without a key or with an `example.com` sender, the API refuses to
-start and the log says which setting is missing.
+## Step 8. Point the iPhone app at the API
 
-## Step 6. Daily reminder digest (optional)
+Edit `apps/mobile/eas.json`. In both the `preview` and `production` profiles set:
 
-The digest emails each person who is due, once a day at `DIGEST_HOUR` in their own timezone.
+```json
+"env": {
+  "EXPO_PUBLIC_API_URL": "https://koinonia-api.onrender.com",
+  "EXPO_PUBLIC_WEB_URL": "https://koinonia.vercel.app"
+}
+```
 
-- **Always-on instance:** set `DIGEST_ENABLED=true` on Render. The API checks every 15 minutes.
-- **Free (sleeping) instance:** the timer stops while the service sleeps, so have a scheduler call
-  the API instead. Leave `DIGEST_ENABLED` unset and call this every 15 to 30 minutes:
+Commit and push. The phone talks to the API directly with a token, so `CORS_ORIGINS` does not need
+to change. Then follow [APP_STORE.md](APP_STORE.md).
 
-  ```bash
-  curl -X POST https://koinonia-api.onrender.com/v1/jobs/digest -H "X-Cron-Secret: YOUR_CRON_SECRET"
-  ```
+## After this: updating
 
-  Any scheduler works: cron-job.org (free; add the header under "Advanced"), or a GitHub Actions
-  workflow with `on: schedule` and the secret stored in the repository's Actions secrets. Running it
-  more often is harmless: each person gets at most one digest a day.
+Push to the deployed branch. Render rebuilds the API and applies new database migrations as it
+starts; a deploy only goes live once `/health/ready` answers, so a broken build leaves the old
+version running. Vercel rebuilds the web app. Nothing to run by hand.
 
-## Step 7. Point the iPhone app at it
+## Using your own domain
 
-In `apps/mobile/eas.json` set `EXPO_PUBLIC_API_URL` to `https://koinonia-api.onrender.com` and
-`EXPO_PUBLIC_WEB_URL` to the Vercel address, for the `preview` and `production` profiles. The phone
-talks to the API directly (it uses a token, not a cookie), so nothing else changes. See
-[APP_STORE.md](APP_STORE.md).
+With a domain you can drop the forwarding and let the browser call the API directly. The two
+addresses must be subdomains of the same domain.
 
-## Production settings
+1. Vercel → project → **Settings** → **Domains** → add `app.example.com`. Render → service →
+   **Settings** → **Custom Domains** → add `api.example.com`. Add the DNS records each shows.
+2. Vercel variables: `NEXT_PUBLIC_API_URL` = `https://api.example.com`; delete `API_PROXY_TARGET`;
+   redeploy.
+3. Render variables: `WEB_URL` = `https://app.example.com`, `CORS_ORIGINS` = `https://app.example.com`,
+   `API_PUBLIC_URL` = `https://api.example.com`, and add `COOKIE_DOMAIN` = `.example.com`.
+4. `apps/mobile/eas.json`: `EXPO_PUBLIC_API_URL` = `https://api.example.com`,
+   `EXPO_PUBLIC_WEB_URL` = `https://app.example.com`.
 
-### API (`apps/api`)
+## Optional settings (Render)
 
-| Variable | Required | What it does |
-| --- | --- | --- |
-| `DATABASE_URL` | yes | PostgreSQL connection string. Use the direct (non-pooled) one, with `sslmode=require` on hosted databases. |
-| `NODE_ENV` | yes | `production`. Turns on the `Secure` cookie flag and turns off logging of mock emails. |
-| `WEB_URL` | yes | Public address of the web app. Used in the links inside emails. |
-| `CORS_ORIGINS` | yes | Comma-separated browser origins allowed to call the API. In production: the web app's address only. Never `*`. |
-| `API_PUBLIC_URL` | recommended | Public address of the API. Used to build the calendar feed link. |
-| `TRUST_PROXY` | yes on any host | Number of proxies in front of the API (`1` on Render, Railway, Fly). Without it every visitor appears to come from one address and shares one rate limit. See the note below. |
-| `PORT` | no | Port to listen on. Most hosts set it. Default 4000. |
-| `EMAIL_PROVIDER` | no | `mock` (default) or `resend`. |
-| `RESEND_API_KEY`, `EMAIL_FROM` | with `resend` | Resend key and a sender on a verified domain. |
-| `EMAIL_REPLY_TO` | no | Reply-To address for outgoing email. |
-| `DIGEST_ENABLED` | no | `true` runs the digest timer inside the API. |
-| `DIGEST_HOUR` | no | Local hour (0 to 23) to send the digest. Default 8. |
-| `DIGEST_SMS` | no | `true` also texts the digest (needs Twilio). |
-| `CRON_SECRET` | no | Enables `POST /v1/jobs/digest` for an outside scheduler. At least 24 characters. |
-| `COOKIE_DOMAIN` | Option B only | For example `.example.com`. |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | no | Switch SMS from mock to Twilio when all three are set. |
-| `PUSH_ENABLED`, `EXPO_ACCESS_TOKEN` | no | `PUSH_ENABLED=true` sends push through Expo. |
-| `LOG_LEVEL` | no | `info` (default), `warn`, `error`, or `debug`. |
+| Variable | What it does |
+| --- | --- |
+| `COOKIE_DOMAIN` | Only with your own domain, e.g. `.example.com`. |
+| `CRON_SECRET` | 24+ random characters. Enables `POST /v1/jobs/digest` (header `X-Cron-Secret`) so an outside scheduler can run the digest. Only useful on an instance that sleeps; Starter does not. |
+| `DIGEST_SMS` | `true` also texts the digest. Needs the three Twilio values. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | Switch SMS from mock to Twilio when all three are set. |
+| `PUSH_ENABLED`, `EXPO_ACCESS_TOKEN` | `PUSH_ENABLED=true` sends push notifications through Expo. |
+| `LOG_LEVEL` | `debug`, `info`, `warn` or `error`. |
 
-### Web (`apps/web`), read at build time
+## About `TRUST_PROXY=1`
 
-| Variable | Required | What it does |
-| --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | yes | `/api` with the proxy; the API's full address in Option B. |
-| `API_PROXY_TARGET` | with the proxy | The API's full address. The web app forwards `/api/*` there. |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | recommended | Contact address shown on the privacy and terms pages. |
+Render's proxy tells the API each visitor's address. `1` means "believe that one proxy and nobody
+else", which is what rate limiting needs. To confirm: open the Render logs, make a request from
+your phone on mobile data, and compare `remoteAddress` in the log line with your phone's public IP.
+If the log shows the same unfamiliar address for everyone, raise the number to `2`.
 
-### About `TRUST_PROXY`
-
-Hosts put a proxy in front of your app, and the proxy tells the app the visitor's address in a
-header. `TRUST_PROXY=1` means "believe the last proxy, and nobody else". To check it is right: open
-the Render logs, make a request from your phone, and compare the `remoteAddress` in the log line
-with your phone's public IP address. If the log shows some other address every time, raise the
-number by one.
-
-With the web proxy, browser traffic reaches the API from Vercel's servers, so web visitors share
-rate-limit buckets per Vercel server address. That is fine at small scale and the per-account
-sign-in lockout (8 wrong passwords, 15 minutes) does not depend on addresses at all. Option B removes
-the sharing.
-
-## Option B: your own domain, no proxy
-
-If you own `example.com`, you can have the browser call the API directly.
-
-1. Vercel → project → Domains → add `app.example.com`. Render → service → Custom Domains → add
-   `api.example.com`. Add the DNS records each one shows.
-2. Web (Vercel): `NEXT_PUBLIC_API_URL=https://api.example.com`, and remove `API_PROXY_TARGET`.
-3. API (Render): `WEB_URL=https://app.example.com`, `CORS_ORIGINS=https://app.example.com`,
-   `API_PUBLIC_URL=https://api.example.com`, `COOKIE_DOMAIN=.example.com`.
-
-The two must be subdomains of the same domain. A `*.vercel.app` web app calling a `*.onrender.com`
-API directly will not stay signed in, because browsers treat those as unrelated sites.
-
-## Updating
-
-Push to the deployed branch. Render rebuilds the API and applies new database migrations on start;
-Vercel rebuilds the web app. Nothing to run by hand.
+Because browser traffic arrives through Vercel, web visitors share rate-limit buckets per Vercel
+server address. That is fine at small scale; the per-account sign-in lockout (8 wrong passwords,
+15 minutes) does not depend on addresses. Using your own domain removes the sharing.
 
 ## Backups
 
-Neon keeps a history you can restore from (how far back depends on the plan). Before anything risky,
-take your own copy:
+Neon keeps a restorable history (how far back depends on the plan: Neon console → **Backup &
+Restore**). Before anything risky, take your own copy using the **direct** string:
 
 ```bash
-pg_dump "YOUR_DATABASE_URL" > koinonia-backup.sql
+pg_dump "YOUR_DIRECT_URL" > koinonia-backup.sql
 ```
 
 ## If something goes wrong
 
-| What you see | Likely cause |
+| What you see | Likely cause and fix |
 | --- | --- |
-| Render build fails at `pnpm install --frozen-lockfile` | `pnpm-lock.yaml` is out of date with a `package.json`. Run `pnpm install` locally, commit the lockfile. |
-| Render log: `Invalid environment: ...` | A required variable is missing or malformed. The message names it. |
-| `/health/ready` says `"database":"down"` | Wrong `DATABASE_URL`, missing `sslmode=require`, or the pooled string was used. |
-| Web app loads, but signing in does nothing or signs you straight out | `NEXT_PUBLIC_API_URL` is not `/api`, or `API_PROXY_TARGET` is wrong, or the web app was not redeployed after changing them. |
+| Render build fails at `pnpm install --frozen-lockfile` | `pnpm-lock.yaml` does not match a `package.json`. Run `pnpm install` locally, commit the lockfile, push. |
+| Render log: `Invalid environment: CORS_ORIGINS ...` | It must be plain origins like `https://koinonia.vercel.app`: no path, no trailing slash, no `*`. |
+| Render log: `Invalid environment: ...` (anything else) | The message names the variable that is missing or malformed. |
+| Render log: `P1001` / `Can't reach database server` during migrations | `DIRECT_URL` is wrong or missing `?sslmode=require`. |
+| Render log: `P1002` or a timeout during migrations | `DIRECT_URL` holds the pooled string. It must be the one **without** `-pooler`. |
+| Render log: `prepared statement "s0" already exists` | Add `&pgbouncer=true` to the end of `DATABASE_URL` (the pooled one). |
+| Deploy stays "In progress" then fails; `/health/ready` says `"database":"down"` | `DATABASE_URL` is wrong. |
+| Web app loads, but signing in does nothing | `API_PROXY_TARGET` is wrong, or the web app was not redeployed after changing it. Test: open `https://YOUR-WEB.vercel.app/api/health` in a browser; it should show `{"ok":true}`. |
+| You are signed out every time you reload | `NEXT_PUBLIC_API_URL` is the Render address instead of `/api`. Fix it and redeploy the web app. |
+| The iPhone app or a browser console says "blocked by CORS" | `CORS_ORIGINS` does not exactly match the address in the browser's address bar. |
 | "Too many requests" for everyone at once | `TRUST_PROXY` is missing. |
-| First request after a while takes 30+ seconds | Free instance waking up. Use a paid instance, or accept it. |
-| Emails never arrive | `EMAIL_PROVIDER` is still `mock`, or the sender domain is not verified in Resend. |
-| Calendar link points to the wrong host | Set `API_PUBLIC_URL`. |
+| Links in emails go to the wrong place | `WEB_URL` is wrong. |
+| Calendar link points to the wrong host | `API_PUBLIC_URL` is wrong. |
+| Emails never arrive | `EMAIL_PROVIDER` is still `mock`, or the sender's domain is not verified in Resend. |
 
-## Other hosts
+## Running the image yourself
 
-The API is an ordinary Docker image that needs `DATABASE_URL` and listens on `$PORT`.
+```bash
+docker build -f apps/api/Dockerfile -t koinonia-api .
+```
 
-- **Railway:** New Project → Deploy from GitHub repo → in the service settings set the Dockerfile
-  path to `apps/api/Dockerfile` (root directory stays `/`). Add a PostgreSQL plugin and use its
-  `DATABASE_URL`. Same variables as above. Usage-based pricing after a trial credit.
-- **Fly.io:** from the repository root run `fly launch --dockerfile apps/api/Dockerfile` (answer no
-  to deploying immediately), set secrets with `fly secrets set KEY=value`, set the internal port to
-  `4000` and a health check on `/health/ready`, then `fly deploy`. Pay-as-you-go.
-- **Database alternatives:** Supabase and Railway Postgres both give a standard connection string.
-  With Supabase use the "direct connection" (port 5432), not the pooler.
-- **Any server with Docker:**
+```bash
+docker run --rm -p 4000:4000 --env-file /path/to/production.env koinonia-api
+```
 
-  ```bash
-  docker build -f apps/api/Dockerfile -t koinonia-api .
-  ```
-
-  ```bash
-  docker run -d --name koinonia-api -p 4000:4000 --env-file /path/to/production.env koinonia-api
-  ```
-
-  Put HTTPS in front of it (Caddy or nginx) and set `TRUST_PROXY=1`.
-- **Web app elsewhere:** any host that runs Next.js (`pnpm --filter @koinonia/web build`, then
-  `pnpm --filter @koinonia/web start`). Set the two web variables before building.
+`DIRECT_URL` may be left out when `DATABASE_URL` is an ordinary, unpooled Postgres address.

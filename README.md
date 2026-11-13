@@ -2,7 +2,7 @@
 
 _κοινωνία — communion, fellowship._ An app that helps busy people stay close to the people they mean to stay close to: reminders to reach out on a rhythm you set per person, notes so you remember what matters to them, and a prayer list with one intention set apart each day.
 
-**Start with [STATUS.md](STATUS.md)** for what works, what is stubbed, and what to do next.
+**Start with [STATUS.md](STATUS.md)** for what works, what is stubbed, and what to do next. To put it online: [docs/DEPLOY.md](docs/DEPLOY.md) (Neon, Render, Vercel) and [docs/APP_STORE.md](docs/APP_STORE.md).
 
 ## What's in the repo
 
