@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import { dueLabel, formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
 import { PrayTodayCard, ReachOutCard } from "@/components/domain";
@@ -8,7 +9,9 @@ import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
 import { useAction, useHome, useRefresh } from "@/lib/hooks";
 import { ReminderPrompt } from "@/components/reminders";
+import { kv } from "@/lib/storage";
 import { serif, space, useTheme } from "@/lib/theme";
+import { welcomedKey } from "../welcome";
 
 /** A big, plain heading for one of the two things the app is for. */
 function Heading({ icon, tone, title, summary }: { icon: IconName; tone: "primary" | "forest"; title: string; summary?: string }) {
@@ -125,6 +128,19 @@ export default function TodayScreen() {
   const user = useUser();
   const { data: home, error, isPending, refetch } = useHome();
   const refresh = useRefresh(refetch);
+
+  // A brand-new account gets a short welcome, once per phone.
+  const isNew = home ? home.stats.contacts === 0 && !gettingStarted(home).addedPrayer : false;
+  useEffect(() => {
+    if (!isNew) return;
+    let cancelled = false;
+    void kv.get(welcomedKey(user.id)).then((seen) => {
+      if (!cancelled && seen !== "1") router.push("/welcome");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isNew, user.id]);
 
   if (isPending) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;

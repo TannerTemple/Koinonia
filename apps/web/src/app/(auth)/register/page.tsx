@@ -23,7 +23,7 @@ export default function RegisterPage() {
         setError(null);
         try {
           const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          signIn(await api.auth.register({ ...form, timezone }));
+          signIn(await api.auth.register({ ...form, timezone }), "/welcome");
         } catch (err) {
           setError(err);
           setLoading(false);

@@ -9,15 +9,19 @@ import { api, dropLegacyToken, onUnauthorized } from "./api";
 interface AuthState {
   /** undefined while we check the stored token */
   user: User | null | undefined;
-  signIn: (auth: AuthResponse) => void;
+  /** `to` is where to land afterwards (a new account goes to the welcome). */
+  signIn: (auth: AuthResponse, to?: string) => void;
   signOut: () => Promise<void>;
   setUser: (user: User) => void;
+  /** Where a just-signed-in visitor should land. */
+  landing: string;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [landing, setLanding] = useState("/");
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -37,10 +41,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       setUser,
-      signIn: (auth) => {
+      landing,
+      signIn: (auth, to = "/") => {
+        setLanding(to);
         queryClient.clear();
         setUser(auth.user);
-        router.replace("/");
+        router.replace(to);
       },
       signOut: async () => {
         await api.auth.logout().catch(() => undefined);
@@ -48,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace("/login");
       },
     }),
-    [user, queryClient, router, clear],
+    [user, landing, queryClient, router, clear],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

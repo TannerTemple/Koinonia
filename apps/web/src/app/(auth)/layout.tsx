@@ -7,11 +7,11 @@ import { Logo } from "@/components/logo";
 import { useAuth } from "@/lib/auth";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, landing } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (user) router.replace("/");
-  }, [user, router]);
+    if (user) router.replace(landing);
+  }, [user, landing, router]);
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
