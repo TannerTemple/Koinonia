@@ -165,6 +165,7 @@ export default function ProfileScreen() {
 
       <View style={{ gap: space.md }}>
         <SectionTitle tone="danger">Account</SectionTitle>
+        <Button variant="secondary" icon="download-outline" label="Export my data" onPress={() => router.push("/export")} />
         <Button variant="secondary" icon="log-out-outline" label="Sign out" onPress={() => void signOut()} />
         <Button variant="danger" label="Delete my account" onPress={() => router.push("/delete-account")} />
         <LegalLinks webUrl={WEB_URL} />

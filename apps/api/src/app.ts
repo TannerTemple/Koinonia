@@ -13,6 +13,7 @@ import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
 import { calendarRoutes } from "./routes/calendar";
 import { contactRoutes } from "./routes/contacts";
+import { exportRoutes } from "./routes/export";
 import { homeRoutes } from "./routes/home";
 import { jobRoutes } from "./routes/jobs";
 import { noteRoutes } from "./routes/notes";
@@ -239,6 +240,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       await v1.register(adminRoutes);
       await v1.register(calendarRoutes);
       await v1.register(jobRoutes);
+      await v1.register(exportRoutes);
     },
     { prefix: "/v1" },
   );

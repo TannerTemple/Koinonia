@@ -11,7 +11,9 @@ import type {
   CreateContactInput,
   CreateIntentionInput,
   CreateNoteInput,
+  DataExport,
   DeleteAccountInput,
+  ExportTable,
   ForgotPasswordInput,
   Home,
   ImportContactsInput,
@@ -69,7 +71,7 @@ export type ApiClient = ReturnType<typeof createApiClient>;
 export function createApiClient(options: ApiClientOptions) {
   const base = options.baseUrl.replace(/\/+$/, "") + "/v1";
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(method: string, path: string, body?: unknown, raw = false): Promise<T> {
     const doFetch = options.fetch ?? fetch;
     const token = await options.getToken?.();
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -91,6 +93,8 @@ export function createApiClient(options: ApiClientOptions) {
 
     if (res.status === 204) return undefined as T;
     const text = await res.text();
+    // Files (CSV exports) come back as they are.
+    if (res.ok && raw) return text as T;
     let data: unknown = null;
     try {
       data = text ? JSON.parse(text) : null;
@@ -140,6 +144,10 @@ export function createApiClient(options: ApiClientOptions) {
       /** Makes a new link, shown once, and turns off the old one. */
       createCalendarFeed: () => post<CalendarFeed>("/me/calendar-feed"),
       removeCalendarFeed: () => del("/me/calendar-feed"),
+      /** Everything the account holds, as one object. */
+      exportAll: () => get<DataExport>("/me/export"),
+      /** One table as CSV text, ready to save as a file. */
+      exportCsv: (table: ExportTable) => request<string>("GET", `/me/export/${table}.csv`, undefined, true),
     },
     home: () => get<Home>("/home"),
     weeklyReview: () => get<WeeklyReview>("/review/weekly"),

@@ -180,7 +180,7 @@ export default function PrivacyPage() {
             <strong>See and correct</strong> your information in the app at any time.
           </li>
           <li>
-            <strong>Get a copy.</strong> There is no export button yet; email us and we will send you your data in a common format.
+            <strong>Get a copy.</strong> Settings (web) or Profile (iPhone), then &ldquo;Your data&rdquo;, downloads everything you have stored: one complete file, or spreadsheets of your people, notes, reach-outs and prayer list.
           </li>
           <li>
             <strong>Delete</strong> it, as described above.

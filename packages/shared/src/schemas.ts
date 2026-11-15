@@ -468,3 +468,58 @@ export interface CalendarFeed {
 export interface ApiErrorBody {
   error: { code: string; message: string; fields?: Record<string, string> };
 }
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+/** Everything an account holds, in plain words, as returned by "Export my data". */
+export interface DataExport {
+  exportedAt: string;
+  account: {
+    name: string;
+    email: string;
+    emailConfirmed: boolean;
+    phone: string | null;
+    timezone: string;
+    findableByOthers: boolean;
+    dailyEmail: boolean;
+    createdAt: string;
+  };
+  people: {
+    name: string;
+    phone: string | null;
+    email: string | null;
+    relationship: string | null;
+    birthday: string | null;
+    groups: string[];
+    favorite: boolean;
+    reachOutEveryDays: number | null;
+    reminderTime: string | null;
+    usualWay: string;
+    lastReachedOut: string | null;
+    nextDue: string | null;
+    remindAgainOn: string | null;
+    archived: boolean;
+    addedAt: string;
+    notes: { text: string; pinned: boolean; followUpOn: string | null; followUpDone: boolean; writtenAt: string }[];
+    reachOuts: { day: string; how: string; summary: string | null }[];
+  }[];
+  prayers: {
+    title: string;
+    details: string | null;
+    for: string | null;
+    kind: string;
+    status: string;
+    answeredAt: string | null;
+    addedAt: string;
+    prayedOn: string[];
+  }[];
+}
+
+export const EXPORT_TABLES = [
+  { key: "people", label: "People" },
+  { key: "notes", label: "Notes" },
+  { key: "reach-outs", label: "Reach-outs" },
+  { key: "prayers", label: "Prayer list" },
+] as const;
+export type ExportTable = (typeof EXPORT_TABLES)[number]["key"];

@@ -51,6 +51,7 @@ function RootStack() {
         <Stack.Screen name="contact/find" options={{ title: "Find people" }} />
         <Stack.Screen name="note" options={{ ...modal, title: "Note" }} />
         <Stack.Screen name="intention" options={{ ...modal, title: "Prayer" }} />
+        <Stack.Screen name="export" options={{ title: "Your data" }} />
         <Stack.Screen name="delete-account" options={{ ...modal, title: "Delete account" }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="review" options={{ title: "Your week" }} />

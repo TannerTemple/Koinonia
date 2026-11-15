@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Flame, HandHeart } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EXPORT_TABLES } from "@koinonia/shared";
 import { Button, Card, Field, FormError, Input, Modal, PageHeader, SectionTitle, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@/lib/auth";
@@ -181,6 +182,71 @@ function CalendarFeed() {
   );
 }
 
+/** Hands a piece of text to the browser as a file to save. */
+function saveFile(name: string, text: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function ExportData() {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const run = async (key: string, label: string, make: () => Promise<{ name: string; text: string; type: string }>) => {
+    setBusy(key);
+    setError(null);
+    setDone(null);
+    try {
+      const file = await make();
+      saveFile(file.name, file.text, file.type);
+      setDone(`${label} saved to your downloads.`);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted">
+        Download a copy of everything you&rsquo;ve put into Koinonia: your people, notes, reach-outs and prayer list. The spreadsheet files open in Excel, Numbers and Google Sheets.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          loading={busy === "all"}
+          onClick={() => run("all", "Everything", async () => ({ name: `koinonia-${today}.json`, text: JSON.stringify(await api.me.exportAll(), null, 2), type: "application/json" }))}
+        >
+          Everything (one file)
+        </Button>
+        {EXPORT_TABLES.map((t) => (
+          <Button
+            key={t.key}
+            variant="ghost"
+            loading={busy === t.key}
+            onClick={() => run(t.key, t.label, async () => ({ name: `koinonia-${t.key}-${today}.csv`, text: await api.me.exportCsv(t.key), type: "text/csv" }))}
+          >
+            {t.label} (spreadsheet)
+          </Button>
+        ))}
+      </div>
+      {done ? (
+        <p role="status" className="text-sm font-semibold text-forest">
+          {done}
+        </p>
+      ) : null}
+      <FormError error={error} />
+    </div>
+  );
+}
+
 function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -298,6 +364,13 @@ export default function SettingsPage() {
         <SectionTitle>Password</SectionTitle>
         <Card className="p-5">
           <PasswordForm />
+        </Card>
+      </section>
+
+      <section>
+        <SectionTitle>Your data</SectionTitle>
+        <Card className="p-5">
+          <ExportData />
         </Card>
       </section>
 

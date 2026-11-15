@@ -283,7 +283,12 @@ export async function authRoutes(app: FastifyInstance) {
     if (!(await verifyPassword(input.password, request.auth.user.passwordHash))) {
       throw badRequest("That password isn't right.", { password: "Incorrect" });
     }
-    await prisma.user.delete({ where: { id: request.auth.user.id } });
+    // Everything the account owns goes with it (the database cascades from the user row);
+    // the sign-in lockout counter is keyed by email, so it is removed by hand.
+    await prisma.$transaction([
+      prisma.user.delete({ where: { id: request.auth.user.id } }),
+      prisma.loginThrottle.deleteMany({ where: { email: request.auth.user.email } }),
+    ]);
     reply.header("Set-Cookie", sessionCookie(env, null));
     return reply.status(204).send();
   });
