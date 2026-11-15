@@ -1,12 +1,12 @@
 # Koinonia — Status
 
-_Last updated: end of the fourth unattended round (deployment readiness, real email adapter, legal pages, App Store guide, hosted security pass)._
+_Last updated: end of the fifth unattended round (end-to-end walkthrough and bug fixes, a simpler Today on web and mobile, polish)._
 
 > Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it.
 
 ## After `git pull`, run exactly this
 
-No new database migration and no new dependencies this round. Run the install anyway (it regenerates the Prisma client; the schema gained a second connection setting). Your local `apps/api/.env` needs no changes: `DIRECT_URL` defaults to `DATABASE_URL`.
+No new database migration and no new dependencies this round. Run the install anyway; it is quick.
 
 ```bash
 pnpm install
@@ -36,7 +36,41 @@ cp .env.example apps/api/.env
 
 `pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Optional new setting in `.env`: `TRUST_PROXY=true`, only if the API runs behind a reverse proxy.
 
-## What changed in this round (fourth)
+## What changed in this round (fifth)
+
+You said the web app was confusing and asked for something a 12-year-old and a 70-year-old could both use, centred on reaching out and praying. That is what this round was about.
+
+**Today is now two things, on web and mobile**
+
+- **Reach out.** The people who are due, late ones first, each with two buttons in words: **I reached out** and **Not today**. Under them: things you wanted to ask about (from your notes), then who is next and when. When nobody is due it says so and still names who is next.
+- **Pray.** One card, "Pray today for", with an **I prayed** button, and a button to add to your prayer list.
+- The three counters that used to open the screen ("0 day reach-out streak" and so on) are gone. Streaks are one small line at the bottom, and only once you have one.
+- **A new account sees a "Getting started" card** with three steps that tick themselves off: add a person, add something to pray for, press "I reached out" after you talk to someone. Nothing else is on the screen until the first step is done.
+
+**Fewer things to fill in**
+
+- Adding a person asks for a **name** and **how often**. Phone, email, birthday and the rest are under "More details (optional)".
+- Adding a prayer asks **what** and **who for**. Details and kind are under "More (optional)".
+- Birthday is month, day and an optional year, instead of a typed format.
+
+**Plainer words.** "Pray today for", "Add to prayer list", "How often do you want to reach out?", "Not today", "Remind me tomorrow". The word "intention" is no longer needed to use the app. Icons that had no label (snooze, and the four under each note) are now words. Web text is about 6% larger.
+
+**Bugs found and fixed** (full list with what was wrong in [docs/BUGS.md](docs/BUGS.md): 11 bugs, 14 rough edges)
+
+- In the mobile browser preview, **every confirmation and "…" menu did nothing**: delete a note, delete a person, the options on a prayer. They used the phone's native alert, which a browser does not have. The app now draws its own dialog, the same on iPhone and in the browser.
+- **"That wasn't found" after marking your only prayer answered.** Two requests raced on the server and the slower one blanked the screen. Fixed, with a test that fires simultaneous requests.
+- **A birthday without a year showed a made-up year**, and editing that person on the web erased the birthday.
+- **The web reset-password page said "This link isn't complete"** when running with `pnpm dev`. This came from last round's change that hides the secret in the address bar; production builds were not affected, which is why I missed it then.
+- People with no phone or email showed three dead Call / Text / Email buttons. Now one button: "Add their phone or email".
+
+**How it was tested.** Scripted walkthroughs that act as a new user and screenshot every step, read one by one: sign up, add a person, choose how often, log a reach-out, add a note with a follow-up date, add a prayer, mark it prayed, open the menu and mark it answered, delete a note through the confirmation, weekly review, forgot and reset password. Run on the mobile preview (phone size) and on the web app at desktop and phone width, plus a second account with awkward data (late people, very long names and notes, a birthday without a year). All steps pass on all three. The mobile forgot-password button, which was unverified last round, is now covered.
+
+**From the earlier lists (step 3).** Closed this round: the unverified mobile forgot-password step, and typed birthdays on mobile. Everything else still open in "Stubbed, unfinished, or not verified" below needs something this environment does not have (an iPhone, real accounts on Neon / Render / Vercel / Resend / Apple, or Docker's package mirrors), so it is unchanged.
+
+Tests: 170 now (API 121 plus 2 opt-in live email tests skipped by default, shared 35, mobile 14).
+
+
+## What changed in the fourth round
 
 | Step | Result |
 | --- | --- |
@@ -111,7 +145,7 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 | Milestone | State | How it was verified |
 | --- | --- | --- |
 | 1. Scaffold | Done | `pnpm check` (lint + typecheck + tests) passes |
-| 2. Backend core | Done | 119 API tests against real PostgreSQL, 31 shared-logic tests |
+| 2. Backend core | Done | 121 API tests against real PostgreSQL, 35 shared-logic tests |
 | 3. Web app core | Done | Production build; full flow run in a headless browser (desktop light, phone dark) with no console errors |
 | 4. iOS app core | Done, see caveat | Typecheck, lint, 14 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
 | 5. Nice-to-haves | Done (three) | Calendar feed covered by API tests; starters and birthdays seen in the browser runs |
@@ -127,8 +161,7 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 
 ## Stubbed, unfinished, or not verified
 
-- **iOS app has not been run on a simulator or device** (none available here). It typechecks, bundles for iOS, and its screens and main flows (sign-in, sign-up, add person, add note, add intention, log reach-out, mark prayed, date picker, weekly review) ran in a browser preview with no errors. Expect small layout fixes on a real iPhone.
-- **The mobile forgot-password screen was opened but its "Send reset email" button was not pressed in the preview.** My test picked the wrong element twice (the button's name also contains "email"), so I stopped there under the two-attempt rule. The screen renders correctly, the request behind it is covered by API tests, and the reset screen that follows it was run and works.
+- **iOS app has not been run on a simulator or device** (none available here). It typechecks, bundles for iOS, and every main flow ran in a browser preview with no errors (list in "What changed in this round"). Expect small layout fixes on a real iPhone.
 - **Reset and verification links open the web app.** In the iPhone app you paste the code from the same email. Opening the app straight from the email (universal links) needs a real domain and Apple setup.
 - **Unverified accounts are not restricted**; they see a "Confirm your email" banner (decision 33).
 - **Nothing has been deployed.** DEPLOY.md and `render.yaml` have not been followed on real Neon, Render or Vercel accounts (none may be created here). `render.yaml` was checked for valid syntax only. A pooled Neon connection has not been tried.
@@ -142,7 +175,7 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 - **Daily digest is off by default** (`DIGEST_ENABLED=false`).
 - **No Sign in with Apple / Google. No way to change your email address.**
 - **Web import reads vCard (.vcf) files only**, not CSV.
-- **Snooze on mobile still uses fixed choices** ("Tomorrow", "Next week"); the calendar picker covers follow-ups, reach-out day and "last talked". Birthday is still typed.
+- **"Remind me later" offers fixed choices** ("Not today" = tomorrow, and "Next week" on a person's page), not a date picker.
 - **Admin is web only.**
 - **Android** is configured but untried.
 
@@ -218,4 +251,4 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 - Liturgical touches: saint of the day, novena tracking, rosary intentions
 - Weekly review as a Sunday email or push; month and year views
 
-See [docs/PLAN.md](docs/PLAN.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/REVIEW.md](docs/REVIEW.md), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/APP_STORE.md](docs/APP_STORE.md) and [README.md](README.md).
+See [docs/PLAN.md](docs/PLAN.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/REVIEW.md](docs/REVIEW.md), [docs/BUGS.md](docs/BUGS.md), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/APP_STORE.md](docs/APP_STORE.md) and [README.md](README.md).

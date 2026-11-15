@@ -274,8 +274,8 @@ export function Disclosure({ label, open, onToggle, children }: { label: string;
   const id = useId();
   return (
     <div>
-      <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className="flex min-h-11 items-center gap-1.5 font-semibold text-primary underline-offset-2 hover:underline">
-        <svg viewBox="0 0 24 24" className={cn("size-4 transition-transform", open && "rotate-90")} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className="flex min-h-11 items-center gap-1.5 text-left font-semibold text-primary underline-offset-2 hover:underline">
+        <svg viewBox="0 0 24 24" className={cn("size-4 shrink-0 transition-transform", open && "rotate-90")} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="m9 6 6 6-6 6" />
         </svg>
         {label}

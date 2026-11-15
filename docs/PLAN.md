@@ -147,3 +147,8 @@ counters to drift.
 - [x] Draft privacy policy and terms (`/privacy`, `/terms`)
 - [x] `docs/APP_STORE.md` and `apps/mobile/eas.json`
 - [x] Hosted-environment security pass (second half of `docs/REVIEW.md`)
+
+### 10. Fifth round
+- [x] End-to-end walkthrough on web and the mobile preview; findings in `docs/BUGS.md`, fixed
+- [x] Today rebuilt around two sections, "Reach out" and "Pray"; getting-started card for new accounts
+- [x] Shorter forms, plain wording, worded buttons, larger web text, better empty states

@@ -23,7 +23,7 @@ review, forgot and reset password.
 | B8 | Mobile preview | **Tab labels were 10px.** | Fixed: larger labels and icons. |
 
 | B9 | Web and mobile (server) | **"That wasn't found" after marking your only prayer answered** (or archiving or deleting it). Today and the prayer list both ask the server for today's prayer at the same moment; both tried to clear the old one and the slower request failed, which blanked the whole screen with an error. The same race could happen the first time a day's prayer was picked. | Fixed on the server, with a test that fires simultaneous requests. |
-| B10 | Mobile | **Call, Text and Email looked broken for a person with no phone or email**: three greyed-out buttons with no explanation. | Fixed: the row is replaced by "Add their phone or email", which opens the form with that section open. |
+| B10 | Web and mobile | **Call, Text and Email looked broken for a person with no phone or email**: three greyed-out buttons with no explanation. | Fixed: the row is replaced by "Add their phone or email", which opens the form with that section open. |
 
 | B11 | Web | **"This link isn't complete" on the reset-password page** when the app runs in development mode (`pnpm dev`). Last round's change that removes the one-time secret from the address bar ran twice there and lost the secret the second time. Production builds were not affected, which is why the earlier check missed it. | Fixed: the secret is read once and kept in memory. Now checked in both modes. |
 

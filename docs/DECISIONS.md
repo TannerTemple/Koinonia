@@ -80,3 +80,7 @@ One line each: the decision and why. Newest at the bottom.
 76. **Adding a person asks for a name and how often; everything else is under "More details (optional)"**; adding a prayer asks what and for whom. Birthday is month, day and an optional year instead of a typed format.
 77. **The mobile app draws its own dialogs instead of the native alert** — native alerts do nothing in a browser, so every confirmation and menu was dead in the preview; one implementation now behaves the same on iPhone and web.
 78. **The prayer list is grouped by "For people" and "Other prayers"** (whether it is linked to a person), not by the kind chosen when it was added.
+79. **Web text is about 6% larger (root font size 106.25%)** — one line, scales everything, easier on older eyes.
+80. **The "confirm your email" notice on web is one slim line with "Not now"** (hidden until the tab is closed) — it sat above the content people came for.
+81. **`GET /home` returns `nextUp`, the next person due beyond the two-week window** — Today can always say who is next instead of looking empty.
+82. **Step 3 of this round ("anything unfinished") closed what could be closed here** (the unverified mobile forgot-password step, typed birthdays); the remaining open items all need a device, real accounts or network access this environment lacks, and are listed unchanged in STATUS.md.

@@ -265,7 +265,13 @@ export default function PersonPage() {
           </p>
 
           <div className="mt-4 space-y-2">
-            <QuickActions contact={contact} />
+            {contact.phone || contact.email ? (
+              <QuickActions contact={contact} />
+            ) : (
+              <Link href={`/people/${id}/edit`} className="flex h-12 items-center justify-center rounded-xl border border-border bg-surface font-semibold text-primary hover:bg-primary-soft">
+                Add their phone or email
+              </Link>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button className="flex-1" onClick={() => setLogging(true)}>
                 <Check className="size-4" aria-hidden /> I reached out
@@ -303,9 +309,9 @@ export default function PersonPage() {
       </section>
 
       <section>
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-3">
           <SectionTitle tone="forest" count={contact.intentions.length}>Praying for {contact.name.split(" ")[0]}</SectionTitle>
-          <Button size="sm" variant="secondary" onClick={() => setPraying(true)}>
+          <Button size="sm" variant="secondary" className="mb-3 whitespace-nowrap" onClick={() => setPraying(true)}>
             <Plus className="size-4" aria-hidden /> Add a prayer
           </Button>
         </div>
