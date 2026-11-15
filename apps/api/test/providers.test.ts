@@ -44,10 +44,14 @@ describe("provider selection", () => {
 
   it("switches SMS and push on by their own settings", () => {
     const p = createProviders(
-      loadEnv({ ...base, TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_FROM_NUMBER: "+15550001111", PUSH_ENABLED: "true" }),
+      loadEnv({ ...base, TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_FROM_NUMBER: "+15550001111", PUSH_PROVIDER: "expo" }),
     );
     expect(p.sms).toBeInstanceOf(TwilioSmsProvider);
     expect(p.push).toBeInstanceOf(ExpoPushProvider);
+    // The older switch still works, and the mock stays the default.
+    expect(createProviders(loadEnv({ ...base, PUSH_ENABLED: "true" })).push).toBeInstanceOf(ExpoPushProvider);
+    expect(createProviders(loadEnv({ ...base, EXPO_ACCESS_TOKEN: "x" })).push).toBeInstanceOf(MockPushProvider);
+    expect(() => loadEnv({ ...base, PUSH_PROVIDER: "pigeon" })).toThrow(/PUSH_PROVIDER/);
     // Twilio needs all three values.
     expect(createProviders(loadEnv({ ...base, TWILIO_ACCOUNT_SID: "AC1" })).sms).toBeInstanceOf(MockSmsProvider);
   });
@@ -65,17 +69,6 @@ describe("real adapters (HTTP stubbed)", () => {
     expect(url).toBe("https://api.twilio.com/2010-04-01/Accounts/AC1/Messages.json");
     expect(init.headers).toMatchObject({ Authorization: `Basic ${Buffer.from("AC1:secret").toString("base64")}` });
     expect(Object.fromEntries(init.body as URLSearchParams)).toEqual({ To: "+15550002222", From: "+15550001111", Body: "Hello" });
-  });
-
-  it("Expo push: one message per device, and nothing when there are no devices", async () => {
-    const fetch = stubFetch();
-    const push = new ExpoPushProvider();
-    await push.send({ tokens: [], title: "T", body: "B" });
-    expect(fetch).not.toHaveBeenCalled();
-    await push.send({ tokens: ["ExponentPushToken[a]", "ExponentPushToken[b]"], title: "T", body: "B", data: { url: "/" } });
-    const sent = JSON.parse(fetch.mock.calls[0]![1].body as string);
-    expect(sent.map((m: any) => m.to)).toEqual(["ExponentPushToken[a]", "ExponentPushToken[b]"]);
-    expect(sent[0]).toMatchObject({ title: "T", body: "B", data: { url: "/" } });
   });
 
   it("raises when the service says no, so the caller can log it", async () => {

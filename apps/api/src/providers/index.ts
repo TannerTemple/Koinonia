@@ -1,10 +1,11 @@
 import type { Env } from "../env";
+import { ExpoPushProvider } from "./expo-push";
 import { ResendEmailProvider } from "./resend";
 
 /**
  * Outside services live behind these interfaces. Each has a mock that records what it
  * would have sent (and logs it in development), and a real adapter that is switched on
- * from the environment: email by EMAIL_PROVIDER=resend, SMS and push by their keys.
+ * from the environment: email by EMAIL_PROVIDER=resend, push by PUSH_PROVIDER=expo, SMS by its keys.
  */
 export interface EmailMessage {
   to: string;
@@ -30,8 +31,14 @@ export interface PushMessage {
   body: string;
   data?: Record<string, string>;
 }
+export interface PushResult {
+  /** How many devices the service accepted the message for. */
+  sent: number;
+  /** Tokens the service says no longer exist; the caller should delete them. */
+  invalidTokens: string[];
+}
 export interface PushProvider {
-  send(message: PushMessage): Promise<void>;
+  send(message: PushMessage): Promise<PushResult>;
 }
 
 export interface Providers {
@@ -66,6 +73,7 @@ export class MockPushProvider implements PushProvider {
   async send(message: PushMessage) {
     this.sent.push(message);
     this.log?.(`[mock push] devices=${message.tokens.length} ${message.title}: ${message.body}`);
+    return { sent: message.tokens.length, invalidTokens: [] };
   }
 }
 
@@ -97,27 +105,7 @@ export class TwilioSmsProvider implements SmsProvider {
   }
 }
 
-/** Expo push service. Used when PUSH_ENABLED=true. Not exercised by tests. */
-export class ExpoPushProvider implements PushProvider {
-  constructor(private accessToken?: string) {}
-  async send(message: PushMessage) {
-    if (message.tokens.length === 0) return;
-    await postOrThrow(
-      "https://exp.host/--/api/v2/push/send",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {}),
-        },
-        body: JSON.stringify(
-          message.tokens.map((to) => ({ to, title: message.title, body: message.body, data: message.data, sound: "default" })),
-        ),
-      },
-      "Expo push",
-    );
-  }
-}
+export { ExpoPushProvider } from "./expo-push";
 
 export function createProviders(env: Env, log?: Logger): Providers {
   return {
@@ -130,7 +118,8 @@ export function createProviders(env: Env, log?: Logger): Providers {
       env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM_NUMBER
         ? new TwilioSmsProvider(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_FROM_NUMBER)
         : new MockSmsProvider(log),
-    push: env.PUSH_ENABLED ? new ExpoPushProvider(env.EXPO_ACCESS_TOKEN) : new MockPushProvider(log),
+    // Real push is opt-in: PUSH_PROVIDER=expo.
+    push: env.PUSH_PROVIDER === "expo" ? new ExpoPushProvider({ accessToken: env.EXPO_ACCESS_TOKEN }) : new MockPushProvider(log),
   };
 }
 

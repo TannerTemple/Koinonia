@@ -46,6 +46,9 @@ const schema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
+  /** Which service delivers push notifications. "mock" records them and sends nothing. */
+  PUSH_PROVIDER: z.enum(["mock", "expo"]).optional(),
+  /** Older switch, still honoured: PUSH_ENABLED=true means PUSH_PROVIDER=expo. */
   PUSH_ENABLED: bool,
   EXPO_ACCESS_TOKEN: z.string().optional(),
 });
@@ -83,7 +86,7 @@ const checked = schema.superRefine((env, ctx) => {
   }
 });
 
-export type Env = z.infer<typeof schema>;
+export type Env = z.infer<typeof schema> & { PUSH_PROVIDER: "mock" | "expo" };
 
 /** Settings that work but are wrong for a public deployment. Logged at start, never fatal. */
 export function productionWarnings(env: Env): string[] {
@@ -108,5 +111,5 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const problems = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`Invalid environment: ${problems}`);
   }
-  return parsed.data;
+  return { ...parsed.data, PUSH_PROVIDER: parsed.data.PUSH_PROVIDER ?? (parsed.data.PUSH_ENABLED ? "expo" : "mock") };
 }

@@ -140,6 +140,15 @@ describe("daily digest", () => {
     expect(tomorrow.sent).toBe(1);
   });
 
+  it("forgets a phone the push service says is gone", async () => {
+    await seedPeople();
+    await api.call("POST", "/devices", { token: "ExponentPushToken[gone]", platform: "ios" });
+    await api.call("POST", "/devices", { token: "ExponentPushToken[here]", platform: "ios" });
+    const push = { send: async () => ({ sent: 1, invalidTokens: ["ExponentPushToken[gone]"] }) };
+    await runDigest({ prisma, providers: { ...ctx.providers, push }, env }, new Date(NOW));
+    expect((await prisma.pushDevice.findMany()).map((d) => d.token)).toEqual(["ExponentPushToken[here]"]);
+  });
+
   it("tries again later when the email could not be sent", async () => {
     await seedPeople();
     const failing = { ...ctx.providers, email: { send: async () => Promise.reject(new Error("mail service down")) } };

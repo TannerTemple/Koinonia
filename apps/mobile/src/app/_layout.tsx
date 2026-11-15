@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from "expo-router";
-import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
 import { ApiError } from "@koinonia/shared";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { ReminderSync } from "@/components/reminders";
 import { DialogHost } from "@/lib/dialog";
+import { onReminderTapped } from "@/lib/notifications";
 import { serif, useTheme } from "@/lib/theme";
 
 void SplashScreen.preventAutoHideAsync();
@@ -20,15 +20,13 @@ function RootStack() {
     if (user !== undefined) void SplashScreen.hideAsync();
   }, [user]);
 
-  // Tapping a reminder opens the screen it is about.
+  // Tapping a reminder opens the person it is about, whether the app was open or not.
+  // Wait until we know who is signed in, so the screen exists to navigate to.
+  const signedIn = Boolean(user);
   useEffect(() => {
-    if (Platform.OS === "web") return;
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const url = response.notification.request.content.data?.url;
-      if (typeof url === "string") router.push(url as never);
-    });
-    return () => sub.remove();
-  }, []);
+    if (!signedIn) return;
+    return onReminderTapped((url) => router.push(url as never));
+  }, [signedIn]);
 
   if (user === undefined) return null;
 
@@ -90,6 +88,7 @@ export default function RootLayout() {
         <ThemeProvider value={theme}>
           <StatusBar style="auto" />
           <RootStack />
+          <ReminderSync />
           <DialogHost />
         </ThemeProvider>
       </AuthProvider>

@@ -1,13 +1,17 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel } from "@koinonia/shared";
+import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, DEFAULT_REMINDER_TIME, GROUP_PRESETS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel } from "@koinonia/shared";
 import { BirthdayField, Disclosure, Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
 import { showDialog } from "@/lib/dialog";
+import { formatTime } from "@/lib/reminder-plan";
 import { useAction, useContact, useToday } from "@/lib/hooks";
 import { space } from "@/lib/theme";
+
+/** A few sensible times; 9am is the default. */
+const REMINDER_TIMES = ["07:00", "09:00", "12:00", "15:00", "18:00", "20:00"];
 
 export default function ContactFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -21,6 +25,9 @@ export default function ContactFormScreen() {
   const [relationship, setRelationship] = useState("");
   const [birthday, setBirthday] = useState<BirthdayParts>({ month: "", day: "", year: "" });
   const [more, setMore] = useState(false);
+  const [reminderTime, setReminderTime] = useState<string | null>(null);
+  const [favorite, setFavorite] = useState(false);
+  const [groups, setGroups] = useState<string[]>([]);
   const [cadenceDays, setCadenceDays] = useState<number | null>(14);
   const [custom, setCustom] = useState(false);
   const [preferredChannel, setChannel] = useState<Channel>("TEXT");
@@ -37,12 +44,15 @@ export default function ContactFormScreen() {
     setCadenceDays(c.cadenceDays);
     setCustom(c.cadenceDays !== null && !CADENCE_PRESETS.some((p) => p.days === c.cadenceDays));
     setChannel(c.preferredChannel);
+    setReminderTime(c.reminderTime);
+    setFavorite(c.favorite);
+    setGroups(c.groups);
     setMore(true);
     setLoaded(true);
   }, [existing.data, loaded]);
 
   const save = useAction(() => {
-    const input = { name, phone, email, relationship, birthday: joinBirthday(birthday), cadenceDays, preferredChannel };
+    const input = { name, phone, email, relationship, birthday: joinBirthday(birthday), cadenceDays, preferredChannel, reminderTime, favorite, groups };
     return id ? api.contacts.update(id, input) : api.contacts.create({ ...input, lastContactedDay: lastTalked });
   });
   const archive = useAction((archived: boolean) => api.contacts.update(id!, { archived }));
@@ -85,12 +95,32 @@ export default function ContactFormScreen() {
         ) : null}
       </View>
 
+      <View>
+        <Label>Group (optional)</Label>
+        <ChipRow>
+          {[...GROUP_PRESETS, ...groups.filter((g) => !GROUP_PRESETS.some((p) => p.toLowerCase() === g.toLowerCase()))].map((g) => {
+            const on = groups.some((x) => x.toLowerCase() === g.toLowerCase());
+            return <Chip key={g} label={g} selected={on} onPress={() => setGroups((prev) => (on ? prev.filter((x) => x.toLowerCase() !== g.toLowerCase()) : [...prev, g].slice(0, 6)))} />;
+          })}
+          <Chip label={favorite ? "★ Favorite" : "☆ Favorite"} selected={favorite} onPress={() => setFavorite((f) => !f)} />
+        </ChipRow>
+      </View>
+
       <Disclosure label={more ? "Fewer details" : "More details (optional): phone, email, birthday"} open={more} onToggle={() => setMore((m) => !m)}>
       <Field label="Phone" value={phone} onChangeText={setPhone} error={errors.phone} keyboardType="phone-pad" placeholder="(555) 010-2000" />
       <Field label="Email" value={email} onChangeText={setEmail} error={errors.email} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="maria@example.com" />
       <Field label="Who are they to you?" value={relationship} onChangeText={setRelationship} error={errors.relationship} maxLength={40} placeholder="College friend, Family, Small group…" />
       <BirthdayField value={birthday} onChange={setBirthday} error={errors.birthday} />
 
+
+      <View>
+        <Label>What time should the reminder come?</Label>
+        <ChipRow>
+          {REMINDER_TIMES.map((t) => (
+            <Chip key={t} label={formatTime(t)} selected={(reminderTime ?? DEFAULT_REMINDER_TIME) === t} onPress={() => setReminderTime(t === DEFAULT_REMINDER_TIME ? null : t)} />
+          ))}
+        </ChipRow>
+      </View>
 
       <View>
         <Label>Usual way to reach them</Label>

@@ -90,6 +90,8 @@ model Session {
   createdAt  DateTime @default(now())
 
   @@index([userId])
+  // Purging expired sessions
+  @@index([expiresAt])
 }
 
 /// Wrong-password counter per email, so the sign-in lockout holds across API instances.
@@ -128,6 +130,11 @@ model Contact {
   /// Reach-out rhythm in days; null = no reminder
   cadenceDays      Int?
   preferredChannel Channel   @default(TEXT)
+  /// Local time of day ("HH:MM") the phone should remind about this person; null = 09:00
+  reminderTime     String?
+  favorite         Boolean   @default(false)
+  /// Free-form groups such as "Family", "Friends", "Ministry"
+  groups           String[]  @default([])
   lastContactedDay String?
   nextDueDay       String?
   snoozedUntilDay  String?
@@ -144,6 +151,9 @@ model Contact {
 
   @@index([userId, nextDueDay])
   @@index([userId, name])
+  // People list (active vs archived) and "is this member already one of my people?"
+  @@index([userId, archivedAt])
+  @@index([userId, linkedUserId])
 }
 
 /// A logged reach-out.
@@ -159,7 +169,8 @@ model Interaction {
   occurredAt DateTime @default(now())
 
   @@index([userId, day])
-  @@index([contactId, day])
+  // History on a person's page: newest first
+  @@index([contactId, day, occurredAt])
 }
 
 model Note {
@@ -230,6 +241,8 @@ model DailyIntention {
   createdAt    DateTime        @default(now())
 
   @@unique([userId, day])
+  // Foreign key used when an intention is deleted
+  @@index([intentionId])
 }
 
 model PushDevice {

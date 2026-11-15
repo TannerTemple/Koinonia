@@ -164,6 +164,25 @@ describe("contacts", () => {
     expect((await api.call("POST", "/contacts/import", { cadenceDays: 28, contacts: [] })).status).toBe(400);
   });
 
+  it("stores a reminder time, a favorite flag and groups, and validates them", async () => {
+    const created = await api.call("POST", "/contacts", { name: "Mom", cadenceDays: 3, reminderTime: "18:30", favorite: true, groups: ["Family", " family ", "Ministry"] });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ reminderTime: "18:30", favorite: true, groups: ["family", "Ministry"] });
+
+    const plain = (await api.call("POST", "/contacts", { name: "Plain" })).body;
+    expect(plain).toMatchObject({ reminderTime: null, favorite: false, groups: [] });
+
+    // Changing one of them leaves the others alone.
+    const starred = await api.call("PATCH", `/contacts/${plain.id}`, { favorite: true });
+    expect(starred.body).toMatchObject({ favorite: true, groups: [], reminderTime: null });
+    const grouped = await api.call("PATCH", `/contacts/${created.body.id}`, { groups: ["Friends"], reminderTime: "" });
+    expect(grouped.body).toMatchObject({ groups: ["Friends"], reminderTime: null, favorite: true });
+
+    for (const bad of [{ reminderTime: "25:00" }, { reminderTime: "9am" }, { groups: ["x".repeat(25)] }, { groups: ["a", "b", "c", "d", "e", "f", "g"] }, { favorite: "yes" }]) {
+      expect((await api.call("PATCH", `/contacts/${plain.id}`, bad)).status).toBe(400);
+    }
+  });
+
   it("deletes a contact with its notes and history", async () => {
     const created = await api.call("POST", "/contacts", { name: "Ana", cadenceDays: 7 });
     await api.call("POST", `/contacts/${created.body.id}/notes`, { body: "Likes hiking" });

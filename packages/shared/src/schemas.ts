@@ -178,10 +178,27 @@ const contactFields = {
   birthday: birthdaySchema,
   cadenceDays: cadenceSchema,
   preferredChannel: z.enum(CHANNELS).optional(),
+  /** Time of day for this person's reminder on the phone, "HH:MM" (24h). Empty = the default, 9am. */
+  reminderTime: z
+    .union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 09:00"), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v ? v : null)),
+  favorite: z.boolean().optional(),
+  /** Groups such as "Family" or "Ministry": up to 6, trimmed, no duplicates. */
+  groups: z
+    .array(trimmed(24).min(1))
+    .max(6, "Up to 6 groups")
+    .optional()
+    .transform((list) => (list ? [...new Map(list.map((g) => [g.toLowerCase(), g])).values()] : undefined)),
   /** When you last talked, if you remember. The next reminder counts from here. */
   lastContactedDay: optionalDay,
   linkedUserId: z.union([z.string().max(40), z.null()]).optional(),
 };
+
+/** Offered as one-tap choices; people can also type their own. */
+export const GROUP_PRESETS = ["Family", "Friends", "Ministry", "Work"] as const;
+/** When a person has no time of their own. */
+export const DEFAULT_REMINDER_TIME = "09:00";
 
 export const createContactSchema = z.object(contactFields);
 export type CreateContactInput = z.input<typeof createContactSchema>;
@@ -231,6 +248,10 @@ export interface Contact {
   birthday: string | null;
   cadenceDays: number | null;
   preferredChannel: Channel;
+  /** "HH:MM", or null for the default reminder time. */
+  reminderTime: string | null;
+  favorite: boolean;
+  groups: string[];
   lastContactedDay: string | null;
   nextDueDay: string | null;
   snoozedUntilDay: string | null;

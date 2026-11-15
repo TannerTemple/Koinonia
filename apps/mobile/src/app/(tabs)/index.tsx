@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import { dueLabel, formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
 import { PrayTodayCard, ReachOutCard } from "@/components/domain";
@@ -8,7 +7,7 @@ import { Avatar, Body, Button, Card, ErrorState, Loading, Rows, Screen, type Ico
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
 import { useAction, useHome, useRefresh } from "@/lib/hooks";
-import { syncReminders } from "@/lib/notifications";
+import { ReminderPrompt } from "@/components/reminders";
 import { serif, space, useTheme } from "@/lib/theme";
 
 /** A big, plain heading for one of the two things the app is for. */
@@ -127,11 +126,6 @@ export default function TodayScreen() {
   const { data: home, error, isPending, refetch } = useHome();
   const refresh = useRefresh(refetch);
 
-  // Keep this phone's local reminders in step with the latest due dates.
-  useEffect(() => {
-    if (home) void syncReminders(home);
-  }, [home]);
-
   if (isPending) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
@@ -152,6 +146,7 @@ export default function TodayScreen() {
       </View>
 
       <GettingStartedCard home={home} />
+      <ReminderPrompt people={home.stats.contacts} />
 
       {/* ---- 1. Reach out ------------------------------------------------ */}
       {hasPeople ? (

@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import Constants from "expo-constants";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Linking, Switch, Text, View } from "react-native";
 import type { Streak } from "@koinonia/shared";
 import { Avatar, Body, Button, Card, Field, FormError, LegalLinks, Screen, SectionTitle, Title, fieldErrors, type IconName } from "@/components/ui";
@@ -10,7 +9,7 @@ import { WEB_URL, api } from "@/lib/api";
 import { showDialog } from "@/lib/dialog";
 import { useAuth, useUser } from "@/lib/auth";
 import { useAction, useHome, useRefresh } from "@/lib/hooks";
-import { enableReminders, registerForPush, remindersAllowed, syncReminders } from "@/lib/notifications";
+import { useReminderPermission } from "@/components/reminders";
 import { space, useTheme } from "@/lib/theme";
 
 function StreakCard({ icon, label, streak }: { icon: IconName; label: string; streak: Streak }) {
@@ -54,28 +53,19 @@ export default function ProfileScreen() {
   const refresh = useRefresh(refetch, async () => setUser(await api.me.get()));
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone ?? "");
-  const [notifications, setNotifications] = useState(false);
+  const reminders = useReminderPermission();
+  const notifications = reminders.permission === "on";
 
   const save = useAction(() => api.me.update({ name, phone }));
   const prefs = useAction((input: { discoverable?: boolean; digestEnabled?: boolean }) => api.me.update(input));
   const resend = useAction(api.auth.resendVerification);
 
-  useEffect(() => {
-    void remindersAllowed().then(setNotifications);
-  }, []);
-
   const turnOnNotifications = async () => {
-    const granted = await enableReminders();
-    setNotifications(granted);
-    if (!granted) {
-      showDialog("Notifications are off", "Turn them on for Koinonia in Settings to get reminders.", [
-        { text: "Not now", style: "cancel" },
-        { text: "Open Settings", onPress: () => void Linking.openSettings() },
-      ]);
-      return;
-    }
-    if (home) await syncReminders(home);
-    await registerForPush(Constants.expoConfig?.extra?.eas?.projectId as string | undefined);
+    if (await reminders.turnOn()) return;
+    showDialog("Notifications are off", "Turn them on for Koinonia in Settings to get reminders.", [
+      { text: "Not now", style: "cancel" },
+      { text: "Open Settings", onPress: () => void Linking.openSettings() },
+    ]);
   };
 
   const copyCalendar = async () => {
@@ -140,7 +130,7 @@ export default function ProfileScreen() {
         <Card>
           <ToggleRow
             label="Notifications on this iPhone"
-            description="A 9am reminder on the day someone is due, and for your note follow-ups."
+            description="One reminder on the day someone is due (9am unless you pick another time for them), and for your note follow-ups."
             value={notifications}
             onChange={(v) => (v ? void turnOnNotifications() : showDialog("Turn off in Settings", "To stop reminders, turn off notifications for Koinonia in Settings.", [{ text: "OK" }, { text: "Open Settings", onPress: () => void Linking.openSettings() }]))}
           />
