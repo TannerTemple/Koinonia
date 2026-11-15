@@ -2,7 +2,7 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { INTENTION_KINDS, INTENTION_KIND_LABELS, type IntentionKind } from "@koinonia/shared";
-import { Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
+import { Disclosure, Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAction, useContacts, useIntentions } from "@/lib/hooks";
 import { space } from "@/lib/theme";
@@ -19,6 +19,7 @@ export default function IntentionScreen() {
   const [contactId, setContactId] = useState<string | null>(params.contactId ?? null);
   const [kind, setKind] = useState<IntentionKind>(params.contactId ? "PROMISED" : "PERSONAL");
   const [loaded, setLoaded] = useState(!params.id);
+  const [more, setMore] = useState(false);
 
   useEffect(() => {
     if (existing && !loaded) {
@@ -26,6 +27,7 @@ export default function IntentionScreen() {
       setDetails(existing.details ?? "");
       setContactId(existing.contactId);
       setKind(existing.kind);
+      setMore(Boolean(existing.details));
       setLoaded(true);
     }
   }, [existing, loaded]);
@@ -40,11 +42,10 @@ export default function IntentionScreen() {
 
   return (
     <Screen keyboard>
-      <Stack.Screen options={{ title: params.id ? "Edit intention" : linked ? `Pray for ${linked.name.split(" ")[0]}` : "New intention" }} />
-      <Field label="What are you praying for?" value={title} onChangeText={setTitle} error={fieldErrors(save.error).title} maxLength={140} autoFocus={!params.id} placeholder="Maria's surgery on Friday" />
-      <Field label="Details" hint="Optional." value={details} onChangeText={setDetails} multiline maxLength={2000} />
+      <Stack.Screen options={{ title: params.id ? "Edit prayer" : linked ? `Pray for ${linked.name.split(" ")[0]}` : "Add to prayer list" }} />
+      <Field label="What do you want to pray for?" value={title} onChangeText={setTitle} error={fieldErrors(save.error).title} maxLength={140} autoFocus={!params.id} placeholder="Maria's surgery on Friday" />
       <View>
-        <Label>For someone?</Label>
+        <Label>Is it for someone?</Label>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }} keyboardShouldPersistTaps="handled">
           <Chip tone="forest" label="No one in particular" selected={contactId === null} onPress={() => { setContactId(null); if (!params.id) setKind("PERSONAL"); }} />
           {(contacts ?? []).map((p) => (
@@ -52,16 +53,19 @@ export default function IntentionScreen() {
           ))}
         </ScrollView>
       </View>
+      <Disclosure label={more ? "Less" : "More (optional): details, kind of prayer"} open={more} onToggle={() => setMore((m) => !m)}>
+      <Field label="Details" hint="Anything you want to remember about it." value={details} onChangeText={setDetails} multiline maxLength={2000} />
       <View>
-        <Label>Kind</Label>
+        <Label>What kind of prayer?</Label>
         <ChipRow>
           {INTENTION_KINDS.map((k) => (
             <Chip key={k} tone="forest" label={INTENTION_KIND_LABELS[k]} selected={kind === k} onPress={() => setKind(k)} />
           ))}
         </ChipRow>
       </View>
+      </Disclosure>
       <FormError error={save.error} />
-      <Button variant="forest" label={params.id ? "Save" : "Add intention"} loading={save.isPending} disabled={!title.trim()} onPress={() => save.mutate(undefined, { onSuccess: () => router.back() })} />
+      <Button variant="forest" label={params.id ? "Save" : "Add to prayer list"} loading={save.isPending} disabled={!title.trim()} onPress={() => save.mutate(undefined, { onSuccess: () => router.back() })} />
     </Screen>
   );
 }

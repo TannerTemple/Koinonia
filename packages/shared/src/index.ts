@@ -7,3 +7,4 @@ export * from "./theme";
 export * from "./templates";
 export * from "./review";
 export * from "./vcard";
+export * from "./start";

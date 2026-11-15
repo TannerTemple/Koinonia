@@ -204,3 +204,48 @@ describe("vCard import", () => {
     expect(chunk([], 2)).toEqual([]);
   });
 });
+
+describe("birthdays", () => {
+  it("never shows a year that wasn't given", async () => {
+    const { birthdayLabel } = await import("./dates");
+    expect(birthdayLabel("11-20")).toBe("Nov 20");
+    expect(birthdayLabel("1990-04-12")).toBe("Apr 12, 1990");
+  });
+
+  it("splits into month, day and optional year, and joins back", async () => {
+    const { splitBirthday, joinBirthday } = await import("./dates");
+    expect(splitBirthday("11-20")).toEqual({ month: "11", day: "20", year: "" });
+    expect(splitBirthday("1990-04-02")).toEqual({ month: "4", day: "2", year: "1990" });
+    expect(splitBirthday(null)).toEqual({ month: "", day: "", year: "" });
+    expect(joinBirthday({ month: "4", day: "2", year: "" })).toBe("04-02");
+    expect(joinBirthday({ month: "4", day: "2", year: "1990" })).toBe("1990-04-02");
+    expect(joinBirthday({ month: "4", day: "2", year: "19" })).toBe("04-02");
+    expect(joinBirthday({ month: "", day: "2", year: "1990" })).toBe("");
+    for (const b of ["11-20", "1990-04-12", "02-29"]) expect(joinBirthday(splitBirthday(b))).toBe(b);
+  });
+});
+
+describe("getting started", () => {
+  const home = (contacts: number, intentions: number, reach: number, prayed: number) => ({
+    stats: { contacts, reachOutsThisWeek: 0, activeIntentions: intentions },
+    streaks: { reachOut: { current: 0, longest: reach, doneToday: false }, prayer: { current: 0, longest: prayed, doneToday: false } },
+  });
+
+  it("ticks off each step from what the account holds", async () => {
+    const { gettingStarted } = await import("./start");
+    expect(gettingStarted(home(0, 0, 0, 0))).toEqual({ addedPerson: false, addedPrayer: false, reachedOut: false, done: 0, finished: false });
+    expect(gettingStarted(home(2, 0, 0, 0))).toMatchObject({ addedPerson: true, done: 1, finished: false });
+    expect(gettingStarted(home(2, 1, 1, 0))).toMatchObject({ done: 3, finished: true });
+    // A prayer that was answered or deleted after being prayed still counts.
+    expect(gettingStarted(home(1, 0, 0, 1)).addedPrayer).toBe(true);
+  });
+
+  it("greets by time of day and sums up who is waiting", async () => {
+    const { greetingFor, reachOutSummary } = await import("./start");
+    expect([greetingFor(7), greetingFor(13), greetingFor(21)]).toEqual(["Good morning", "Good afternoon", "Good evening"]);
+    expect(reachOutSummary(0, 0)).toContain("Add the people");
+    expect(reachOutSummary(0, 4)).toBe("Nobody is waiting on you today.");
+    expect(reachOutSummary(1, 4)).toContain("One person");
+    expect(reachOutSummary(3, 4)).toContain("3 people");
+  });
+});

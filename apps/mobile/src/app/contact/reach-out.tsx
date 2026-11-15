@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { CHANNELS, CHANNEL_LABELS, cadenceLabel, type Channel } from "@koinonia/shared";
+import { CHANNELS, CHANNEL_LABELS, computeNextDue, formatLongDay, type Channel } from "@koinonia/shared";
 import { Body, Button, Chip, ChipRow, ErrorState, Field, FormError, Label, Loading, Screen, Title } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
@@ -24,11 +24,14 @@ export default function ReachOutScreen() {
   if (isPending) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
+  // The clock restarts from the day they actually talked, not from today.
+  const nextDay = computeNextDue(day ?? today, contact.cadenceDays);
+
   return (
     <Screen keyboard>
       <View>
         <Title style={{ fontSize: 26 }}>You reached out to {contact.name.split(" ")[0]}</Title>
-        <Body muted>{contact.cadenceDays ? `Next reminder: ${cadenceLabel(contact.cadenceDays).toLowerCase()} from then.` : "No reminder is set for them."}</Body>
+        <Body muted>{nextDay ? `Koinonia will remind you again on ${formatLongDay(nextDay)}.` : "No reminder is set for them."}</Body>
       </View>
       <View>
         <Label>How?</Label>
@@ -43,7 +46,7 @@ export default function ReachOutScreen() {
       <FormError error={log.error} />
       <Button
         icon="checkmark"
-        label="Log it"
+        label="Save"
         loading={log.isPending}
         onPress={() =>
           log.mutate(undefined, {

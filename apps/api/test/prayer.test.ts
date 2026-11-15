@@ -101,4 +101,18 @@ describe("the intention of the day", () => {
     expect((await api.call("PUT", "/prayer/today", { intentionId: b.body.id })).status).toBe(400);
     expect((await api.call("PUT", "/prayer/today", { intentionId: "nope" })).status).toBe(404);
   });
+
+  it("survives Today and the prayer list asking at the same moment", async () => {
+    const only = (await api.call("POST", "/intentions", { title: "The only one" })).body.id;
+    // Several requests race to create today's suggestion...
+    const first = await Promise.all(Array.from({ length: 6 }, () => api.call("GET", "/prayer/today")));
+    expect(first.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 200]);
+    expect(new Set(first.map((r) => r.body.intention.id))).toEqual(new Set([only]));
+
+    // ...and, once it is answered, race to clear it.
+    await api.call("PATCH", `/intentions/${only}`, { status: "ANSWERED" });
+    const after = await Promise.all([...Array.from({ length: 4 }, () => api.call("GET", "/prayer/today")), api.call("GET", "/home"), api.call("GET", "/home")]);
+    expect(after.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 200]);
+    expect(after[0]!.body.intention).toBeNull();
+  });
 });

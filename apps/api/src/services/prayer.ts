@@ -32,13 +32,21 @@ export async function getPrayerToday(
     include: withContact,
   });
   if (!suggestion) {
-    if (existing) await prisma.dailyIntention.delete({ where: { id: existing.id } });
+    // deleteMany, not delete: Today and the prayer list ask at the same moment, and the
+    // second request must not fail because the first already cleared the row.
+    if (existing) await prisma.dailyIntention.deleteMany({ where: { id: existing.id } });
     return { day: today, intention: null, chosenByUser: false };
   }
-  await prisma.dailyIntention.upsert({
-    where: { userId_day: { userId, day: today } },
-    create: { userId, day: today, intentionId: suggestion.id, chosenByUser: false },
-    update: { intentionId: suggestion.id, chosenByUser: false },
-  });
+  try {
+    await prisma.dailyIntention.upsert({
+      where: { userId_day: { userId, day: today } },
+      create: { userId, day: today, intentionId: suggestion.id, chosenByUser: false },
+      update: { intentionId: suggestion.id, chosenByUser: false },
+    });
+  } catch (error) {
+    // Two simultaneous requests can both try to create today's row; the loser's suggestion
+    // is the same one, so there is nothing to do.
+    if ((error as { code?: string }).code !== "P2002") throw error;
+  }
   return { day: today, intention: toIntention(suggestion, today), chosenByUser: false };
 }

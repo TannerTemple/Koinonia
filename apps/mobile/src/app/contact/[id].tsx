@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Alert, Linking, Pressable, Share, Text, View } from "react-native";
+import { Linking, Pressable, Share, Text, View } from "react-native";
 import {
+  birthdayLabel,
   CHANNEL_LABELS,
   MESSAGE_STARTERS,
   cadenceLabel,
@@ -16,8 +17,9 @@ import {
   type Note,
 } from "@koinonia/shared";
 import { DueBadge, IntentionRow } from "@/components/domain";
-import { Avatar, Badge, Body, Button, Card, ErrorState, IconButton, Loading, Rows, Screen, SectionTitle, Title, type IconName } from "@/components/ui";
+import { Avatar, Badge, Body, Button, Card, ErrorState, IconButton, Loading, Rows, Screen, SectionTitle, Title, type IconName, TextAction } from "@/components/ui";
 import { api } from "@/lib/api";
+import { showDialog } from "@/lib/dialog";
 import { useAction, useContact, useRefresh, useToday } from "@/lib/hooks";
 import { radius, space, useTheme } from "@/lib/theme";
 
@@ -30,7 +32,7 @@ function QuickAction({ contact, channel, icon }: { contact: ContactDetail; chann
       accessibilityLabel={`${CHANNEL_LABELS[channel]} ${contact.name}`}
       accessibilityState={{ disabled: !href }}
       disabled={!href}
-      onPress={() => href && void Linking.openURL(href).catch(() => Alert.alert("Couldn't open that", "This device can't start that kind of message."))}
+      onPress={() => href && void Linking.openURL(href).catch(() => showDialog("Couldn't open that", "This device can't start that kind of message."))}
       style={({ pressed }) => ({
         flex: 1,
         minHeight: 60,
@@ -66,15 +68,16 @@ function NoteCard({ note, today }: { note: Note; today: string }) {
           <Badge icon="checkmark" label="Followed up" />
         ) : null}
       </View>
-      <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-        {open ? <IconButton icon="checkmark-circle-outline" label="Mark follow-up done" onPress={() => update.mutate({ followUpDone: true })} /> : null}
-        <IconButton icon={note.pinned ? "pin" : "pin-outline"} label={note.pinned ? "Unpin note" : "Pin note"} onPress={() => update.mutate({ pinned: !note.pinned })} />
-        <IconButton icon="create-outline" label="Edit note" onPress={() => router.push(`/note?id=${note.id}&contactId=${note.contactId}`)} />
-        <IconButton
-          icon="trash-outline"
-          label="Delete note"
+      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", marginRight: -space.sm }}>
+        {open ? <TextAction label="Done" accessibilityLabel="Mark follow-up done" onPress={() => update.mutate({ followUpDone: true })} /> : null}
+        <TextAction label={note.pinned ? "Unpin" : "Pin"} accessibilityLabel={note.pinned ? "Unpin note" : "Pin note to the top"} onPress={() => update.mutate({ pinned: !note.pinned })} />
+        <TextAction label="Edit" accessibilityLabel="Edit note" onPress={() => router.push(`/note?id=${note.id}&contactId=${note.contactId}`)} />
+        <TextAction
+          label="Delete"
+          tone="danger"
+          accessibilityLabel="Delete note"
           onPress={() =>
-            Alert.alert("Delete this note?", undefined, [
+            showDialog("Delete this note?", undefined, [
               { text: "Cancel", style: "cancel" },
               { text: "Delete", style: "destructive", onPress: () => remove.mutate(undefined) },
             ])
@@ -101,7 +104,7 @@ function HistoryRow({ item, today }: { item: Interaction; today: string }) {
         icon="close"
         label="Remove this reach-out"
         onPress={() =>
-          Alert.alert("Remove this reach-out?", "The reminder will be recalculated.", [
+          showDialog("Remove this reach-out?", "The reminder will be recalculated.", [
             { text: "Cancel", style: "cancel" },
             { text: "Remove", style: "destructive", onPress: () => remove.mutate(undefined) },
           ])
@@ -148,7 +151,7 @@ export default function ContactScreen() {
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
           <DueBadge contact={contact} today={today} />
           <Badge label={cadenceLabel(contact.cadenceDays)} />
-          {contact.birthday ? <Badge tone="gold" icon="gift-outline" label={formatDay(contact.birthday.length === 5 ? `2000-${contact.birthday}` : contact.birthday, contact.birthday.slice(0, 4))} /> : null}
+          {contact.birthday ? <Badge tone="gold" icon="gift-outline" label={birthdayLabel(contact.birthday)} /> : null}
           {contact.linkedUserId ? <Badge tone="forest" label="On Koinonia" /> : null}
           {contact.archived ? <Badge label="Archived" /> : null}
         </View>
@@ -156,17 +159,21 @@ export default function ContactScreen() {
           {contact.lastContactedDay ? `You last reached out ${relativeDay(contact.lastContactedDay, today)}.` : "No reach-outs logged yet."}
           {snoozed ? ` Snoozed until ${formatDay(contact.snoozedUntilDay!, today)}.` : ""}
         </Body>
-        <View style={{ flexDirection: "row", gap: space.sm }}>
-          <QuickAction contact={contact} channel="CALL" icon="call" />
-          <QuickAction contact={contact} channel="TEXT" icon="chatbubble" />
-          <QuickAction contact={contact} channel="EMAIL" icon="mail" />
-        </View>
+        {contact.phone || contact.email ? (
+          <View style={{ flexDirection: "row", gap: space.sm }}>
+            <QuickAction contact={contact} channel="CALL" icon="call" />
+            <QuickAction contact={contact} channel="TEXT" icon="chatbubble" />
+            <QuickAction contact={contact} channel="EMAIL" icon="mail" />
+          </View>
+        ) : (
+          <Button variant="secondary" icon="call-outline" label="Add their phone or email" onPress={() => router.push(`/contact/form?id=${id}`)} />
+        )}
         <Button icon="checkmark" label="I reached out" onPress={() => router.push(`/contact/reach-out?id=${id}`)} />
         {snoozed ? (
           <Button variant="secondary" label="Unsnooze" loading={snooze.isPending} onPress={() => snooze.mutate({ clear: true })} />
         ) : status === "overdue" || status === "today" ? (
           <View style={{ flexDirection: "row", gap: space.sm }}>
-            <Button variant="secondary" icon="alarm-outline" label="Tomorrow" style={{ flex: 1 }} disabled={snooze.isPending} onPress={() => snooze.mutate({ days: 1 })} />
+            <Button variant="secondary" label="Remind me tomorrow" style={{ flex: 1.3 }} disabled={snooze.isPending} onPress={() => snooze.mutate({ days: 1 })} />
             <Button variant="secondary" label="Next week" style={{ flex: 1 }} disabled={snooze.isPending} onPress={() => snooze.mutate({ days: 7 })} />
           </View>
         ) : null}
@@ -188,7 +195,7 @@ export default function ContactScreen() {
       </View>
 
       <View>
-        <SectionTitle tone="forest" count={contact.intentions.length} action={<Button small variant="ghost" icon="add" label="Add" accessibilityLabel={`Add an intention for ${first}`} onPress={() => router.push(`/intention?contactId=${id}`)} />}>
+        <SectionTitle tone="forest" count={contact.intentions.length} action={<Button small variant="ghost" icon="add" label="Add" accessibilityLabel={`Add a prayer for ${first}`} onPress={() => router.push(`/intention?contactId=${id}`)} />}>
           {`Praying for ${first}`}
         </SectionTitle>
         {contact.intentions.length ? (

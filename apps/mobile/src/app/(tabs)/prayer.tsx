@@ -26,8 +26,9 @@ export default function PrayerScreen() {
   const all = intentions.data;
   const active = all.filter((i) => i.status === "ACTIVE");
   const shown = all.filter((i) => i.status === tab);
-  const promised = shown.filter((i) => i.kind === "PROMISED");
-  const others = shown.filter((i) => i.kind !== "PROMISED");
+  // Grouped by whether the prayer is for a person, which is how people think of their list.
+  const promised = shown.filter((i) => i.contactId !== null);
+  const others = shown.filter((i) => i.contactId === null);
   const day = today.data.day;
   const todayId = today.data.intention?.id;
 
@@ -35,10 +36,10 @@ export default function PrayerScreen() {
     <Screen topInset {...refresh}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <View style={{ flex: 1 }}>
-          <Title>Prayer</Title>
-          <Body muted>{active.length ? `${active.filter((i) => i.prayedToday).length} of ${active.length} prayed for today` : "The people and things you're carrying"}</Body>
+          <Title>Prayer list</Title>
+          <Body muted>{active.length ? `${active.filter((i) => i.prayedToday).length} of ${active.length} prayed for today` : "The people and things you want to pray for"}</Body>
         </View>
-        <Button small variant="forest" icon="add" label="Add" accessibilityLabel="Add an intention" onPress={() => router.push("/intention")} />
+        <Button small variant="forest" icon="add" label="Add" accessibilityLabel="Add to prayer list" onPress={() => router.push("/intention")} />
       </View>
 
       <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => router.push("/choose-intention") : undefined} />
@@ -51,24 +52,29 @@ export default function PrayerScreen() {
 
       {shown.length === 0 ? (
         tab === "ACTIVE" ? (
-          <EmptyState icon="heart" title="“I'll pray for you.”" body="Easy to say, easy to forget. Write down what you promised and for whom, and it will be waiting here." />
+          <EmptyState
+            icon="heart"
+            title="“I'll pray for you.”"
+            body="Easy to say, easy to forget. Write down who and what you want to pray for, and it will be waiting here."
+            action={<Button variant="forest" icon="add" label="Add to prayer list" onPress={() => router.push("/intention")} />}
+          />
         ) : (
           <EmptyState
             title={tab === "ANSWERED" ? "No answered prayers yet" : "Nothing archived"}
-            body={tab === "ANSWERED" ? "When a prayer is answered, mark it and it will be kept here to look back on with gratitude." : "Archived intentions rest here."}
+            body={tab === "ANSWERED" ? "When a prayer is answered, mark it and it will be kept here to look back on with gratitude." : "Prayers you set aside rest here."}
           />
         )
       ) : (
         <View style={{ gap: space.xl }}>
           {promised.length ? (
             <View>
-              <SectionTitle tone="forest" count={promised.length}>People I said I'd pray for</SectionTitle>
+              <SectionTitle tone="forest" count={promised.length}>For people</SectionTitle>
               <Rows>{promised.map((i) => <IntentionRow key={i.id} intention={i} today={day} isToday={i.id === todayId} />)}</Rows>
             </View>
           ) : null}
           {others.length ? (
             <View>
-              <SectionTitle tone="forest" count={others.length}>My intentions</SectionTitle>
+              <SectionTitle tone="forest" count={others.length}>Other prayers</SectionTitle>
               <Rows>{others.map((i) => <IntentionRow key={i.id} intention={i} today={day} isToday={i.id === todayId} />)}</Rows>
             </View>
           ) : null}

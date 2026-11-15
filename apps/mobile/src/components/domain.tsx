@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import {
   INTENTION_KIND_LABELS,
   cadenceLabel,
@@ -14,6 +14,7 @@ import {
   type PrayerToday,
 } from "@koinonia/shared";
 import { api } from "@/lib/api";
+import { showDialog } from "@/lib/dialog";
 import { useAction } from "@/lib/hooks";
 import { radius, serif, space, useTheme } from "@/lib/theme";
 import { Avatar, Badge, Button, IconButton, type BadgeTone } from "./ui";
@@ -28,42 +29,60 @@ export function DueBadge({ contact, today }: { contact: Contact; today: string }
   return <Badge tone={tone} label={dueLabel(contact.dueDay, today)} />;
 }
 
-export function ContactRow({ contact, today, actions }: { contact: Contact; today: string; actions?: boolean }) {
+/** A person in a list: tap to open. */
+export function ContactRow({ contact, today }: { contact: Contact; today: string }) {
   const { c } = useTheme();
-  const status = dueStatus(contact.dueDay, today);
-  const actionable = actions && (status === "overdue" || status === "today");
-  const snooze = useAction(() => api.contacts.snooze(contact.id, { days: 3 }));
-
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", paddingRight: space.md }}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${contact.name}, ${dueLabel(contact.dueDay, today)}`}
+      onPress={() => router.push(`/contact/${contact.id}`)}
+      style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, opacity: pressed ? 0.6 : 1 })}
+    >
+      <Avatar name={contact.name} />
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: "700", color: c.text }}>
+          {contact.name}
+        </Text>
+        <Text numberOfLines={1} style={{ fontSize: 14, color: c.textMuted }}>
+          {cadenceLabel(contact.cadenceDays)}
+          {contact.lastContactedDay ? ` · last ${relativeDay(contact.lastContactedDay, today)}` : ""}
+        </Text>
+      </View>
+      <DueBadge contact={contact} today={today} />
+    </Pressable>
+  );
+}
+
+/** Someone who is due: who, how late, and the two things you can do about it, in words. */
+export function ReachOutCard({ contact, today }: { contact: Contact; today: string }) {
+  const { c } = useTheme();
+  const late = dueStatus(contact.dueDay, today) === "overdue";
+  const notToday = useAction(() => api.contacts.snooze(contact.id, { days: 1 }));
+  return (
+    <View style={{ backgroundColor: c.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: late ? c.danger : c.border, padding: space.md, gap: space.md }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${contact.name}, ${dueLabel(contact.dueDay, today)}`}
+        accessibilityLabel={`${contact.name}, ${dueLabel(contact.dueDay, today)}. Open.`}
         onPress={() => router.push(`/contact/${contact.id}`)}
-        style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, opacity: pressed ? 0.6 : 1 })}
+        style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: space.md, opacity: pressed ? 0.6 : 1 })}
       >
-        <Avatar name={contact.name} />
-        <View style={{ flex: 1, gap: 3 }}>
-          <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: "700", color: c.text }}>
+        <Avatar name={contact.name} size={48} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text numberOfLines={2} style={{ fontSize: 19, lineHeight: 24, fontWeight: "700", color: c.text }}>
             {contact.name}
           </Text>
-          {actionable ? (
-            <DueBadge contact={contact} today={today} />
-          ) : (
-            <Text numberOfLines={1} style={{ fontSize: 13, color: c.textMuted }}>
-              {cadenceLabel(contact.cadenceDays)}
-              {contact.lastContactedDay ? ` · last ${relativeDay(contact.lastContactedDay, today)}` : ""}
-            </Text>
-          )}
+          <Text style={{ fontSize: 15, fontWeight: "600", color: late ? c.danger : c.textMuted }}>
+            {dueLabel(contact.dueDay, today)}
+            {contact.lastContactedDay ? ` · last talked ${relativeDay(contact.lastContactedDay, today)}` : ""}
+          </Text>
         </View>
-        {actionable ? null : <DueBadge contact={contact} today={today} />}
+        <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
       </Pressable>
-      {actionable ? (
-        <>
-          <IconButton icon="alarm-outline" label={`Snooze ${contact.name} for 3 days`} disabled={snooze.isPending} onPress={() => snooze.mutate(undefined)} />
-          <Button small icon="checkmark" label="Done" accessibilityLabel={`Log a reach-out to ${contact.name}`} onPress={() => router.push(`/contact/reach-out?id=${contact.id}`)} />
-        </>
-      ) : null}
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <Button icon="checkmark" label="I reached out" accessibilityLabel={`I reached out to ${contact.name}`} style={{ flex: 1.4 }} onPress={() => router.push(`/contact/reach-out?id=${contact.id}`)} />
+        <Button variant="secondary" label="Not today" accessibilityLabel={`Not today: remind me about ${contact.name} tomorrow`} style={{ flex: 1 }} loading={notToday.isPending} onPress={() => notToday.mutate(undefined)} />
+      </View>
     </View>
   );
 }
@@ -80,7 +99,7 @@ export function Hero({ tone, children }: { tone: "blue" | "forest"; children: Re
   );
 }
 
-export function DailyIntentionCard({ prayer, onChoose }: { prayer: PrayerToday; onChoose?: () => void }) {
+export function PrayTodayCard({ prayer, onChoose }: { prayer: PrayerToday; onChoose?: () => void }) {
   const { c } = useTheme();
   const intention = prayer.intention;
   const pray = useAction((id: string) => api.intentions.pray(id));
@@ -89,7 +108,7 @@ export function DailyIntentionCard({ prayer, onChoose }: { prayer: PrayerToday; 
     <Hero tone="forest">
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <Ionicons name="sparkles" size={14} color={c.onHeroMuted} />
-        <Text style={{ color: c.onHeroMuted, fontSize: 12, fontWeight: "800", letterSpacing: 1.4 }}>TODAY&rsquo;S INTENTION</Text>
+        <Text style={{ color: c.onHeroMuted, fontSize: 12, fontWeight: "800", letterSpacing: 1.4 }}>PRAY TODAY FOR</Text>
       </View>
       {intention ? (
         <>
@@ -112,7 +131,7 @@ export function DailyIntentionCard({ prayer, onChoose }: { prayer: PrayerToday; 
               <Button
                 variant="onHero"
                 icon="heart"
-                label="I prayed for this"
+                label="I prayed"
                 loading={pray.isPending}
                 onPress={() => {
                   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -126,15 +145,15 @@ export function DailyIntentionCard({ prayer, onChoose }: { prayer: PrayerToday; 
               </Pressable>
             ) : null}
           </View>
-          <Text style={{ color: c.onHeroMuted, fontSize: 13 }}>{prayer.chosenByUser ? "You chose this for today." : "Suggested because it has waited the longest."}</Text>
+          <Text style={{ color: c.onHeroMuted, fontSize: 13 }}>{prayer.chosenByUser ? "You chose this for today." : "Picked for you because it has waited the longest."}</Text>
         </>
       ) : (
         <>
           <Text accessibilityRole="header" style={{ fontFamily: serif, color: c.onHero, fontSize: 24, fontWeight: "700" }}>
-            Nothing on your heart yet
+            Your prayer list is empty
           </Text>
-          <Text style={{ color: c.onHeroMuted, fontSize: 15, lineHeight: 21 }}>Add someone you said you&rsquo;d pray for, and one intention will be set apart each day.</Text>
-          <Button variant="onHero" label="Add an intention" style={{ alignSelf: "flex-start", marginTop: space.sm }} onPress={() => router.push("/intention")} />
+          <Text style={{ color: c.onHeroMuted, fontSize: 15, lineHeight: 21 }}>Add a person, or anything on your heart. Each day one will be set apart for you here.</Text>
+          <Button variant="onHero" label="Add to prayer list" style={{ alignSelf: "flex-start", marginTop: space.sm }} onPress={() => router.push("/intention")} />
         </>
       )}
     </Hero>
@@ -150,8 +169,8 @@ export function IntentionRow({ intention, today, isToday, showContact = true }: 
   const remove = useAction(() => api.intentions.delete(intention.id));
 
   const openMenu = () =>
-    Alert.alert(intention.title, undefined, [
-      ...(active && !isToday ? [{ text: "Make today's intention", onPress: () => setToday.mutate(undefined) }] : []),
+    showDialog(intention.title, undefined, [
+      ...(active && !isToday ? [{ text: "Pray for this today", onPress: () => setToday.mutate(undefined) }] : []),
       active ? { text: "Mark answered", onPress: () => update.mutate("ANSWERED") } : { text: "Pray again", onPress: () => update.mutate("ACTIVE") },
       ...(active ? [{ text: "Archive", onPress: () => update.mutate("ARCHIVED") }] : []),
       { text: "Edit", onPress: () => router.push(`/intention?id=${intention.id}`) },
@@ -164,7 +183,7 @@ export function IntentionRow({ intention, today, isToday, showContact = true }: 
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: intention.prayedToday, disabled: !active }}
-        accessibilityLabel={`Prayed for ${intention.title} today`}
+        accessibilityLabel={`I prayed for ${intention.title} today`}
         disabled={!active || pray.isPending}
         hitSlop={6}
         onPress={() => {
@@ -193,16 +212,25 @@ export function IntentionRow({ intention, today, isToday, showContact = true }: 
           </Text>
         ) : null}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-          {isToday ? <Badge tone="forest" icon="star" label="Today's intention" /> : null}
+          {isToday ? <Badge tone="forest" icon="star" label="Today's prayer" /> : null}
           {showContact && intention.contactName ? <Badge tone="primary" label={intention.contactName} /> : null}
           {!showContact || !intention.contactName ? <Badge label={INTENTION_KIND_LABELS[intention.kind]} /> : null}
           {intention.status === "ANSWERED" ? <Badge tone="gold" label="Answered" /> : null}
         </View>
         <Text style={{ fontSize: 12, color: c.textMuted }}>
-          {intention.prayedCount === 0 ? "Not prayed yet" : `Prayed ${intention.prayedCount}× · last ${relativeDay(intention.lastPrayedDay!, today)}`}
+          {!active
+            ? intention.prayedCount ? `Prayed ${intention.prayedCount} ${intention.prayedCount === 1 ? "time" : "times"}` : ""
+            : intention.prayedToday
+              ? `Prayed today · ${intention.prayedCount} ${intention.prayedCount === 1 ? "time" : "times"} in all`
+              : intention.prayedCount === 0
+                ? "Tap the circle when you've prayed"
+                : `Prayed ${intention.prayedCount} ${intention.prayedCount === 1 ? "time" : "times"} · last ${relativeDay(intention.lastPrayedDay!, today)}`}
         </Text>
       </View>
       <IconButton icon="ellipsis-horizontal" label={`More options for ${intention.title}`} onPress={openMenu} />
     </View>
   );
 }
+
+/** Kept for screens that still import the old name. */
+export const DailyIntentionCard = PrayTodayCard;

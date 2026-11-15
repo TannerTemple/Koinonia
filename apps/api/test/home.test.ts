@@ -89,6 +89,19 @@ describe("home", () => {
     expect(body.stats.activeIntentions).toBe(1);
   });
 
+  it("always names who is next, even when they are more than two weeks away", async () => {
+    await api.call("POST", "/contacts", { name: "Monthly Mo", cadenceDays: 28 });
+    await api.call("POST", "/contacts", { name: "Yearly Yan", cadenceDays: 365 });
+    const { body } = await api.call("GET", "/home");
+    expect(body.upcoming).toEqual([]);
+    expect(body.nextUp).toMatchObject({ name: "Monthly Mo", dueDay: "2026-12-10" });
+
+    await api.call("POST", "/contacts", { name: "Weekly Wes", cadenceDays: 7 });
+    const soon = (await api.call("GET", "/home")).body;
+    expect(soon.upcoming.map((c: any) => c.name)).toEqual(["Weekly Wes"]);
+    expect(soon.nextUp.name).toBe("Monthly Mo");
+  });
+
   it("uses the user's timezone to decide what day it is", async () => {
     // 03:00 UTC on the 13th is still the 12th in Chicago.
     ctx.setNow("2026-11-13T03:00:00Z");

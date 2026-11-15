@@ -108,3 +108,35 @@ export function nextBirthday(birthday: string, today: Day): Day | null {
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Birthdays: "YYYY-MM-DD", or "MM-DD" when the year isn't known
+// ---------------------------------------------------------------------------
+
+/** "Nov 20" or "Nov 20, 1990". Never invents a year. */
+export function birthdayLabel(birthday: string): string {
+  return birthday.length === 5 ? formatDay(`2000-${birthday}`, "2000-01-01") : formatDay(birthday);
+}
+
+export interface BirthdayParts {
+  /** "1".."12", or "" */
+  month: string;
+  /** "1".."31", or "" */
+  day: string;
+  /** four digits, or "" */
+  year: string;
+}
+
+export function splitBirthday(birthday: string | null | undefined): BirthdayParts {
+  if (!birthday) return { month: "", day: "", year: "" };
+  const parts = birthday.split("-");
+  const [year, month, day] = parts.length === 3 ? parts : ["", parts[0], parts[1]];
+  return { month: String(Number(month)), day: String(Number(day)), year: year ?? "" };
+}
+
+/** Back to the stored form. Empty unless both month and day are chosen. */
+export function joinBirthday({ month, day, year }: BirthdayParts): string {
+  if (!month || !day) return "";
+  const md = `${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  return /^\d{4}$/.test(year) ? `${year}-${md}` : md;
+}

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type PressableProps, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError, avatarColor, initials } from "@koinonia/shared";
+import type { BirthdayParts } from "@koinonia/shared";
 import { radius, serif, space, useTheme } from "@/lib/theme";
 
 export type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -334,5 +335,72 @@ export function LegalLinks({ webUrl, prefix }: { webUrl: string; prefix?: string
       {link("Terms of Use", "/terms")} {prefix ? "and" : "·"} {link("Privacy Policy", "/privacy")}
       {prefix ? "." : ""}
     </Text>
+  );
+}
+
+/** A section that stays folded away until asked for: keeps forms short. */
+export function Disclosure({ label, open, onToggle, children }: { label: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ gap: space.lg }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={onToggle}
+        style={({ pressed }) => ({ minHeight: 48, flexDirection: "row", alignItems: "center", gap: space.sm, opacity: pressed ? 0.6 : 1 })}
+      >
+        <Ionicons name={open ? "chevron-down" : "chevron-forward"} size={18} color={c.primary} />
+        <Text style={{ fontSize: 16, fontWeight: "700", color: c.primary }}>{label}</Text>
+      </Pressable>
+      {open ? children : null}
+    </View>
+  );
+}
+
+/** A small action written as a word, not an icon. */
+export function TextAction({ label, onPress, tone = "primary", accessibilityLabel, disabled }: { label: string; onPress: () => void; tone?: "primary" | "danger" | "muted"; accessibilityLabel?: string; disabled?: boolean }) {
+  const { c } = useTheme();
+  const color = tone === "danger" ? c.danger : tone === "muted" ? c.textMuted : c.primary;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => ({ minHeight: 40, justifyContent: "center", paddingHorizontal: space.sm, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
+    >
+      <Text style={{ fontSize: 15, fontWeight: "700", color }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Birthday as month, day and an optional year: no format to remember. */
+export function BirthdayField({ value, onChange, error }: { value: BirthdayParts; onChange: (next: BirthdayParts) => void; error?: string }) {
+  const { c } = useTheme();
+  const box = (label: string, key: keyof BirthdayParts, max: number, flex: number, placeholder: string) => (
+    <View style={{ flex }}>
+      <Text style={{ fontSize: 13, color: c.textMuted, marginBottom: 4 }}>{label}</Text>
+      <TextInput
+        accessibilityLabel={`Birthday ${label.toLowerCase()}`}
+        value={value[key]}
+        onChangeText={(t) => onChange({ ...value, [key]: t.replace(/\D/g, "").slice(0, max) })}
+        keyboardType="number-pad"
+        placeholder={placeholder}
+        placeholderTextColor={c.textMuted}
+        style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: error ? c.danger : c.border, backgroundColor: c.surface, color: c.text, paddingHorizontal: space.md, fontSize: 16 }}
+      />
+    </View>
+  );
+  return (
+    <View>
+      <Label>Birthday</Label>
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        {box("Month", "month", 2, 1, "4")}
+        {box("Day", "day", 2, 1, "12")}
+        {box("Year (optional)", "year", 4, 1.6, "1990")}
+      </View>
+      {error ? <Text style={{ color: c.danger, fontSize: 13, marginTop: 4 }}>{error}</Text> : null}
+    </View>
   );
 }

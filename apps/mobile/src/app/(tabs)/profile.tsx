@@ -3,10 +3,11 @@ import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Linking, Switch, Text, View } from "react-native";
+import { Linking, Switch, Text, View } from "react-native";
 import type { Streak } from "@koinonia/shared";
 import { Avatar, Body, Button, Card, Field, FormError, LegalLinks, Screen, SectionTitle, Title, fieldErrors, type IconName } from "@/components/ui";
 import { WEB_URL, api } from "@/lib/api";
+import { showDialog } from "@/lib/dialog";
 import { useAuth, useUser } from "@/lib/auth";
 import { useAction, useHome, useRefresh } from "@/lib/hooks";
 import { enableReminders, registerForPush, remindersAllowed, syncReminders } from "@/lib/notifications";
@@ -67,7 +68,7 @@ export default function ProfileScreen() {
     const granted = await enableReminders();
     setNotifications(granted);
     if (!granted) {
-      Alert.alert("Notifications are off", "Turn them on for Koinonia in Settings to get reminders.", [
+      showDialog("Notifications are off", "Turn them on for Koinonia in Settings to get reminders.", [
         { text: "Not now", style: "cancel" },
         { text: "Open Settings", onPress: () => void Linking.openSettings() },
       ]);
@@ -83,20 +84,20 @@ export default function ProfileScreen() {
       try {
         const { url } = await api.me.createCalendarFeed();
         if (url) await Clipboard.setStringAsync(url);
-        Alert.alert("Calendar link copied", "In the Calendar app: Calendars → Add Calendar → Add Subscription Calendar, then paste. Keep the link private.");
+        showDialog("Calendar link copied", "In the Calendar app: Calendars → Add Calendar → Add Subscription Calendar, then paste. Keep the link private.");
       } catch {
-        Alert.alert("Couldn't get the link", "Check your connection and try again.");
+        showDialog("Couldn't get the link", "Check your connection and try again.");
       }
     };
     try {
       const { active } = await api.me.calendarFeed();
       if (!active) return await make();
-      Alert.alert("Make a new calendar link?", "You already have one. For safety it can't be shown again, so this makes a new link and the old one stops working.", [
+      showDialog("Make a new calendar link?", "You already have one. For safety it can't be shown again, so this makes a new link and the old one stops working.", [
         { text: "Cancel", style: "cancel" },
         { text: "Make new link", onPress: () => void make() },
       ]);
     } catch {
-      Alert.alert("Couldn't get the link", "Check your connection and try again.");
+      showDialog("Couldn't get the link", "Check your connection and try again.");
     }
   };
 
@@ -141,7 +142,7 @@ export default function ProfileScreen() {
             label="Notifications on this iPhone"
             description="A 9am reminder on the day someone is due, and for your note follow-ups."
             value={notifications}
-            onChange={(v) => (v ? void turnOnNotifications() : Alert.alert("Turn off in Settings", "To stop reminders, turn off notifications for Koinonia in Settings.", [{ text: "OK" }, { text: "Open Settings", onPress: () => void Linking.openSettings() }]))}
+            onChange={(v) => (v ? void turnOnNotifications() : showDialog("Turn off in Settings", "To stop reminders, turn off notifications for Koinonia in Settings.", [{ text: "OK" }, { text: "Open Settings", onPress: () => void Linking.openSettings() }]))}
           />
           <View style={{ height: 1, backgroundColor: c.border }} />
           <ToggleRow

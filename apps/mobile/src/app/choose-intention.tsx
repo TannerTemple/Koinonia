@@ -18,7 +18,7 @@ export default function ChooseIntentionScreen() {
 
   return (
     <Screen>
-      <Body muted>Who or what do you want to carry in a special way today?</Body>
+      <Body muted>Which one do you want to pray for in a special way today?</Body>
       <FormError error={choose.error} />
       <Rows>
         {active.map((i) => {

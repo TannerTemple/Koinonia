@@ -11,10 +11,10 @@ export default function TabsLayoutWeb() {
       return <Ionicons name={name} color={color as string} size={size} />;
     };
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: c.primary, tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border } }}>
+    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: c.primary, tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border, height: 68, paddingTop: 6, paddingBottom: 8 }, tabBarLabelStyle: { fontSize: 13, fontWeight: "700" }, tabBarInactiveTintColor: c.textMuted }}>
       <Tabs.Screen name="index" options={{ title: "Today", tabBarIcon: icon("sunny") }} />
       <Tabs.Screen name="people" options={{ title: "People", tabBarIcon: icon("people") }} />
-      <Tabs.Screen name="prayer" options={{ title: "Prayer", tabBarIcon: icon("heart") }} />
+      <Tabs.Screen name="prayer" options={{ title: "Pray", tabBarIcon: icon("heart") }} />
       <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: icon("person-circle") }} />
     </Tabs>
   );

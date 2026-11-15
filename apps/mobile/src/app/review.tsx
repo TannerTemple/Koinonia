@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { compareWeeks, formatDay, weekHeadline, weekdayName, type Streak, type WeekSummary } from "@koinonia/shared";
-import { Avatar, Body, Card, ErrorState, Loading, Rows, Screen, SectionTitle, type IconName } from "@/components/ui";
+import { Button, EmptyState, Avatar, Body, Card, ErrorState, Loading, Rows, Screen, SectionTitle, type IconName } from "@/components/ui";
 import { useRefresh, useWeeklyReview } from "@/lib/hooks";
 import { serif, space, useTheme } from "@/lib/theme";
 
@@ -86,6 +86,20 @@ export default function WeeklyReviewScreen() {
   if (isPending) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   const { thisWeek, lastWeek, streaks, today } = data;
+
+  // Nothing to compare yet: say what this page will become instead of showing zeros.
+  if (streaks.reachOut.longest === 0 && streaks.prayer.longest === 0) {
+    return (
+      <Screen {...refresh}>
+        <EmptyState
+          icon="bar-chart-outline"
+          title="Your week will show up here"
+          body="Each time you tap “I reached out” or “I prayed”, it counts. Come back in a few days to see who you reached and how often you prayed."
+          action={<Button label="Go to Today" onPress={() => router.replace("/")} />}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen {...refresh}>

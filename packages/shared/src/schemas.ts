@@ -354,6 +354,8 @@ export interface Home {
   dueToday: Contact[];
   /** Due in the next 14 days, soonest first. */
   upcoming: Contact[];
+  /** The next person due after those 14 days, so Today can always say who is next. */
+  nextUp: Contact | null;
   /** Note follow-ups due today or earlier, plus the next 7 days. */
   followUps: Note[];
   /** Birthdays in the next 14 days. */

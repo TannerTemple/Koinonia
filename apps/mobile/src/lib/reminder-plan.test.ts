@@ -12,7 +12,7 @@ const note = (id: string, followUpDay: string, body = "Ask about the interview")
   id, contactId: "c1", contactName: "Ana", body, pinned: false, followUpDay, followUpDone: false, createdAt: "", updatedAt: "",
 });
 const home = (partial: Partial<Home>): Home => ({
-  today: TODAY, overdue: [], dueToday: [], upcoming: [], followUps: [], birthdays: [],
+  today: TODAY, overdue: [], dueToday: [], upcoming: [], nextUp: null, followUps: [], birthdays: [],
   prayer: { day: TODAY, intention: null, chosenByUser: false },
   streaks: { reachOut: { current: 0, longest: 0, doneToday: false }, prayer: { current: 0, longest: 0, doneToday: false } },
   stats: { contacts: 0, reachOutsThisWeek: 0, activeIntentions: 0 },

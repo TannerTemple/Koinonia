@@ -44,6 +44,7 @@ export async function buildHome(prisma: PrismaClient, userId: string, today: str
     overdue: contacts.filter((c) => c.dueDay && c.dueDay < today).sort(byDue),
     dueToday: contacts.filter((c) => c.dueDay === today).sort(byDue),
     upcoming: contacts.filter((c) => c.dueDay && c.dueDay > today && c.dueDay <= horizon).sort(byDue),
+    nextUp: contacts.filter((c) => c.dueDay && c.dueDay > horizon).sort(byDue)[0] ?? null,
     followUps: followUps.map(toNote),
     birthdays,
     prayer,

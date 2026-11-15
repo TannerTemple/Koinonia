@@ -1,10 +1,11 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, View } from "react-native";
-import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, MAX_CADENCE_DAYS, type Channel } from "@koinonia/shared";
-import { Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
+import { View } from "react-native";
+import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel } from "@koinonia/shared";
+import { BirthdayField, Disclosure, Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
+import { showDialog } from "@/lib/dialog";
 import { useAction, useContact, useToday } from "@/lib/hooks";
 import { space } from "@/lib/theme";
 
@@ -18,7 +19,8 @@ export default function ContactFormScreen() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [relationship, setRelationship] = useState("");
-  const [birthday, setBirthday] = useState("");
+  const [birthday, setBirthday] = useState<BirthdayParts>({ month: "", day: "", year: "" });
+  const [more, setMore] = useState(false);
   const [cadenceDays, setCadenceDays] = useState<number | null>(14);
   const [custom, setCustom] = useState(false);
   const [preferredChannel, setChannel] = useState<Channel>("TEXT");
@@ -31,20 +33,26 @@ export default function ContactFormScreen() {
     setPhone(c.phone ?? "");
     setEmail(c.email ?? "");
     setRelationship(c.relationship ?? "");
-    setBirthday(c.birthday ?? "");
+    setBirthday(splitBirthday(c.birthday));
     setCadenceDays(c.cadenceDays);
     setCustom(c.cadenceDays !== null && !CADENCE_PRESETS.some((p) => p.days === c.cadenceDays));
     setChannel(c.preferredChannel);
+    setMore(true);
     setLoaded(true);
   }, [existing.data, loaded]);
 
   const save = useAction(() => {
-    const input = { name, phone, email, relationship, birthday, cadenceDays, preferredChannel };
+    const input = { name, phone, email, relationship, birthday: joinBirthday(birthday), cadenceDays, preferredChannel };
     return id ? api.contacts.update(id, input) : api.contacts.create({ ...input, lastContactedDay: lastTalked });
   });
   const archive = useAction((archived: boolean) => api.contacts.update(id!, { archived }));
   const remove = useAction(() => api.contacts.delete(id!));
   const errors = fieldErrors(save.error);
+  // A problem inside the folded section must not stay hidden.
+  const hiddenError = ["phone", "email", "relationship", "birthday", "lastContactedDay"].some((key) => errors[key]);
+  useEffect(() => {
+    if (hiddenError) setMore(true);
+  }, [hiddenError]);
 
   if (!loaded) return <Loading />;
 
@@ -52,13 +60,8 @@ export default function ContactFormScreen() {
     <Screen keyboard>
       <Stack.Screen options={{ title: id ? "Edit person" : "Add a person" }} />
       <Field label="Name" value={name} onChangeText={setName} error={errors.name} maxLength={80} autoFocus={!id} placeholder="Maria Lopez" autoCapitalize="words" />
-      <Field label="Phone" value={phone} onChangeText={setPhone} error={errors.phone} keyboardType="phone-pad" placeholder="(555) 010-2000" />
-      <Field label="Email" value={email} onChangeText={setEmail} error={errors.email} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="maria@example.com" />
-      <Field label="Who are they to you?" value={relationship} onChangeText={setRelationship} error={errors.relationship} maxLength={40} placeholder="College friend, Family, Small group…" />
-      <Field label="Birthday" hint="MM-DD, or YYYY-MM-DD if you know the year." value={birthday} onChangeText={setBirthday} error={errors.birthday} placeholder="04-12" keyboardType="numbers-and-punctuation" />
-
       <View>
-        <Label>Remind me to reach out</Label>
+        <Label>How often do you want to reach out?</Label>
         <ChipRow>
           {CADENCE_PRESETS.map((p) => (
             <Chip key={p.days} label={p.label} selected={!custom && cadenceDays === p.days} onPress={() => { setCustom(false); setCadenceDays(p.days); }} />
@@ -82,6 +85,13 @@ export default function ContactFormScreen() {
         ) : null}
       </View>
 
+      <Disclosure label={more ? "Fewer details" : "More details (optional): phone, email, birthday"} open={more} onToggle={() => setMore((m) => !m)}>
+      <Field label="Phone" value={phone} onChangeText={setPhone} error={errors.phone} keyboardType="phone-pad" placeholder="(555) 010-2000" />
+      <Field label="Email" value={email} onChangeText={setEmail} error={errors.email} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="maria@example.com" />
+      <Field label="Who are they to you?" value={relationship} onChangeText={setRelationship} error={errors.relationship} maxLength={40} placeholder="College friend, Family, Small group…" />
+      <BirthdayField value={birthday} onChange={setBirthday} error={errors.birthday} />
+
+
       <View>
         <Label>Usual way to reach them</Label>
         <ChipRow>
@@ -94,6 +104,8 @@ export default function ContactFormScreen() {
       {!id ? (
         <DateField label="When did you last talk?" value={lastTalked} onChange={setLastTalked} today={today} maxDay={today} emptyLabel="Not sure" hint="Optional. The first reminder counts from this day." />
       ) : null}
+
+      </Disclosure>
 
       <FormError error={save.error} />
       <Button
@@ -123,7 +135,7 @@ export default function ContactFormScreen() {
             label={`Delete ${existing.data.name}`}
             loading={remove.isPending}
             onPress={() =>
-              Alert.alert(`Delete ${existing.data.name}?`, "Their notes and history go too. This can't be undone.", [
+              showDialog(`Delete ${existing.data.name}?`, "Their notes and history go too. This can't be undone.", [
                 { text: "Cancel", style: "cancel" },
                 { text: "Delete", style: "destructive", onPress: () => remove.mutate(undefined, { onSuccess: () => router.dismissTo("/people") }) },
               ])

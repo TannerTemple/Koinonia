@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { ApiError } from "@koinonia/shared";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { DialogHost } from "@/lib/dialog";
 import { serif, useTheme } from "@/lib/theme";
 
 void SplashScreen.preventAutoHideAsync();
@@ -47,15 +48,15 @@ function RootStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="contact/[id]" options={{ title: "" }} />
         <Stack.Screen name="contact/form" options={{ ...modal, title: "Person" }} />
-        <Stack.Screen name="contact/reach-out" options={{ ...modal, title: "Log a reach-out" }} />
+        <Stack.Screen name="contact/reach-out" options={{ ...modal, title: "I reached out" }} />
         <Stack.Screen name="contact/import" options={{ ...modal, title: "Import contacts" }} />
         <Stack.Screen name="contact/find" options={{ title: "Find people" }} />
         <Stack.Screen name="note" options={{ ...modal, title: "Note" }} />
-        <Stack.Screen name="intention" options={{ ...modal, title: "Intention" }} />
+        <Stack.Screen name="intention" options={{ ...modal, title: "Prayer" }} />
         <Stack.Screen name="delete-account" options={{ ...modal, title: "Delete account" }} />
         <Stack.Screen name="review" options={{ title: "Your week" }} />
         <Stack.Screen name="verify-email" options={{ ...modal, title: "Confirm your email" }} />
-        <Stack.Screen name="choose-intention" options={{ ...modal, title: "Today's intention" }} />
+        <Stack.Screen name="choose-intention" options={{ ...modal, title: "Pray today for" }} />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
@@ -89,6 +90,7 @@ export default function RootLayout() {
         <ThemeProvider value={theme}>
           <StatusBar style="auto" />
           <RootStack />
+          <DialogHost />
         </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
