@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { adminUpdateUserSchema, type AdminStats, type AdminUser } from "@koinonia/shared";
 import { badRequest, notFound, parse } from "../lib/errors";
+import { pageOf } from "../lib/page";
 import { toUser } from "../lib/serialize";
 
 const counts = { _count: { select: { contacts: true, intentions: true } } };
@@ -34,21 +35,17 @@ export async function adminRoutes(app: FastifyInstance) {
     return { users, newUsersThisWeek, activeUsersThisWeek, contacts, reachOuts, reachOutsThisWeek, intentions, prayers };
   });
 
-  app.get<{ Querystring: { q?: string } }>("/admin/users", async (request) => {
+  app.get<{ Querystring: { q?: string; limit?: string; offset?: string } }>("/admin/users", async (request, reply) => {
     const q = request.query.q?.trim().slice(0, 100);
-    const rows = await prisma.user.findMany({
-      where: q
-        ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {},
-      include: counts,
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
+    const where = q
+      ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { email: { contains: q, mode: "insensitive" as const } }] }
+      : {};
+    const { limit, offset } = pageOf(request.query, 100, 200);
+    const [rows, total] = await Promise.all([
+      prisma.user.findMany({ where, include: counts, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: limit, skip: offset }),
+      prisma.user.count({ where }),
+    ]);
+    reply.header("X-Total-Count", String(total));
     return rows.map(toAdminUser);
   });
 

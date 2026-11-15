@@ -167,6 +167,8 @@ export function createApiClient(options: ApiClientOptions) {
       reachOut: (id: string, input: ReachOutInput = {}) =>
         post<{ contact: Contact; interaction: Interaction }>(`/contacts/${id}/reach-out`, input),
       snooze: (id: string, input: SnoozeInput) => post<Contact>(`/contacts/${id}/snooze`, input),
+      /** Older reach-outs than the 50 a person's page starts with. */
+      history: (id: string, params: { offset: number; limit?: number }) => get<Interaction[]>(`/contacts/${id}/interactions?offset=${params.offset}&limit=${params.limit ?? 50}`),
       deleteInteraction: (id: string) => del(`/interactions/${id}`),
     },
     notes: {

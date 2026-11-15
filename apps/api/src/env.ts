@@ -10,6 +10,8 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   PORT: z.coerce.number().int().default(4000),
   HOST: z.string().default("0.0.0.0"),
+  /** Optional: report unexpected errors to Sentry. Unset = nothing is sent anywhere. */
+  SENTRY_DSN: z.string().optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:8081"),
   WEB_URL: z.string().default("http://localhost:3000"),

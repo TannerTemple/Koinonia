@@ -10,6 +10,7 @@ import {
   type ImportResult,
 } from "@koinonia/shared";
 import { badRequest, notFound, parse } from "../lib/errors";
+import { pageOf } from "../lib/page";
 import { contactCounts, toContact, toIntention, toInteraction, toNote } from "../lib/serialize";
 import { getOwnedContact, resyncSchedule, scheduleFields } from "../services/contacts";
 
@@ -27,18 +28,33 @@ export async function contactRoutes(app: FastifyInstance) {
     if (!other) throw badRequest("That Koinonia member can't be linked.");
   }
 
-  app.get<{ Querystring: { q?: string; archived?: string } }>("/contacts", async (request) => {
+  app.get<{ Querystring: { q?: string; archived?: string; limit?: string; offset?: string } }>("/contacts", async (request, reply) => {
     const { q, archived } = request.query;
-    const rows = await prisma.contact.findMany({
-      where: {
-        userId: request.auth.user.id,
-        archivedAt: archived === "true" ? { not: null } : null,
-        ...(q?.trim() ? { name: { contains: q.trim().slice(0, 80), mode: "insensitive" as const } } : {}),
-      },
-      include: contactCounts,
-      orderBy: { name: "asc" },
-    });
+    const where = {
+      userId: request.auth.user.id,
+      archivedAt: archived === "true" ? { not: null } : null,
+      ...(q?.trim() ? { name: { contains: q.trim().slice(0, 80), mode: "insensitive" as const } } : {}),
+    };
+    // Pages of up to 500; the total is in a header so a client knows whether to ask for more.
+    const { limit, offset } = pageOf(request.query, 500, 500);
+    const [rows, total] = await Promise.all([
+      prisma.contact.findMany({ where, include: contactCounts, orderBy: [{ name: "asc" }, { id: "asc" }], take: limit, skip: offset }),
+      prisma.contact.count({ where }),
+    ]);
+    reply.header("X-Total-Count", String(total));
     return rows.map(toContact);
+  });
+
+  /** Older history, a page at a time (a person's page shows the latest 50). */
+  app.get<IdParams & { Querystring: { limit?: string; offset?: string } }>("/contacts/:id/interactions", async (request, reply) => {
+    const current = await getOwnedContact(prisma, request.auth.user.id, request.params.id);
+    const { limit, offset } = pageOf(request.query, 50, 100);
+    const [rows, total] = await Promise.all([
+      prisma.interaction.findMany({ where: { contactId: current.id }, orderBy: [{ day: "desc" }, { occurredAt: "desc" }], take: limit, skip: offset }),
+      prisma.interaction.count({ where: { contactId: current.id } }),
+    ]);
+    reply.header("X-Total-Count", String(total));
+    return rows.map(toInteraction);
   });
 
   app.post("/contacts", async (request, reply) => {

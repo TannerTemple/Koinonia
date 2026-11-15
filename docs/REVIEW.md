@@ -114,3 +114,15 @@ fixed in this branch; tests are in `apps/api/test/hardening.test.ts` unless anot
 4. Never paste `DATABASE_URL`, `RESEND_API_KEY` or `CRON_SECRET` into chat, email or a commit. If one
    leaks, rotate it in the provider's dashboard and update the host's environment.
 5. The iPhone app must be given an `https://` API address; iOS blocks plain `http://`.
+
+# Third pass: production hardening (sixth round)
+
+| Area | State |
+| --- | --- |
+| CORS | Unchanged from the second pass: an explicit, validated list of origins with credentials; `X-Total-Count` is now exposed so browsers can read list totals. |
+| Security headers | Unchanged from the second pass (CSP, HSTS, frame, referrer and permissions policies on the web app; Helmet on the API). |
+| Rate limits on writes | **New.** Every `POST`, `PUT`, `PATCH` and `DELETE` endpoint has its own limit of 60 a minute per address unless it declares a stricter one (sign-in 10, sign-up 5 per 10 minutes, import 20, export 10). A test walks the routing table and fails if any write route has no limit (`limits.test.ts`). Found while adding it: the hook must be registered before the limiter, or the limits are recorded but never enforced; the test that sends 62 requests caught that. |
+| Logs | Unchanged: paths only, scrubbed one-line errors, no bodies, tokens or query strings. |
+| Error reporting | **New, optional.** `SENTRY_DSN` turns on reporting of unexpected (500) errors to Sentry. A small built-in sender, no added dependency. It sends the error type, the same scrubbed message the log gets, and the route pattern (`/v1/contacts/:id`, not the real address); never a body, header, user id or IP. Capped at 20 reports a minute. Never run against Sentry (the build environment cannot reach it); covered with the network stubbed. |
+| Database indexes | **New migration.** Added for the people list (`userId, archivedAt`), member lookup (`userId, linkedUserId`), a person's history newest-first (`contactId, day, occurredAt`), expired-session cleanup (`expiresAt`) and the daily-prayer foreign key. Existing ones already covered due dates, name order, follow-ups, prayer status and logs. Name search uses `ILIKE`, which a plain index does not speed up; fine at this size, a trigram index is the fix if it ever matters. |
+| Pagination | **New.** `GET /contacts`, `GET /contacts/:id/interactions` and `GET /admin/users` take `limit` and `offset`, cap the page size, and return the total in `X-Total-Count`. The apps show 50 people at a time and load older history on request. |

@@ -2,12 +2,13 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { PrismaClient, User } from "@prisma/client";
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type RouteOptions } from "fastify";
 import { dayInTimezone } from "@koinonia/shared";
 import type { Env } from "./env";
 import { hashToken } from "./lib/crypto";
 import { forbidden, HttpError, unauthorized } from "./lib/errors";
 import { safeError, safeUrl } from "./lib/log";
+import { createSentryReporter, noReporter, type ErrorReporter } from "./lib/sentry";
 import type { Providers } from "./providers";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
@@ -21,6 +22,8 @@ import { prayerRoutes } from "./routes/prayer";
 import { userRoutes } from "./routes/users";
 
 export const SESSION_DAYS = 30;
+/** Changes per minute, per endpoint, per address. Far above what a person does by hand. */
+export const WRITE_LIMIT = { max: 60, timeWindow: "1 minute" };
 export const SESSION_COOKIE = "koinonia_session";
 /** Browsers send this on every call; a cookie is only honoured alongside it (see sessionToken). */
 export const CLIENT_HEADER = "x-koinonia-client";
@@ -68,6 +71,10 @@ export interface AppDeps {
   logger?: boolean;
   /** Where log lines go (default: stdout). Lets tests read what would be logged. */
   logStream?: { write: (line: string) => void };
+  /** Called for every route as it is registered, after limits are applied. For tests. */
+  onRoute?: (route: RouteOptions) => void;
+  /** Where unexpected errors are reported (default: Sentry when SENTRY_DSN is set, else nowhere). */
+  reporter?: ErrorReporter;
   rateLimit?: boolean;
 }
 
@@ -94,6 +101,7 @@ declare module "fastify" {
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const now = deps.now ?? (() => new Date());
   const hops = deps.env.TRUST_PROXY;
+  const reporter = deps.reporter ?? (deps.env.SENTRY_DSN ? createSentryReporter({ dsn: deps.env.SENTRY_DSN, environment: deps.env.NODE_ENV }) : noReporter);
   const app = Fastify({
     logger: deps.logger
       ? {
@@ -135,8 +143,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     // Let browsers remember the preflight answer for ten minutes.
     maxAge: 600,
     allowedHeaders: ["Content-Type", "Authorization", "X-Koinonia-Client"],
+    exposedHeaders: ["X-Total-Count"],
   });
   if (deps.rateLimit ?? true) {
+    // Added before the limiter itself, which reads each route's settings as it is registered.
+    // Every endpoint that changes something gets its own, tighter limit unless it already
+    // declares one (sign-in, sign-up, import and the like are stricter still).
+    app.addHook("onRoute", (route) => {
+      const methods = Array.isArray(route.method) ? route.method : [route.method];
+      const writes = methods.some((m) => ["POST", "PUT", "PATCH", "DELETE"].includes(m));
+      const config = (route.config ?? {}) as { rateLimit?: unknown };
+      if (writes && config.rateLimit === undefined) route.config = { ...config, rateLimit: WRITE_LIMIT };
+    });
     await app.register(rateLimit, {
       max: 300,
       timeWindow: "1 minute",
@@ -144,6 +162,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       allowList: (request) => request.url === "/health" || request.url === "/health/ready",
     });
   }
+
+  if (deps.onRoute) app.addHook("onRoute", deps.onRoute);
 
   app.decorate("authenticate", async (request: FastifyRequest, reply?: FastifyReply) => {
     const found = sessionToken(request);
@@ -202,6 +222,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
     // Never the raw error: database errors can quote the values of the failed query.
     request.log.error({ err: safeError(error) }, "request failed");
+    reporter.capture(error, { method: request.method, path: request.routeOptions?.url ?? safeUrl(request.url) });
     return reply
       .status(500)
       .send({ error: { code: "INTERNAL", message: "Something went wrong on our side." } });
