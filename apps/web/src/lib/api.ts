@@ -14,6 +14,8 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000
 export const api = createApiClient({
   baseUrl: API_URL,
   cookieSession: true,
+  // Fail clearly instead of hanging forever on a bad connection.
+  timeoutMs: 20_000,
   onUnauthorized: () => unauthorizedHandler?.(),
 });
 

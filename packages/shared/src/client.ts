@@ -52,6 +52,9 @@ export class ApiError extends Error {
   }
 }
 
+/** True for failures worth retrying: the request never got an answer. */
+export const isConnectionError = (error: unknown): boolean => error instanceof ApiError && error.status === 0;
+
 export interface ApiClientOptions {
   baseUrl: string;
   /** Returns the bearer token, if signed in. */
@@ -61,6 +64,10 @@ export interface ApiClientOptions {
    * Requests are sent with credentials and the client header the API requires next to a cookie.
    */
   cookieSession?: boolean;
+  /** Give up on a request after this long (default: no limit). Phones on weak signal need one. */
+  timeoutMs?: number;
+  /** Told after every request whether the server could be reached. Drives "you're offline" notices. */
+  onReachable?: (reachable: boolean) => void;
   /** Called when the API rejects the token (expired / revoked). */
   onUnauthorized?: () => void;
   fetch?: typeof fetch;
@@ -80,16 +87,26 @@ export function createApiClient(options: ApiClientOptions) {
     if (options.cookieSession) headers["X-Koinonia-Client"] = "web";
 
     let res: Response;
+    const controller = options.timeoutMs ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), options.timeoutMs) : null;
     try {
       res = await doFetch(base + path, {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
         ...(options.cookieSession ? { credentials: "include" as const } : {}),
+        ...(controller ? { signal: controller.signal } : {}),
       });
     } catch {
+      options.onReachable?.(false);
+      if (controller?.signal.aborted) {
+        throw new ApiError(0, "TIMEOUT", "That took too long. Check your connection and try again.");
+      }
       throw new ApiError(0, "NETWORK", "Can't reach Koinonia right now. Check your connection.");
+    } finally {
+      if (timer) clearTimeout(timer);
     }
+    options.onReachable?.(true);
 
     if (res.status === 204) return undefined as T;
     const text = await res.text();

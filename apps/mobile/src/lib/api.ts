@@ -40,8 +40,28 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000
 /** Where the web app lives; the privacy policy and terms are pages there. */
 export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 
+/** Whether the last request reached the server. Screens subscribe to show an offline notice. */
+let reachable = true;
+const listeners = new Set<(reachable: boolean) => void>();
+export const connection = {
+  get reachable() {
+    return reachable;
+  },
+  subscribe(listener: (reachable: boolean) => void) {
+    listeners.add(listener);
+    return () => void listeners.delete(listener);
+  },
+};
+
 export const api = createApiClient({
   baseUrl: API_URL,
   getToken: () => tokenStore.get(),
   onUnauthorized: () => unauthorizedHandler?.(),
+  // On weak signal a request can hang for minutes; fail clearly instead and let the screen offer a retry.
+  timeoutMs: 15_000,
+  onReachable: (ok) => {
+    if (ok === reachable) return;
+    reachable = ok;
+    listeners.forEach((listener) => listener(ok));
+  },
 });

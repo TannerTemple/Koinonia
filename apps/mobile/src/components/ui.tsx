@@ -404,3 +404,14 @@ export function BirthdayField({ value, onChange, error }: { value: BirthdayParts
     </View>
   );
 }
+
+/** Shown when a form opens with text that was typed earlier and never saved. */
+export function DraftNotice({ onDiscard }: { onDiscard: () => void }) {
+  const { c } = useTheme();
+  return (
+    <View accessibilityRole="alert" style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingLeft: space.md, borderRadius: radius.md, backgroundColor: c.goldSoft }}>
+      <Text style={{ flex: 1, fontSize: 15, lineHeight: 21, color: c.text, paddingVertical: space.sm }}>We kept what you were writing last time.</Text>
+      <TextAction label="Start over" tone="muted" onPress={onDiscard} />
+    </View>
+  );
+}

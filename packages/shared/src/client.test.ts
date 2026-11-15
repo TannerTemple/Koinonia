@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, createApiClient } from "./client";
+import { ApiError, createApiClient, isConnectionError } from "./client";
 
 type Call = { url: string; init: RequestInit };
 function fakeFetch(respond: (call: Call) => Response | Promise<Response>) {
@@ -92,5 +92,26 @@ describe("api client", () => {
     await api.me.delete({ password: "secret" });
     expect(calls[0]!.init.method).toBe("DELETE");
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ password: "secret" });
+  });
+
+  it("gives up after the timeout and says so", async () => {
+    const reachable: boolean[] = [];
+    const fetch = ((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))) as unknown as typeof globalThis.fetch;
+    const api = createApiClient({ baseUrl: "http://api.test", timeoutMs: 20, fetch, onReachable: (ok) => reachable.push(ok) });
+    const err = await api.home().catch((e) => e);
+    expect(err).toMatchObject({ status: 0, code: "TIMEOUT" });
+    expect(isConnectionError(err)).toBe(true);
+    expect(reachable).toEqual([false]);
+  });
+
+  it("reports whether the server was reachable, whatever it answered", async () => {
+    const reachable: boolean[] = [];
+    const { fetch } = fakeFetch(() => json(400, { error: { code: "BAD_REQUEST", message: "no" } }));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch, onReachable: (ok) => reachable.push(ok) });
+    const err = await api.home().catch((e) => e);
+    expect(reachable).toEqual([true]);
+    expect(isConnectionError(err)).toBe(false);
+    expect(isConnectionError(new Error("x"))).toBe(false);
   });
 });

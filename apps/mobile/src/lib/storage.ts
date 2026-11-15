@@ -36,3 +36,29 @@ export const kv = {
     }
   },
 };
+
+/**
+ * Longer text (a draft note can be 4,000 characters). The Keychain is only dependable for
+ * small values, so long text is stored in pieces.
+ */
+const PIECE = 1500;
+export const longText = {
+  async get(key: string): Promise<string | null> {
+    const count = Number(await kv.get(`${key}.n`));
+    if (!Number.isInteger(count) || count <= 0) return null;
+    const pieces = await Promise.all(Array.from({ length: count }, (_, i) => kv.get(`${key}.${i}`)));
+    return pieces.some((p) => p === null) ? null : pieces.join("");
+  },
+  async set(key: string, value: string): Promise<void> {
+    const previous = Number(await kv.get(`${key}.n`)) || 0;
+    const count = Math.ceil(value.length / PIECE);
+    for (let i = 0; i < count; i++) await kv.set(`${key}.${i}`, value.slice(i * PIECE, (i + 1) * PIECE));
+    await kv.set(`${key}.n`, String(count));
+    for (let i = count; i < previous; i++) await kv.remove(`${key}.${i}`);
+  },
+  async remove(key: string): Promise<void> {
+    const previous = Number(await kv.get(`${key}.n`)) || 0;
+    for (let i = 0; i < previous; i++) await kv.remove(`${key}.${i}`);
+    await kv.remove(`${key}.n`);
+  },
+};

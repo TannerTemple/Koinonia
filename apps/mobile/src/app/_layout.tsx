@@ -3,8 +3,9 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from "expo-rout
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ApiError } from "@koinonia/shared";
+import { isConnectionError } from "@koinonia/shared";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { OfflineNotice } from "@/components/offline";
 import { ReminderSync } from "@/components/reminders";
 import { DialogHost } from "@/lib/dialog";
 import { onReminderTapped } from "@/lib/notifications";
@@ -76,7 +77,9 @@ export default function RootLayout() {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
-            retry: (count, error) => count < 1 && !(error instanceof ApiError && error.status >= 400),
+            // Weak signal: try twice more, a little later each time. Real answers (401, 404…) are final.
+            retry: (count, error) => count < 2 && isConnectionError(error),
+            retryDelay: (attempt) => Math.min(1000 * 3 ** attempt, 8000),
           },
         },
       }),
@@ -91,6 +94,7 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <RootStack />
           <ReminderSync />
+          <OfflineNotice />
           <DialogHost />
         </ThemeProvider>
       </AuthProvider>
