@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Field, FormError, Input, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 
 export default function ResetPasswordPage() {
   const [token, setToken] = useState<string | null>(null);
+  const fromLink = useRef<string | null>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
@@ -14,9 +15,14 @@ export default function ResetPasswordPage() {
   const errors = fieldErrors(error);
 
   useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token") ?? "");
-    // Keep the one-time secret out of the address bar, history and screenshots.
-    window.history.replaceState(null, "", window.location.pathname);
+    // Read the secret once and keep it in memory: this effect can run more than once, and
+    // after the first run the address bar no longer has it.
+    if (fromLink.current === null) {
+      fromLink.current = new URLSearchParams(window.location.search).get("token") ?? "";
+      // Keep the one-time secret out of the address bar, history and screenshots.
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    setToken(fromLink.current);
   }, []);
 
   if (done) {

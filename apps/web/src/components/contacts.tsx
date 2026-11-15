@@ -1,18 +1,23 @@
 "use client";
 
-import { AlarmClockOff, Check, ChevronRight, Mail, MessageSquare, Phone } from "lucide-react";
+import { Check, ChevronRight, Mail, MessageSquare, Phone } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CADENCE_PRESETS,
   CHANNELS,
   CHANNEL_LABELS,
   MAX_CADENCE_DAYS,
   cadenceLabel,
+  computeNextDue,
   contactLink,
   dueLabel,
   dueStatus,
+  formatLongDay,
+  joinBirthday,
   relativeDay,
+  splitBirthday,
+  type BirthdayParts,
   type Channel,
   type Contact,
   type CreateContactInput,
@@ -20,7 +25,7 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useAction } from "@/lib/hooks";
-import { Avatar, Badge, Button, Field, FormError, IconButton, Input, Modal, Select, Textarea, fieldErrors } from "./ui";
+import { Avatar, Badge, Button, Disclosure, Field, FormError, Input, Modal, Select, Textarea, fieldErrors } from "./ui";
 
 // ---------------------------------------------------------------------------
 // Due badge
@@ -33,55 +38,84 @@ export function DueBadge({ contact, today }: { contact: Contact; today: string }
 }
 
 // ---------------------------------------------------------------------------
-// Row used on Today and People
+// A person in a list
 // ---------------------------------------------------------------------------
-export function ContactRow({ contact, today, actions = true }: { contact: Contact; today: string; actions?: boolean }) {
-  const [logging, setLogging] = useState(false);
-  const snooze = useAction((days: number) => api.contacts.snooze(contact.id, { days }));
-  const status = dueStatus(contact.dueDay, today);
-  const actionable = actions && (status === "overdue" || status === "today");
-
+export function ContactRow({ contact, today }: { contact: Contact; today: string }) {
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <Link href={`/people/${contact.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg">
+    <li>
+      <Link href={`/people/${contact.id}`} className="flex min-h-16 items-center gap-3 px-4 py-2.5 hover:bg-surface-alt">
         <Avatar name={contact.name} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{contact.name}</span>
+          <span className="block truncate text-lg font-semibold">{contact.name}</span>
           <span className="block truncate text-sm text-muted">
             {cadenceLabel(contact.cadenceDays)}
             {contact.lastContactedDay ? ` · last ${relativeDay(contact.lastContactedDay, today)}` : ""}
           </span>
         </span>
+        <DueBadge contact={contact} today={today} />
+        <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
       </Link>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <span className={cn(actionable && "max-sm:hidden")}>
-          <DueBadge contact={contact} today={today} />
-        </span>
-        {actionable ? (
-          <>
-            <IconButton label={`Snooze ${contact.name} for 3 days`} disabled={snooze.isPending} onClick={() => snooze.mutate(3)}>
-              <AlarmClockOff className="size-[18px]" />
-            </IconButton>
-            <Button size="sm" onClick={() => setLogging(true)} aria-label={`Log a reach-out to ${contact.name}`}>
-              <Check className="size-4" aria-hidden /> Reached out
-            </Button>
-          </>
-        ) : (
-          <ChevronRight className="size-4 text-muted" aria-hidden />
-        )}
-      </div>
-      <ReachOutModal contact={contact} today={today} open={logging} onClose={() => setLogging(false)} />
     </li>
   );
 }
 
-export function ContactList({ contacts, today, actions }: { contacts: Contact[]; today: string; actions?: boolean }) {
+export function ContactList({ contacts, today }: { contacts: Contact[]; today: string; actions?: boolean }) {
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
       {contacts.map((c) => (
-        <ContactRow key={c.id} contact={c} today={today} actions={actions} />
+        <ContactRow key={c.id} contact={c} today={today} />
       ))}
     </ul>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Someone who is due: who, how late, and the two things you can do, in words
+// ---------------------------------------------------------------------------
+export function ReachOutCard({ contact, today }: { contact: Contact; today: string }) {
+  const [logging, setLogging] = useState(false);
+  const notToday = useAction(() => api.contacts.snooze(contact.id, { days: 1 }));
+  const late = dueStatus(contact.dueDay, today) === "overdue";
+  const first = contact.name.split(" ")[0];
+  const call = contactLink("CALL", contact);
+  const text = contactLink("TEXT", contact);
+
+  return (
+    <li className={cn("rounded-2xl border bg-surface p-4", late ? "border-danger" : "border-border")}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <Link href={`/people/${contact.id}`} className="flex min-w-0 flex-1 basis-56 items-center gap-3 rounded-lg">
+          <Avatar name={contact.name} size={48} />
+          <span className="min-w-0">
+            <span className="block truncate text-xl font-semibold">{contact.name}</span>
+            <span className={cn("block text-sm font-semibold", late ? "text-danger" : "text-muted")}>
+              {dueLabel(contact.dueDay, today)}
+              {contact.lastContactedDay ? ` · last talked ${relativeDay(contact.lastContactedDay, today)}` : ""}
+            </span>
+          </span>
+        </Link>
+        {/* Same order on every card and every width: the main action first. */}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Button onClick={() => setLogging(true)} aria-label={`I reached out to ${contact.name}`}>
+            <Check className="size-4" aria-hidden /> I reached out
+          </Button>
+          <Button variant="secondary" loading={notToday.isPending} onClick={() => notToday.mutate(undefined)} aria-label={`Not today: remind me about ${first} tomorrow`}>
+            Not today
+          </Button>
+          {call ? (
+            <a href={call} className="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 font-semibold text-primary hover:bg-primary-soft" aria-label={`Call ${contact.name}`}>
+              <Phone className="size-4" aria-hidden /> Call
+            </a>
+          ) : null}
+          {text ? (
+            <a href={text} className="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 font-semibold text-primary hover:bg-primary-soft" aria-label={`Text ${contact.name}`}>
+              <MessageSquare className="size-4" aria-hidden /> Text
+            </a>
+          ) : null}
+        </div>
+      </div>
+      <FormError error={notToday.error} />
+      <ReachOutModal contact={contact} today={today} open={logging} onClose={() => setLogging(false)} />
+    </li>
   );
 }
 
@@ -93,6 +127,8 @@ export function ReachOutModal({ contact, today, open, onClose }: { contact: Cont
   const [summary, setSummary] = useState("");
   const [day, setDay] = useState(today);
   const log = useAction(() => api.contacts.reachOut(contact.id, { channel, summary, day }));
+  // The clock restarts from the day they actually talked, not from today.
+  const nextDay = computeNextDue(day || today, contact.cadenceDays);
 
   return (
     <Modal open={open} onClose={onClose} title={`You reached out to ${contact.name.split(" ")[0]}`}>
@@ -133,13 +169,16 @@ export function ReachOutModal({ contact, today, open, onClose }: { contact: Cont
         <Field label="Anything to remember?" hint="Optional. Shows up in their history.">
           {(p) => <Textarea {...p} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={500} placeholder="She got the job! Starts in January." />}
         </Field>
+        <p className="text-sm text-muted" role="status">
+          {nextDay ? `Koinonia will remind you again on ${formatLongDay(nextDay)}.` : "No reminder is set for them."}
+        </p>
         <FormError error={log.error} />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" loading={log.isPending}>
-            Log it{contact.cadenceDays ? ` · next in ${contact.cadenceDays} days` : ""}
+            Save
           </Button>
         </div>
       </form>
@@ -191,7 +230,7 @@ export function CadencePicker({ value, onChange }: { value: number | null; onCha
 
   return (
     <fieldset>
-      <legend className="mb-1.5 text-sm font-semibold">Remind me to reach out</legend>
+      <legend className="mb-1.5 text-sm font-semibold">How often do you want to reach out?</legend>
       <div className="flex flex-wrap gap-2">
         {CADENCE_PRESETS.map((p) => (
           <button
@@ -234,6 +273,50 @@ export function CadencePicker({ value, onChange }: { value: number | null; onCha
 }
 
 // ---------------------------------------------------------------------------
+// Birthday: month, day, and a year only if you know it
+// ---------------------------------------------------------------------------
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+export function BirthdayInput({ value, onChange, error }: { value: BirthdayParts; onChange: (next: BirthdayParts) => void; error?: string }) {
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-semibold">Birthday</legend>
+      <div className="flex flex-wrap gap-2">
+        <Select aria-label="Birthday month" value={value.month} onChange={(e) => onChange({ ...value, month: e.target.value })} className="w-40">
+          <option value="">Month</option>
+          {MONTHS.map((m, i) => (
+            <option key={m} value={String(i + 1)}>
+              {m}
+            </option>
+          ))}
+        </Select>
+        <Select aria-label="Birthday day" value={value.day} onChange={(e) => onChange({ ...value, day: e.target.value })} className="w-24">
+          <option value="">Day</option>
+          {Array.from({ length: 31 }, (_, i) => (
+            <option key={i} value={String(i + 1)}>
+              {i + 1}
+            </option>
+          ))}
+        </Select>
+        <Input
+          aria-label="Birthday year (optional)"
+          inputMode="numeric"
+          placeholder="Year (optional)"
+          value={value.year}
+          onChange={(e) => onChange({ ...value, year: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+          className="w-40"
+        />
+      </div>
+      {error ? (
+        <p role="alert" className="mt-1.5 text-sm font-medium text-danger">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Add / edit form
 // ---------------------------------------------------------------------------
 export interface ContactFormValues {
@@ -241,7 +324,7 @@ export interface ContactFormValues {
   phone: string;
   email: string;
   relationship: string;
-  birthday: string;
+  birthday: BirthdayParts;
   cadenceDays: number | null;
   preferredChannel: Channel;
   lastContactedDay: string;
@@ -252,7 +335,7 @@ export const EMPTY_CONTACT: ContactFormValues = {
   phone: "",
   email: "",
   relationship: "",
-  birthday: "",
+  birthday: { month: "", day: "", year: "" },
   cadenceDays: 14,
   preferredChannel: "TEXT",
   lastContactedDay: "",
@@ -264,7 +347,7 @@ export function contactToForm(c: Contact): ContactFormValues {
     phone: c.phone ?? "",
     email: c.email ?? "",
     relationship: c.relationship ?? "",
-    birthday: c.birthday ?? "",
+    birthday: splitBirthday(c.birthday),
     cadenceDays: c.cadenceDays,
     preferredChannel: c.preferredChannel,
     lastContactedDay: c.lastContactedDay ?? "",
@@ -286,6 +369,13 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const errors = fieldErrors(error);
+  // Open when there is already something inside, and whenever a problem is inside.
+  const hasDetails = Boolean(initial.phone || initial.email || initial.relationship || initial.birthday.month || initial.lastContactedDay);
+  const hiddenError = ["phone", "email", "relationship", "birthday", "lastContactedDay"].some((key) => errors[key]);
+  const [more, setMore] = useState(hasDetails);
+  useEffect(() => {
+    if (hiddenError) setMore(true);
+  }, [hiddenError]);
   const set = <K extends keyof ContactFormValues>(key: K, value: ContactFormValues[K]) => setV((prev) => ({ ...prev, [key]: value }));
 
   return (
@@ -296,7 +386,8 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
         setSaving(true);
         setError(null);
         try {
-          const { lastContactedDay, ...rest } = v;
+          const { lastContactedDay, birthday, ...fields } = v;
+          const rest = { ...fields, birthday: joinBirthday(birthday) };
           await onSubmit(showLastContacted ? { ...rest, lastContactedDay } : rest);
         } catch (err) {
           setError(err);
@@ -307,41 +398,39 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
       <Field label="Name" error={errors.name}>
         {(p) => <Input {...p} value={v.name} onChange={(e) => set("name", e.target.value)} required maxLength={80} autoFocus placeholder="Maria Lopez" />}
       </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Phone" error={errors.phone}>
-          {(p) => <Input {...p} type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} autoComplete="off" placeholder="(555) 010-2000" />}
-        </Field>
-        <Field label="Email" error={errors.email}>
-          {(p) => <Input {...p} type="email" value={v.email} onChange={(e) => set("email", e.target.value)} autoComplete="off" placeholder="maria@example.com" />}
-        </Field>
-        <Field label="Who are they to you?" error={errors.relationship}>
-          {(p) => <Input {...p} value={v.relationship} onChange={(e) => set("relationship", e.target.value)} maxLength={40} placeholder="College friend, Family, Small group…" />}
-        </Field>
-        <Field label="Birthday" error={errors.birthday}>
-          {(p) => <Input {...p} type="date" value={v.birthday.length === 5 ? "" : v.birthday} onChange={(e) => set("birthday", e.target.value)} />}
-        </Field>
-      </div>
 
       <CadencePicker value={v.cadenceDays} onChange={(d) => set("cadenceDays", d)} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Usual way to reach them">
-          {(p) => (
-            <Select {...p} value={v.preferredChannel} onChange={(e) => set("preferredChannel", e.target.value as Channel)}>
-              {CHANNELS.map((c) => (
-                <option key={c} value={c}>
-                  {CHANNEL_LABELS[c]}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
+      <Disclosure label={more ? "Fewer details" : "More details (optional): phone, email, birthday"} open={more} onToggle={() => setMore((m) => !m)}>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Phone" error={errors.phone}>
+            {(p) => <Input {...p} type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} autoComplete="off" placeholder="(555) 010-2000" />}
+          </Field>
+          <Field label="Email" error={errors.email}>
+            {(p) => <Input {...p} type="email" value={v.email} onChange={(e) => set("email", e.target.value)} autoComplete="off" placeholder="maria@example.com" />}
+          </Field>
+          <Field label="Who are they to you?" error={errors.relationship}>
+            {(p) => <Input {...p} value={v.relationship} onChange={(e) => set("relationship", e.target.value)} maxLength={40} placeholder="College friend, Family, Small group…" />}
+          </Field>
+          <Field label="Usual way to reach them">
+            {(p) => (
+              <Select {...p} value={v.preferredChannel} onChange={(e) => set("preferredChannel", e.target.value as Channel)}>
+                {CHANNELS.map((c) => (
+                  <option key={c} value={c}>
+                    {CHANNEL_LABELS[c]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </div>
+        <BirthdayInput value={v.birthday} onChange={(b) => set("birthday", b)} error={errors.birthday} />
         {showLastContacted ? (
-          <Field label="Last time you talked" hint="Optional. The first reminder counts from here." error={errors.lastContactedDay}>
-            {(p) => <Input {...p} type="date" max={today} value={v.lastContactedDay} onChange={(e) => set("lastContactedDay", e.target.value)} />}
+          <Field label="Last time you talked" hint="The first reminder counts from here." error={errors.lastContactedDay}>
+            {(p) => <Input {...p} type="date" max={today} value={v.lastContactedDay} onChange={(e) => set("lastContactedDay", e.target.value)} className="sm:w-60" />}
           </Field>
         ) : null}
-      </div>
+      </Disclosure>
 
       <FormError error={error} />
       <div className="flex justify-end gap-2">

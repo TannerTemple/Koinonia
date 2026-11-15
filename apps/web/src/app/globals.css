@@ -29,6 +29,9 @@
 }
 
 html {
+  /* Everything is sized in rem, so this one line makes the whole app about 6% larger:
+     easier on older eyes without changing any layout. */
+  font-size: 106.25%;
   background: var(--k-bg);
   color: var(--k-text);
   -webkit-text-size-adjust: 100%;

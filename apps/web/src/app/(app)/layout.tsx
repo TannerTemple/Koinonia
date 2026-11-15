@@ -13,30 +13,56 @@ import { cn } from "@/lib/cn";
 const NAV = [
   { href: "/", label: "Today", icon: Home },
   { href: "/people", label: "People", icon: Users },
-  { href: "/prayer", label: "Prayer", icon: HandHeart },
+  { href: "/prayer", label: "Pray", icon: HandHeart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function VerifyEmailBanner({ email }: { email: string }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [hidden, setHidden] = useState(false);
+  // Remember "not now" until the tab is closed; it comes back next visit.
+  useEffect(() => {
+    try {
+      setHidden(window.sessionStorage.getItem("koinonia.hideVerify") === "1");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  if (hidden) return null;
+  const hide = () => {
+    setHidden(true);
+    try {
+      window.sessionStorage.setItem("koinonia.hideVerify", "1");
+    } catch {
+      /* storage unavailable */
+    }
+  };
   return (
-    <div role="status" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
-      <p className="min-w-0 flex-1">
-        <strong>Confirm your email.</strong>{" "}
-        <span className="text-muted">
-          {state === "sent" ? `A new link is on its way to ${email}.` : state === "failed" ? "Couldn't send it just now. Try again in a minute." : `We sent a link to ${email}. It lets you reset your password if you ever forget it.`}
-        </span>
+    <div role="status" className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-alt px-3 py-1.5 text-sm">
+      <p className="min-w-0 flex-1 text-muted">
+        {state === "sent"
+          ? `A new link is on its way to ${email}.`
+          : state === "failed"
+            ? "Couldn't send it just now. Try again in a minute."
+            : (
+              <>
+                Please confirm your email. <span className="max-sm:hidden">We sent a link to {email}.</span>
+              </>
+            )}
       </p>
       <button
         type="button"
         disabled={state === "sending" || state === "sent"}
-        className="min-h-11 rounded-lg px-3 font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50"
+        className="min-h-9 rounded-lg px-2 font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50"
         onClick={() => {
           setState("sending");
           api.auth.resendVerification().then(() => setState("sent"), () => setState("failed"));
         }}
       >
-        {state === "sent" ? "Sent" : "Resend link"}
+        {state === "sent" ? "Sent" : "Send again"}
+      </button>
+      <button type="button" className="min-h-9 rounded-lg px-2 font-semibold text-muted underline-offset-2 hover:underline" onClick={hide}>
+        Not now
       </button>
     </div>
   );

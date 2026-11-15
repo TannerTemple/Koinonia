@@ -26,7 +26,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <ul className="mt-8 space-y-3 text-on-hero-muted">
             <li><strong className="text-on-hero">Reminders on your rhythm.</strong> Every 3 days for Mom, every month for an old friend.</li>
             <li><strong className="text-on-hero">Notes that remember for you.</strong> The new job, the kids&rsquo; names, what to ask next time.</li>
-            <li><strong className="text-on-hero">A place for prayer.</strong> Everyone you said you&rsquo;d pray for, and one intention set apart each day.</li>
+            <li><strong className="text-on-hero">A prayer list.</strong> Everyone you said you&rsquo;d pray for, with one set apart each day.</li>
           </ul>
         </div>
         <p className="text-sm text-on-hero-muted">&ldquo;They devoted themselves to the apostles&rsquo; teaching and fellowship.&rdquo; Acts 2:42</p>

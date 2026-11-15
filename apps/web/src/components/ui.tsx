@@ -268,3 +268,21 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
     </dialog>
   );
 }
+
+/** A section that stays folded away until asked for: keeps forms short. */
+export function Disclosure({ label, open, onToggle, children }: { label: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <div>
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className="flex min-h-11 items-center gap-1.5 font-semibold text-primary underline-offset-2 hover:underline">
+        <svg viewBox="0 0 24 24" className={cn("size-4 transition-transform", open && "rotate-90")} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+        {label}
+      </button>
+      <div id={id} hidden={!open} className="mt-3 space-y-5">
+        {children}
+      </div>
+    </div>
+  );
+}

@@ -81,7 +81,7 @@ async function sendDigest(
       ...(followUps.length
         ? ["Follow-ups:", ...followUps.map((n) => `  • ${n.contactName}: ${n.body}`), ""]
         : []),
-      ...(home.prayer.intention ? [`Today's intention: ${home.prayer.intention.title}`, ""] : []),
+      ...(home.prayer.intention ? [`Pray today for: ${home.prayer.intention.title}`, ""] : []),
       `Open Koinonia: ${env.WEB_URL}`,
     ];
 

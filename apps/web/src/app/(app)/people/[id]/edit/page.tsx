@@ -49,7 +49,7 @@ export default function EditPersonPage() {
       <Card className="mt-4 flex flex-wrap items-center justify-between gap-3 border-danger/30 p-5">
         <div>
           <p className="font-semibold">Delete {contact.name}</p>
-          <p className="text-sm text-muted">Removes their notes and history too. Intentions stay on your prayer list.</p>
+          <p className="text-sm text-muted">Removes their notes and history too. Prayers for them stay on your prayer list.</p>
         </div>
         <Button
           variant="danger"

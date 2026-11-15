@@ -15,19 +15,19 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useAction, useContacts } from "@/lib/hooks";
-import { Badge, Button, Field, FormError, IconButton, Input, Modal, Select, Textarea, fieldErrors } from "./ui";
+import { Badge, Button, Disclosure, Field, FormError, IconButton, Input, Modal, Select, Textarea, fieldErrors } from "./ui";
 
 // ---------------------------------------------------------------------------
 // The intention of the day (forest hero panel)
 // ---------------------------------------------------------------------------
-export function DailyIntentionCard({ prayer, onChoose, compact }: { prayer: PrayerToday; onChoose?: () => void; compact?: boolean }) {
+export function PrayTodayCard({ prayer, onChoose, onAdd, compact }: { prayer: PrayerToday; onChoose?: () => void; onAdd?: () => void; compact?: boolean }) {
   const intention = prayer.intention;
   const pray = useAction((id: string) => api.intentions.pray(id));
 
   return (
-    <section aria-label="Today's intention" className="hero-forest overflow-hidden rounded-2xl p-5 text-on-hero shadow-lg sm:p-6">
+    <section aria-label="Pray today for" className="hero-forest overflow-hidden rounded-2xl p-5 text-on-hero shadow-lg sm:p-6">
       <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-on-hero-muted">
-        <Sparkles className="size-4" aria-hidden /> Today&rsquo;s intention
+        <Sparkles className="size-4" aria-hidden /> Pray today for
       </p>
       {intention ? (
         <>
@@ -53,7 +53,7 @@ export function DailyIntentionCard({ prayer, onChoose, compact }: { prayer: Pray
                 onClick={() => pray.mutate(intention.id)}
                 className="inline-flex h-11 items-center gap-2 rounded-lg bg-white px-4 font-semibold text-[#143B2B] transition-colors hover:bg-white/90 disabled:opacity-60"
               >
-                <HandHeart className="size-4" aria-hidden /> I prayed for this
+                <HandHeart className="size-4" aria-hidden /> I prayed
               </button>
             )}
             {onChoose ? (
@@ -63,16 +63,22 @@ export function DailyIntentionCard({ prayer, onChoose, compact }: { prayer: Pray
             ) : null}
           </div>
           <p className="mt-3 text-sm text-on-hero-muted">
-            {prayer.chosenByUser ? "You chose this for today." : "Suggested because it has waited the longest."}
+            {prayer.chosenByUser ? "You chose this for today." : "Picked for you because it has waited the longest."}
           </p>
         </>
       ) : (
         <>
-          <h2 className="mt-3 text-2xl font-semibold">Nothing on your heart yet</h2>
-          <p className="mt-1.5 text-on-hero-muted">Add someone you said you&rsquo;d pray for, and one intention will be set apart each day.</p>
-          <Link href="/prayer" className="mt-4 inline-flex h-11 items-center rounded-lg bg-white px-4 font-semibold text-[#143B2B]">
-            Add an intention
-          </Link>
+          <h2 className="mt-3 text-2xl font-semibold">Your prayer list is empty</h2>
+          <p className="mt-1.5 text-on-hero-muted">Add a person, or anything on your heart. Each day one will be set apart for you here.</p>
+          {onAdd ? (
+            <button type="button" onClick={onAdd} className="mt-4 inline-flex h-11 items-center rounded-lg bg-white px-4 font-semibold text-[#143B2B] hover:bg-white/90">
+              Add to prayer list
+            </button>
+          ) : (
+            <Link href="/prayer" className="mt-4 inline-flex h-11 items-center rounded-lg bg-white px-4 font-semibold text-[#143B2B]">
+              Add to prayer list
+            </Link>
+          )}
         </>
       )}
     </section>
@@ -112,7 +118,7 @@ export function IntentionCard({ intention, today, isToday, showContact = true }:
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {isToday ? (
             <Badge tone="forest">
-              <Star className="size-3" aria-hidden /> Today&rsquo;s intention
+              <Star className="size-3" aria-hidden /> Today&rsquo;s prayer
             </Badge>
           ) : null}
           {showContact && intention.contactName ? (
@@ -120,20 +126,23 @@ export function IntentionCard({ intention, today, isToday, showContact = true }:
               <Badge tone="primary">{intention.contactName}</Badge>
             </Link>
           ) : null}
-          <Badge>{INTENTION_KIND_LABELS[intention.kind]}</Badge>
           {intention.status === "ANSWERED" ? <Badge tone="gold">Answered</Badge> : null}
           {intention.status === "ARCHIVED" ? <Badge>Archived</Badge> : null}
           <span className="text-xs text-muted">
-            {intention.prayedCount === 0
-              ? "Not prayed yet"
-              : `Prayed ${intention.prayedCount}× · last ${relativeDay(intention.lastPrayedDay!, today)}`}
+            {intention.prayedToday
+              ? `Prayed today · ${intention.prayedCount} ${intention.prayedCount === 1 ? "time" : "times"} in all`
+              : intention.prayedCount === 0
+                ? active
+                  ? "Press the circle when you've prayed"
+                  : ""
+                : `Prayed ${intention.prayedCount} ${intention.prayedCount === 1 ? "time" : "times"} · last ${relativeDay(intention.lastPrayedDay!, today)}`}
           </span>
         </div>
         {menu ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {active && !isToday ? (
               <Button size="sm" variant="secondary" loading={setToday.isPending} onClick={() => setToday.mutate(undefined, { onSuccess: () => setMenu(false) })}>
-                Make today&rsquo;s intention
+                Pray for this today
               </Button>
             ) : null}
             {active ? (
@@ -197,7 +206,7 @@ interface IntentionModalProps {
 
 export function IntentionModal({ open, onClose, intention, contact }: IntentionModalProps) {
   return (
-    <Modal open={open} onClose={onClose} title={intention ? "Edit intention" : contact ? `Pray for ${contact.name.split(" ")[0]}` : "New intention"}>
+    <Modal open={open} onClose={onClose} title={intention ? "Edit prayer" : contact ? `Pray for ${contact.name.split(" ")[0]}` : "Add to prayer list"}>
       <IntentionForm onClose={onClose} intention={intention} contact={contact} />
     </Modal>
   );
@@ -214,6 +223,7 @@ function IntentionForm({ onClose, intention, contact }: Omit<IntentionModalProps
     return intention ? api.intentions.update(intention.id, input) : api.intentions.create(input);
   });
   const errors = fieldErrors(save.error);
+  const [more, setMore] = useState(Boolean(intention?.details));
 
   return (
     <form
@@ -223,33 +233,33 @@ function IntentionForm({ onClose, intention, contact }: Omit<IntentionModalProps
         save.mutate(undefined, { onSuccess: onClose });
       }}
     >
-      <Field label="What are you praying for?" error={errors.title}>
+      <Field label="What do you want to pray for?" error={errors.title}>
         {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={140} autoFocus placeholder="Maria's surgery on Friday" />}
       </Field>
-      <Field label="Details" hint="Optional.">
-        {(p) => <Textarea {...p} value={details} onChange={(e) => setDetails(e.target.value)} maxLength={2000} />}
+      <Field label="Is it for someone?">
+        {(p) => (
+          <Select
+            {...p}
+            value={contactId}
+            onChange={(e) => {
+              setContactId(e.target.value);
+              if (!intention) setKind(e.target.value ? "PROMISED" : "PERSONAL");
+            }}
+          >
+            <option value="">No one in particular</option>
+            {(contacts ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="For someone?">
-          {(p) => (
-            <Select
-              {...p}
-              value={contactId}
-              onChange={(e) => {
-                setContactId(e.target.value);
-                if (!intention) setKind(e.target.value ? "PROMISED" : "PERSONAL");
-              }}
-            >
-              <option value="">No one in particular</option>
-              {(contacts ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          )}
+      <Disclosure label={more ? "Less" : "More (optional): details, kind of prayer"} open={more} onToggle={() => setMore((m) => !m)}>
+        <Field label="Details" hint="Anything you want to remember about it.">
+          {(p) => <Textarea {...p} value={details} onChange={(e) => setDetails(e.target.value)} maxLength={2000} />}
         </Field>
-        <Field label="Kind">
+        <Field label="What kind of prayer?">
           {(p) => (
             <Select {...p} value={kind} onChange={(e) => setKind(e.target.value as IntentionKind)}>
               {INTENTION_KINDS.map((k) => (
@@ -260,16 +270,19 @@ function IntentionForm({ onClose, intention, contact }: Omit<IntentionModalProps
             </Select>
           )}
         </Field>
-      </div>
+      </Disclosure>
       <FormError error={save.error} />
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
         <Button type="submit" variant="forest" loading={save.isPending}>
-          {intention ? "Save" : "Add intention"}
+          {intention ? "Save" : "Add to prayer list"}
         </Button>
       </div>
     </form>
   );
 }
+
+/** Kept for pages that still import the old name. */
+export const DailyIntentionCard = PrayTodayCard;

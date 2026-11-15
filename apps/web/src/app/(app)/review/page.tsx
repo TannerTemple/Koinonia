@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, Flame, HandHeart, Minus } from "lucide-react";
 import Link from "next/link";
 import { compareWeeks, formatDay, weekHeadline, weekdayName, type Streak, type WeekSummary } from "@koinonia/shared";
-import { Avatar, Card, ErrorState, PageHeader, SectionTitle, Spinner } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, ErrorState, PageHeader, SectionTitle, Spinner } from "@/components/ui";
 import { useWeeklyReview } from "@/lib/hooks";
 
 function Compare({ label, now, before }: { label: string; now: number; before: number }) {
@@ -69,6 +69,24 @@ export default function WeeklyReviewPage() {
   if (isPending) return <Spinner />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
   const { thisWeek, lastWeek, streaks, today } = data;
+
+  // Nothing to compare yet: say what this page will become instead of showing zeros.
+  if (streaks.reachOut.longest === 0 && streaks.prayer.longest === 0) {
+    return (
+      <>
+        <PageHeader title="Your week" />
+        <EmptyState
+          title="Your week will show up here"
+          body="Each time you press “I reached out” or “I prayed”, it counts. Come back in a few days to see who you reached and how often you prayed."
+          action={
+            <Link href="/">
+              <Button>Go to Today</Button>
+            </Link>
+          }
+        />
+      </>
+    );
+  }
 
   return (
     <>

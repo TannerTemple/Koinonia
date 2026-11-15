@@ -42,7 +42,8 @@ export default function PrayerScreen() {
         <Button small variant="forest" icon="add" label="Add" accessibilityLabel="Add to prayer list" onPress={() => router.push("/intention")} />
       </View>
 
-      <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => router.push("/choose-intention") : undefined} />
+      {/* With nothing on the list, the empty state below says it once. */}
+      {active.length > 0 ? <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => router.push("/choose-intention") : undefined} /> : null}
 
       <ChipRow>
         {TABS.map(([key, label]) => (

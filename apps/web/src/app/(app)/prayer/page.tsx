@@ -19,7 +19,7 @@ const TABS: { key: Tab; label: string }[] = [
 function ChooseModal({ open, onClose, intentions, currentId }: { open: boolean; onClose: () => void; intentions: Intention[]; currentId?: string }) {
   const choose = useAction((id: string) => api.prayer.setToday(id));
   return (
-    <Modal open={open} onClose={onClose} title="Choose today's intention">
+    <Modal open={open} onClose={onClose} title="Which one do you want to pray for today?">
       <ul className="max-h-[60vh] space-y-2 overflow-y-auto">
         {intentions.map((i) => (
           <li key={i.id}>
@@ -57,8 +57,9 @@ export default function PrayerPage() {
   const all = intentions.data;
   const active = all.filter((i) => i.status === "ACTIVE");
   const shown = all.filter((i) => i.status === tab);
-  const promised = shown.filter((i) => i.kind === "PROMISED");
-  const others = shown.filter((i) => i.kind !== "PROMISED");
+  // Grouped by whether the prayer is for a person, which is how people think of their list.
+  const promised = shown.filter((i) => i.contactId !== null);
+  const others = shown.filter((i) => i.contactId === null);
   const prayedToday = active.filter((i) => i.prayedToday).length;
   const day = today.data.day;
   const todayId = today.data.intention?.id;
@@ -66,19 +67,20 @@ export default function PrayerPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Prayer"
-        subtitle={active.length ? `${prayedToday} of ${active.length} prayed for today` : "The people and things you're carrying"}
+        title="Prayer list"
+        subtitle={active.length ? `${prayedToday} of ${active.length} prayed for today` : "The people and things you want to pray for"}
         action={
           <Button variant="forest" onClick={() => setAdding(true)}>
-            <Plus className="size-4" aria-hidden /> Add intention
+            <Plus className="size-4" aria-hidden /> Add to prayer list
           </Button>
         }
       />
 
-      <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => setChoosing(true) : undefined} />
+      {/* With nothing on the list, the empty state below says it once. */}
+      {active.length > 0 ? <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => setChoosing(true) : undefined} /> : null}
 
       <div>
-        <div className="mb-5 flex gap-2" role="group" aria-label="Filter intentions">
+        <div className="mb-5 flex gap-2" role="group" aria-label="Filter the prayer list">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -100,10 +102,10 @@ export default function PrayerPage() {
             <EmptyState
               icon={<HandHeart className="size-6" />}
               title="“I'll pray for you.”"
-              body="Easy to say, easy to forget. Write down what you promised and for whom, and it will be waiting here."
+              body="Easy to say, easy to forget. Write down who and what you want to pray for, and it will be waiting here."
               action={
                 <Button variant="forest" onClick={() => setAdding(true)}>
-                  Add your first intention
+                  Add to prayer list
                 </Button>
               }
             />
@@ -114,13 +116,13 @@ export default function PrayerPage() {
           <div className="space-y-6">
             {promised.length ? (
               <section>
-                <SectionTitle tone="forest" count={promised.length}>People I said I&rsquo;d pray for</SectionTitle>
+                <SectionTitle tone="forest" count={promised.length}>For people</SectionTitle>
                 <IntentionList intentions={promised} today={day} todayId={todayId} />
               </section>
             ) : null}
             {others.length ? (
               <section>
-                <SectionTitle tone="forest" count={others.length}>My intentions</SectionTitle>
+                <SectionTitle tone="forest" count={others.length}>Other prayers</SectionTitle>
                 <IntentionList intentions={others} today={day} todayId={todayId} />
               </section>
             ) : null}

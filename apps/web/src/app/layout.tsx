@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: { default: "Koinonia", template: "%s · Koinonia" },
-  description: "Stay close to the people who matter. Reminders to reach out, notes to remember, intentions to pray.",
+  description: "Stay close to the people who matter. Reminders to reach out, notes to remember, a list of who to pray for.",
 };
 
 export const viewport: Viewport = {

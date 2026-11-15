@@ -31,7 +31,7 @@ function Streaks() {
   if (!home) return null;
   const items = [
     { icon: Flame, label: "Reach-out streak", streak: home.streaks.reachOut, hint: "Days in a row you reached out to someone" },
-    { icon: HandHeart, label: "Prayer streak", streak: home.streaks.prayer, hint: "Days in a row you prayed for an intention" },
+    { icon: HandHeart, label: "Prayer streak", streak: home.streaks.prayer, hint: "Days in a row you prayed" },
   ];
   return (
     <div className="grid gap-3 sm:grid-cols-2">

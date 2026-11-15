@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClockOff, ArrowLeft, Cake, CalendarClock, Check, Copy, Pencil, Pin, PinOff, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Cake, CalendarClock, Check, Copy, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -17,6 +17,7 @@ import {
   type ContactDetail,
   type Interaction,
   type Note,
+  birthdayLabel,
 } from "@koinonia/shared";
 import { DueBadge, QuickActions, ReachOutModal } from "@/components/contacts";
 import { IntentionList, IntentionModal } from "@/components/prayer";
@@ -118,26 +119,28 @@ function NoteItem({ note, today }: { note: Note; today: string }) {
               </Badge>
             ) : null}
             <span className="text-xs text-muted">{formatDay(dayOf(note.createdAt))}</span>
-            <span className="ml-auto flex">
+            <span className="ml-auto flex flex-wrap">
               {open ? (
-                <IconButton label="Mark follow-up done" onClick={() => update.mutate({ followUpDone: true })}>
-                  <Check className="size-[18px]" />
-                </IconButton>
+                <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold underline-offset-2 hover:underline text-primary" aria-label="Mark follow-up done" onClick={() => update.mutate({ followUpDone: true })}>
+                  Done
+                </button>
               ) : null}
-              <IconButton label={note.pinned ? "Unpin note" : "Pin note"} onClick={() => update.mutate({ pinned: !note.pinned })}>
-                {note.pinned ? <PinOff className="size-[18px]" /> : <Pin className="size-[18px]" />}
-              </IconButton>
-              <IconButton label="Edit note" onClick={() => setEditing(true)}>
-                <Pencil className="size-[18px]" />
-              </IconButton>
-              <IconButton
-                label="Delete note"
+              <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold underline-offset-2 hover:underline text-primary" aria-label={note.pinned ? "Unpin note" : "Pin note to the top"} onClick={() => update.mutate({ pinned: !note.pinned })}>
+                {note.pinned ? "Unpin" : "Pin"}
+              </button>
+              <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold underline-offset-2 hover:underline text-primary" aria-label="Edit note" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className="min-h-9 rounded-lg px-2 text-sm font-semibold underline-offset-2 hover:underline text-danger"
+                aria-label="Delete note"
                 onClick={() => {
                   if (window.confirm("Delete this note?")) remove.mutate(undefined);
                 }}
               >
-                <Trash2 className="size-[18px]" />
-              </IconButton>
+                Delete
+              </button>
             </span>
           </div>
         </>
@@ -239,13 +242,13 @@ export default function PersonPage() {
             <Avatar name={contact.name} size={64} />
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-semibold leading-tight">{contact.name}</h1>
-              <p className="mt-0.5 text-muted">{[contact.relationship, contact.archived ? "Archived" : null].filter(Boolean).join(" · ") || "No relationship set"}</p>
+              <p className="mt-0.5 text-muted">{[contact.relationship, contact.archived ? "Archived" : null].filter(Boolean).join(" · ") || ""}</p>
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
                 <DueBadge contact={contact} today={today} />
                 <Badge>{cadenceLabel(contact.cadenceDays)}</Badge>
                 {contact.birthday ? (
                   <Badge tone="gold">
-                    <Cake className="size-3" aria-hidden /> {formatDay(contact.birthday.length === 5 ? `2000-${contact.birthday}` : contact.birthday, contact.birthday.slice(0, 4))}
+                    <Cake className="size-3" aria-hidden /> {birthdayLabel(contact.birthday)}
                   </Badge>
                 ) : null}
                 {contact.linkedUserId ? <Badge tone="forest">On Koinonia</Badge> : null}
@@ -258,7 +261,7 @@ export default function PersonPage() {
 
           <p className="mt-4 text-sm text-muted">
             {contact.lastContactedDay ? `You last reached out ${relativeDay(contact.lastContactedDay, today)} (${formatDay(contact.lastContactedDay, today)}).` : "No reach-outs logged yet."}
-            {snoozed ? ` Snoozed until ${formatDay(contact.snoozedUntilDay!, today)}.` : ""}
+            {snoozed ? ` You asked to be reminded on ${formatDay(contact.snoozedUntilDay!, today)}.` : ""}
           </p>
 
           <div className="mt-4 space-y-2">
@@ -269,12 +272,12 @@ export default function PersonPage() {
               </Button>
               {snoozed ? (
                 <Button variant="secondary" loading={snooze.isPending} onClick={() => snooze.mutate({ clear: true })}>
-                  Unsnooze
+                  Remind me now instead
                 </Button>
               ) : status === "overdue" || status === "today" ? (
                 <>
                   <Button variant="secondary" loading={snooze.isPending} onClick={() => snooze.mutate({ days: 1 })}>
-                    <AlarmClockOff className="size-4" aria-hidden /> Tomorrow
+                    Remind me tomorrow
                   </Button>
                   <Button variant="secondary" disabled={snooze.isPending} onClick={() => snooze.mutate({ days: 7 })}>
                     Next week
@@ -303,7 +306,7 @@ export default function PersonPage() {
         <div className="flex items-start justify-between gap-3">
           <SectionTitle tone="forest" count={contact.intentions.length}>Praying for {contact.name.split(" ")[0]}</SectionTitle>
           <Button size="sm" variant="secondary" onClick={() => setPraying(true)}>
-            <Plus className="size-4" aria-hidden /> Add intention
+            <Plus className="size-4" aria-hidden /> Add a prayer
           </Button>
         </div>
         {contact.intentions.length ? (
