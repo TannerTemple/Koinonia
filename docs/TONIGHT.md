@@ -236,6 +236,8 @@ Also worth knowing:
   instance the API does too). Wait 30 to 60 seconds and try again before deciding it is broken.
 - **"Forgot password" sends nothing yet.** Email is switched off until you set up Resend
   ([DEPLOY.md](DEPLOY.md), "Real email"). Do not forget your password tonight.
+- **Testers can report problems from inside the app**: Settings (web) or Profile (phone) →
+  "Send feedback or report a problem". You read them on the web under **Admin**, at the bottom.
 - **Something else?** Render → Logs is the first place to look; errors there are in plain English
   and never contain passwords.
 

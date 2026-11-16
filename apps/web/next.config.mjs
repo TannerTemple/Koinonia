@@ -32,7 +32,9 @@ function buildProblem() {
     return `NEXT_PUBLIC_API_URL must be /api or an address starting with https://. It is "${apiUrl}".`;
   }
   if (process.env.VERCEL && /\/\/(localhost|127\.0\.0\.1)/.test(apiProxyTarget ?? apiUrl)) {
-    return "API_PROXY_TARGET is not set, so this site would look for the API on localhost. Add API_PROXY_TARGET with the API's address, like https://koinonia-api.onrender.com.";
+    return apiProxyTarget
+      ? `API_PROXY_TARGET is "${apiProxyTarget}", which is your own computer, not the hosted API. Set it to the API's address, like https://koinonia-api.onrender.com.`
+      : "API_PROXY_TARGET is not set, so this site would look for the API on localhost. Add API_PROXY_TARGET with the API's address, like https://koinonia-api.onrender.com.";
   }
   return null;
 }

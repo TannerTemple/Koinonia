@@ -1,12 +1,14 @@
 # Koinonia — Status
 
-_Last updated: end of the sixth unattended round (iPhone reminders, onboarding, export, hardening, flaky networks, people list, CI, phone test checklist)._
+_Last updated: end of the seventh unattended round (deploy-night hardening, smoke test, admin and seed scripts, TONIGHT.md, known gaps closed, feedback screen)._
 
 > Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it.
+>
+> **Deploying tonight? Open [docs/TONIGHT.md](docs/TONIGHT.md) and follow it top to bottom.**
 
 ## After `git pull`, run exactly this
 
-There is **one new database migration** this round (`reminder_time_groups_indexes`: reminder time, favorite, groups, indexes) and no new dependencies. `pnpm db:migrate` applies it; `pnpm db:seed` is optional and only refreshes the demo accounts.
+There is **one new database migration** this round (`feedback`: one new table) and one newly declared dependency (`expo-file-system`, already present inside Expo), so run `pnpm install` and `pnpm db:migrate`. `pnpm db:seed` is optional and only refreshes the demo accounts on your own computer.
 
 ```bash
 pnpm install
@@ -36,7 +38,29 @@ cp .env.example apps/api/.env
 
 `pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Nothing new is required in `apps/api/.env`. Optional settings added this round, all off unless set: `PUSH_PROVIDER=expo` (real push) and `SENTRY_DSN` (error reporting); see `.env.example`.
 
-## What changed in this round (sixth)
+## What changed in this round (seventh)
+
+| Step | Result |
+| --- | --- |
+| 1. Deploy hardening | The API now starts only with sane settings, and otherwise prints a plain-English list naming each wrong variable (it forgives quotes, spaces, trailing slashes and empty boxes, and never prints a password). Render needs **three** values (two Neon addresses, then `WEB_URL`); Vercel needs **one** (`API_PROXY_TARGET`), and a hosted web build with no API address fails with the fix in the message. Migrations check for Neon's pooled/direct mix-up first and retry twice while a sleeping database wakes. The Docker image shrank from 1.4 GB to 376 MB (it was carrying the web and phone apps' packages). |
+| 2. Smoke test | `pnpm smoke <api-url> <web-url>`: health, database, CORS both ways, the web page, `/api` forwarding, sign-up, sign-in, a wrong password, create and read a person, the web cookie, delete the test account. PASS or FAIL per check with a one-line fix. Also works against your own computer. |
+| 3. Admin and seed | `pnpm make-admin you@example.com --db "..."` changes one existing account, says which database it is acting on, and is harmless to repeat. `pnpm db:seed:prod --db "..."` creates nothing: it reports migrations, accounts, admins and any demo accounts. The demo seed now refuses any database that is not on your own computer. |
+| 4. Tonight | [docs/TONIGHT.md](docs/TONIGHT.md): one page, in order, each step ending in what success looks like, plus the five likeliest errors. [docs/DEPLOY.md](docs/DEPLOY.md) is updated to match and stays as the reference. |
+| 5. Known gaps | iPhone export now hands the share sheet a real file. The person form and the reach-out screen keep drafts. The web person form has "Reminder time on your iPhone" under More details. CI runs once per change (pull requests, and pushes to `main`). |
+| 6. Feedback | "Send feedback or report a problem" in Settings (web) and Profile (phone): three choices, one box, Send. Messages carry the app version and platform, are saved and shown under **Admin → Feedback** on the web, and are also emailed if you set `FEEDBACK_EMAIL` on Render. |
+| 7. Final pass | Your message was cut off after "7. A final first", so I took it as a final first-run pass (decision 121): a brand-new clone, installed, migrated, started, smoke-tested, then walked through as a first-time user on web and in the phone preview. All passed. |
+
+**How this round was tested**
+
+- 223 automated tests (API 163 plus 2 opt-in live email tests skipped by default, shared 41, mobile 19), all passing.
+- The production path, as far as this environment allows: the Dockerfile's steps replayed by hand, the result started in production mode with a clean environment against an empty PostgreSQL (all 5 migrations applied the way Render does it), the web app built and started the way Vercel does it with only `API_PROXY_TARGET` set, and `pnpm smoke` passing all 14 checks against the pair.
+- Each wrong-setting message was triggered for real (missing address, swapped Neon addresses, `psql '...'` pasted, bad `WEB_URL`, unreachable database).
+- In a real browser: drafts on the person and reach-out forms (failed save, close, reopen, Start over, save once), the web reminder time, feedback from both apps appearing under Admin, and the first-run walks.
+
+**Not tried, because it cannot be here:** the real Neon, Render and Vercel; `docker build` itself; Expo Go on a phone; the iPhone file export on a device.
+
+
+## What changed in the sixth round
 
 | Step | Result |
 | --- | --- |
@@ -167,7 +191,7 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 | Milestone | State | How it was verified |
 | --- | --- | --- |
 | 1. Scaffold | Done | `pnpm check` (lint + typecheck + tests) passes |
-| 2. Backend core | Done | 149 API tests against real PostgreSQL, 41 shared-logic tests |
+| 2. Backend core | Done | 163 API tests against real PostgreSQL, 41 shared-logic tests |
 | 3. Web app core | Done | Production build; full flow run in a headless browser (desktop light, phone dark) with no console errors |
 | 4. iOS app core | Done, see caveat | Typecheck, lint, 19 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
 | 5. Nice-to-haves | Done (three) | Calendar feed covered by API tests; starters and birthdays seen in the browser runs |
@@ -185,11 +209,11 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 
 - **The iPhone app has still never run on a simulator or device.** It typechecks, bundles for iOS, and every flow passes in a browser preview. [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md) is the 10-minute list of what only a phone can prove.
 - **Notifications are untested on a device.** The planning (who, which day, what time, badge number) is covered by unit tests; the actual scheduling, the system prompt, the badge and tap-to-open (including when the app was closed) are sections 3 and 4 of the phone checklist.
-- **Export on iPhone goes through the share sheet as text**, not as a file attachment (that needs two native modules that could not be installed or tried here). Web and the browser preview save real files.
 - **Sentry and Expo push have never talked to the real services** (the build environment cannot reach them); both are covered with the network stubbed. Same as Resend.
-- **Drafts are kept for notes and prayers only**, not for the reach-out summary or the person form.
-- **Per-person reminder time is set in the iPhone app only.** The web form does not show it (the web app sends no notifications) and leaves it untouched.
-- **CI runs twice per push while a pull request is open** (once for the push, once for the pull request), as asked ("pushes and PRs"). Harmless; limit `push` to `main` in the workflow if the duplication bothers you.
+- **Nothing has been deployed.** The production path was exercised locally only; `docker build` could not run here (its steps were replayed by hand), and no Neon, Render or Vercel account was used. [docs/TONIGHT.md](docs/TONIGHT.md) says what to do if a step does not match.
+- **iPhone export as a file is untested on a device.** It writes the file and hands it to the share sheet; if writing fails it falls back to sharing the text, as before.
+- **Feedback is not part of "Export my data"** (it is a message to you, not something kept in the account); it is deleted with the account. The emailed copy needs real email (`EMAIL_PROVIDER=resend`) as well as `FEEDBACK_EMAIL`.
+- **The app has not been opened in Expo Go.** Reminders at a set time, the badge and tap-to-open need a real build in any case.
 - **Reset and verification links open the web app.** In the iPhone app you paste the code from the same email. Opening the app straight from the email (universal links) needs a real domain and Apple setup.
 - **Unverified accounts are not restricted**; they see a "Confirm your email" banner (decision 33).
 - **Nothing has been deployed.** DEPLOY.md and `render.yaml` have not been followed on real Neon, Render or Vercel accounts (none may be created here). `render.yaml` was checked for valid syntax only. A pooled Neon connection has not been tried.
@@ -260,13 +284,11 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 
 ## What you need to do next
 
-1. **Pull and migrate** (commands at the top of this file).
-2. **Merge the pull request** when you are happy; CI is green on it.
-3. **Deploy** with [docs/DEPLOY.md](docs/DEPLOY.md): Neon, Render, Vercel, then real email. About an hour the first time. Tell me where a step did not match what you saw.
-4. **Build for TestFlight** with [docs/APP_STORE.md](docs/APP_STORE.md): choose the real bundle identifier, put the server addresses in `apps/mobile/eas.json`, `eas init`, build, submit.
-5. **Run [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md)** on your iPhone: 10 minutes, and send me the numbers of anything that fails.
-6. **Finish the legal pages**: fill in `apps/web/src/lib/legal.ts`, have them reviewed, set `LEGAL_DRAFT = false`.
-7. **Turn on two-factor sign-in** on GitHub, Neon, Render, Vercel, Resend, Expo and Apple.
+1. **Tonight: follow [docs/TONIGHT.md](docs/TONIGHT.md)** top to bottom. It starts with merging the pull request and ends with the app open in Expo Go.
+2. **Then real email** ([docs/DEPLOY.md](docs/DEPLOY.md), "Real email"), so "Forgot password" works; set `FEEDBACK_EMAIL` at the same time if you want feedback in your inbox.
+3. **Build for TestFlight** with [docs/APP_STORE.md](docs/APP_STORE.md), then run [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md) (10 minutes) and send me the numbers of anything that fails.
+4. **Finish the legal pages**: fill in `apps/web/src/lib/legal.ts`, have them reviewed, set `LEGAL_DRAFT = false`.
+5. **Turn on two-factor sign-in** on GitHub, Neon, Render, Vercel, Resend, Expo and Apple.
 
 ## Suggested next features
 
@@ -274,8 +296,8 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 - Home-screen widget and lock-screen "who's due" on iOS
 - Share an intention with the person you're praying for ("I prayed for you today")
 - Groups (family, small group) with shared prayer lists
-- A calendar picker for "remind me later"; reminder time on the web form
-- CSV import on web; merge duplicates; export as a real file on iPhone
+- A calendar picker for "remind me later"
+- CSV import on web; merge duplicates
 - Liturgical touches: saint of the day, novena tracking, rosary intentions
 - Weekly review as a Sunday email or push; month and year views
 

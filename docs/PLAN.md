@@ -164,3 +164,11 @@ counters to drift.
 - [x] People list filters, favorites, groups
 - [x] CI workflow (passing on GitHub)
 - [x] `docs/TEST_ON_PHONE.md`; icon and splash requirements in `docs/APP_STORE.md`
+
+### 12. Seventh round
+- [x] Startup checks in plain English; three values on Render, one on Vercel; API-only Docker install
+- [x] `pnpm smoke`, `pnpm make-admin`, `pnpm db:seed:prod`
+- [x] `docs/TONIGHT.md`
+- [x] iPhone file export, drafts for person and reach-out forms, web reminder time, CI once per change
+- [x] Feedback screen (web and mobile), Admin > Feedback, optional `FEEDBACK_EMAIL`
+- [x] Fresh-clone first-run pass

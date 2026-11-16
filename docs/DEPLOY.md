@@ -37,6 +37,7 @@ below tell you when.
 | `TRUST_PROXY` | `1` | Set by `render.yaml`. Render has one proxy in front of the service. |
 | `EMAIL_PROVIDER` | `mock`, later `resend` | Set by `render.yaml`. See "Real email". |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | from Resend | Only with `EMAIL_PROVIDER=resend`. |
+| `FEEDBACK_EMAIL` | your address | Optional. "Send feedback" messages are always saved (web: Admin, at the bottom); with this set, and real email on, a copy is emailed to you. |
 | `DIGEST_ENABLED`, `DIGEST_HOUR` | `false` / `8` | Set by `render.yaml`. Turn on after email works. |
 | `LOG_LEVEL` | `info` | Set by `render.yaml`. |
 | `PORT` | do not set | Render sets it; the API follows. |
