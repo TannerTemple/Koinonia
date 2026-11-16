@@ -34,10 +34,10 @@ exact commands, the listing text, and the answers to Apple's privacy questions.
 
 ### Before submitting for review
 
-- [ ] The app runs on a real iPhone from TestFlight, and you have walked every flow once:
-      sign up, add a person, import from contacts, note with a follow-up date, intention,
-      "I reached out", "I prayed", notifications on, forgot password, confirm email, weekly review,
-      delete account.
+- [ ] The app runs on a real iPhone from TestFlight and you have gone through
+      [TEST_ON_PHONE.md](TEST_ON_PHONE.md): a 10-minute checklist of everything that could not be
+      run without a phone (notifications, contact import, staying signed in, keyboard and screen
+      edges).
 - [ ] A **demo account** exists on the production server for the reviewer (see "Review
       information"). Sign up in the app with an address you control and add a few people and
       intentions so the screens are not empty.
@@ -149,6 +149,31 @@ After changing only JavaScript, you still need a new build to ship it; over-the-
 
 Raise `expo.version` in `apps/mobile/app.json` (for example `1.0.0` → `1.0.1`), commit, then build
 and submit again with the two commands above.
+
+## Icon and splash screen
+
+What Apple and Expo need, and what is in the repository now. The current images are simple
+placeholders generated during the build (a three-ring mark on Marian blue); replace them with final
+artwork at the same sizes and file names and nothing else needs to change.
+
+| File (`apps/mobile/assets/images/`) | Used for | Requirement | Now |
+| --- | --- | --- | --- |
+| `icon.png` | The iPhone app icon and the App Store listing icon | **1024 × 1024 px PNG, square, no transparency, no rounded corners** (iOS rounds them itself). Apple rejects icons with an alpha channel. Keep anything important inside the middle 80%. | 1024 × 1024, no alpha: meets it |
+| `splash-icon.png` | The mark in the middle of the launch screen | PNG **with** transparency, square; shown 120 pt wide on the colour set in `app.json` (`#1B2F66`). At least 512 px; 1024 px is sharper on large phones. | 512 × 512 with alpha: works, could be larger |
+| `adaptive-icon.png` | Android only | 1024 × 1024 PNG with transparency; the mark must sit inside the middle 66% (Android crops to a circle). | 1024 × 1024 with alpha |
+
+EAS generates every other size from these. You do not make an icon set by hand.
+
+Other rules worth knowing:
+
+- No screenshots, no words in another script than the app's name needs, and nothing that looks
+  like an Apple product or UI inside the icon.
+- The launch screen must not be an ad or a "loading" screen with text; a plain mark on a colour
+  (what is there now) is what Apple asks for.
+- To change the launch background colour or the mark's size, edit the `expo-splash-screen` entry
+  in `apps/mobile/app.json`, then make a new build (it is baked into the build, not downloaded).
+- The App Store also wants **screenshots** (below). It does not need a separate large icon upload:
+  it is taken from the build.
 
 ## Listing copy
 
@@ -275,8 +300,14 @@ Photos or Videos, Audio, Advertising Data.
 **Tracking:** the app does not track. There is no advertising or analytics SDK, so no App Tracking
 Transparency prompt is needed.
 
-If you later add crash reporting or analytics, add **Diagnostics** / **Usage Data** here and in the
-privacy policy before shipping that build.
+The optional server-side error reporting (`SENTRY_DSN` on the API) does not change these answers: it
+runs on the server, not in the app, and sends an error's type and a scrubbed one-line message with
+no account, device or personal data. If you later add crash reporting or analytics **inside the
+app**, add **Diagnostics** / **Usage Data** here and in the privacy policy before shipping that
+build.
+
+The app now offers **Export my data** (Profile → Export my data) and **Delete my account**
+(Profile → Delete my account); mention both if App Review asks how users control their data.
 
 ## Age rating
 
@@ -301,7 +332,7 @@ Sign in with the demo account above. The Today tab shows who is due. Open a pers
 
 Contacts permission: requested only when the user taps People > "Import from my contacts". The list is shown on the device and only the entries the user ticks are sent to our server; the address book is never uploaded as a whole.
 
-Notifications: local reminders scheduled on the device for people who are due, plus an optional daily push. Requested only when the user turns reminders on in Profile.
+Notifications: local reminders scheduled on the device, one per person on the day they are due, plus an optional daily push. Permission is requested only after a screen explains what will be sent: in the welcome after sign-up, from a card on Today, or from the switch in Profile. Never at launch.
 
 Account creation and deletion: accounts are created in the app (Create an account). An account and all its data can be deleted in the app: Profile > Delete my account (password required).
 
@@ -314,7 +345,7 @@ The app has no purchases, ads, tracking or third-party sign-in.
 | --- | --- |
 | Accounts must be deletable inside the app (5.1.1(v)) | Done: Profile → Delete my account |
 | A privacy policy link in the listing and inside the app (5.1.1) | Done once the web app is deployed and the draft is finalised; the app links to it from sign-up and Profile |
-| Permission prompts must say why (5.1.1) | Contacts: text is in `app.json`. Notifications: asked only when the user switches reminders on in Profile. |
+| Permission prompts must say why (5.1.1) | Contacts: text is in `app.json`, asked only on the import screen. Notifications: asked only after an in-app explanation and a tap on "Turn on reminders". |
 | Contacts used only for the stated purpose, never uploaded wholesale (5.1.2) | Done |
 | "Sign in with Apple" if other social sign-ins are offered (4.8) | Not applicable: email and password only |
 | App must work for the reviewer (2.1) | Needs the deployed server and the demo account |
@@ -325,7 +356,7 @@ The app has no purchases, ads, tracking or third-party sign-in.
 
 - The iPhone app has never run on a device. Expect small layout fixes after the first TestFlight
   build.
-- Push notifications from the server need `PUSH_ENABLED=true` on the API and the push key EAS
+- Push notifications from the server need `PUSH_PROVIDER=expo` on the API and the push key EAS
   creates; they have never been sent for real. Local reminders on the phone do not depend on it.
 - Password reset and email confirmation open the **web** app from the email; in the iPhone app the
   person pastes the code from the same email. Opening the app straight from the link needs
