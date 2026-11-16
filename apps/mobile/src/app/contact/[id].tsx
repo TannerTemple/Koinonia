@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Linking, Pressable, Share, Text, View } from "react-native";
 import {
   birthdayLabel,
@@ -121,6 +122,15 @@ export default function ContactScreen() {
   const { data: contact, error, isPending, refetch } = useContact(id);
   const refresh = useRefresh(refetch);
   const snooze = useAction((input: Parameters<typeof api.contacts.snooze>[1]) => api.contacts.snooze(id, input));
+  const star = useAction((favorite: boolean) => api.contacts.update(id, { favorite }));
+  // The page arrives with the latest 50 reach-outs; older ones are fetched on request.
+  const [older, setOlder] = useState<Interaction[]>([]);
+  const [noMore, setNoMore] = useState(false);
+  const loadOlder = useAction(async () => {
+    const page = await api.contacts.history(id, { offset: 50 + older.length });
+    setOlder((prev) => [...prev, ...page]);
+    if (page.length < 50) setNoMore(true);
+  });
 
   if (isPending) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -138,7 +148,22 @@ export default function ContactScreen() {
 
   return (
     <Screen {...refresh}>
-      <Stack.Screen options={{ headerRight: () => <IconButton icon="create-outline" label={`Edit ${contact.name}`} color={c.primary} onPress={() => router.push(`/contact/form?id=${id}`)} /> }} />
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <View style={{ flexDirection: "row" }}>
+              <IconButton
+                icon={contact.favorite ? "star" : "star-outline"}
+                label={contact.favorite ? `Remove ${contact.name} from favorites` : `Add ${contact.name} to favorites`}
+                color={contact.favorite ? c.gold : c.primary}
+                disabled={star.isPending}
+                onPress={() => star.mutate(!contact.favorite)}
+              />
+              <IconButton icon="create-outline" label={`Edit ${contact.name}`} color={c.primary} onPress={() => router.push(`/contact/form?id=${id}`)} />
+            </View>
+          ),
+        }}
+      />
 
       <View style={{ gap: space.md }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.lg }}>
@@ -152,6 +177,9 @@ export default function ContactScreen() {
           <DueBadge contact={contact} today={today} />
           <Badge label={cadenceLabel(contact.cadenceDays)} />
           {contact.birthday ? <Badge tone="gold" icon="gift-outline" label={birthdayLabel(contact.birthday)} /> : null}
+          {contact.groups.map((g) => (
+            <Badge key={g} tone="primary" label={g} />
+          ))}
           {contact.linkedUserId ? <Badge tone="forest" label="On Koinonia" /> : null}
           {contact.archived ? <Badge label="Archived" /> : null}
         </View>
@@ -222,7 +250,8 @@ export default function ContactScreen() {
 
       <View>
         <SectionTitle count={contact.interactions.length}>History</SectionTitle>
-        {contact.interactions.length ? <Rows>{contact.interactions.map((i) => <HistoryRow key={i.id} item={i} today={today} />)}</Rows> : <Body muted>Each time you reach out, it lands here.</Body>}
+        {contact.interactions.length ? <Rows>{[...contact.interactions, ...older].map((i) => <HistoryRow key={i.id} item={i} today={today} />)}</Rows> : <Body muted>Each time you reach out, it lands here.</Body>}
+        {contact.interactions.length >= 50 && !noMore ? <Button variant="secondary" label="Show older" loading={loadOlder.isPending} onPress={() => loadOlder.mutate(undefined)} style={{ marginTop: space.md }} /> : null}
       </View>
     </Screen>
   );

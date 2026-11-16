@@ -249,3 +249,48 @@ describe("getting started", () => {
     expect(reachOutSummary(3, 4)).toContain("3 people");
   });
 });
+
+describe("people list", () => {
+  const person = (name: string, extra: Record<string, unknown> = {}) =>
+    ({ id: name, name, phone: null, email: null, relationship: null, groups: [], favorite: false, dueDay: null, ...extra }) as never;
+  const people = [
+    person("Mom", { groups: ["Family"], favorite: true, phone: "5550102000", dueDay: "2026-11-10" }),
+    person("Ben Castellano", { groups: ["Friends", "Ministry"], relationship: "College friend", dueDay: "2026-11-12" }),
+    person("Ana", { groups: ["family"], email: "ana@example.com", dueDay: "2026-11-20" }),
+    person("Zed", { groups: ["Book club"] }),
+  ];
+  const names = (list: { name: string }[]) => list.map((p) => p.name);
+
+  it("puts favorites first, then sorts by name", async () => {
+    const { filterPeople } = await import("./people");
+    expect(names(filterPeople(people, { today: "2026-11-12" }))).toEqual(["Mom", "Ana", "Ben Castellano", "Zed"]);
+  });
+
+  it("filters by due, favorites and group", async () => {
+    const { filterPeople } = await import("./people");
+    const today = "2026-11-12";
+    expect(names(filterPeople(people, { today, filter: "due" }))).toEqual(["Mom", "Ben Castellano"]);
+    expect(names(filterPeople(people, { today, filter: "favorites" }))).toEqual(["Mom"]);
+    expect(names(filterPeople(people, { today, filter: "group:Family" }))).toEqual(["Mom", "Ana"]);
+    expect(names(filterPeople(people, { today, filter: "group:Ministry" }))).toEqual(["Ben Castellano"]);
+    expect(names(filterPeople(people, { today, filter: "group:Nobody" }))).toEqual([]);
+  });
+
+  it("searches name, relationship, group, email and phone digits, together with a filter", async () => {
+    const { filterPeople } = await import("./people");
+    const find = (q: string, filter?: never) => names(filterPeople(people, { today: "2026-11-12", q, filter }));
+    expect(find("cast")).toEqual(["Ben Castellano"]);
+    expect(find("college")).toEqual(["Ben Castellano"]);
+    expect(find("book")).toEqual(["Zed"]);
+    expect(find("ana@")).toEqual(["Ana"]);
+    expect(find("(555) 010")).toEqual(["Mom"]);
+    expect(find("55")).toEqual([]);
+    expect(find("ana", "group:Family" as never)).toEqual(["Ana"]);
+  });
+
+  it("lists the groups in use: presets in order, then the rest, without duplicates", async () => {
+    const { groupsInUse } = await import("./people");
+    expect(groupsInUse(people)).toEqual(["Family", "Friends", "Ministry", "Book club"]);
+    expect(groupsInUse([])).toEqual([]);
+  });
+});

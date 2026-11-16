@@ -35,16 +35,18 @@ export function ContactRow({ contact, today }: { contact: Contact; today: string
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${contact.name}, ${dueLabel(contact.dueDay, today)}`}
+      accessibilityLabel={`${contact.favorite ? "Favorite. " : ""}${contact.name}, ${dueLabel(contact.dueDay, today)}`}
       onPress={() => router.push(`/contact/${contact.id}`)}
       style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, opacity: pressed ? 0.6 : 1 })}
     >
       <Avatar name={contact.name} />
       <View style={{ flex: 1, gap: 3 }}>
         <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: "700", color: c.text }}>
+          {contact.favorite ? <Text style={{ color: c.gold }}>★ </Text> : null}
           {contact.name}
         </Text>
         <Text numberOfLines={1} style={{ fontSize: 14, color: c.textMuted }}>
+          {contact.groups.length ? `${contact.groups.join(", ")} · ` : ""}
           {cadenceLabel(contact.cadenceDays)}
           {contact.lastContactedDay ? ` · last ${relativeDay(contact.lastContactedDay, today)}` : ""}
         </Text>

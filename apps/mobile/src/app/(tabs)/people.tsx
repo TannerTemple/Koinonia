@@ -1,38 +1,35 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { TextInput, View } from "react-native";
-import { dueStatus } from "@koinonia/shared";
+import { PEOPLE_PAGE, filterPeople, groupsInUse, type PeopleFilter } from "@koinonia/shared";
 import { ContactRow } from "@/components/domain";
 import { Body, Button, Chip, ChipRow, EmptyState, ErrorState, Loading, Rows, Screen, Title } from "@/components/ui";
 import { useContacts, useRefresh, useToday } from "@/lib/hooks";
 import { radius, space, useTheme } from "@/lib/theme";
 
-type Filter = "all" | "due" | "none" | "archived";
-const FILTERS: [Filter, string][] = [
-  ["all", "Everyone"],
-  ["due", "Due"],
-  ["none", "No reminder"],
-  ["archived", "Archived"],
-];
-
 export default function PeopleScreen() {
   const { c } = useTheme();
   const today = useToday();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<PeopleFilter>("all");
   const [q, setQ] = useState("");
+  const [shown, setShown] = useState(PEOPLE_PAGE);
   const { data, error, isPending, refetch } = useContacts({ archived: filter === "archived" });
+  const active = useContacts();
   const refresh = useRefresh(refetch);
 
-  const visible = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return (data ?? []).filter((p) => {
-      if (needle && !`${p.name} ${p.relationship ?? ""}`.toLowerCase().includes(needle)) return false;
-      const status = dueStatus(p.dueDay, today);
-      if (filter === "due") return status === "overdue" || status === "today";
-      if (filter === "none") return status === "none";
-      return true;
-    });
-  }, [data, q, filter, today]);
+  const visible = useMemo(() => filterPeople(data ?? [], { q, filter, today }), [data, q, filter, today]);
+  // The group chips come from the groups people are actually in.
+  const filters: [PeopleFilter, string][] = [
+    ["all", "Everyone"],
+    ["due", "Due"],
+    ["favorites", "★ Favorites"],
+    ...groupsInUse(active.data ?? []).map((g): [PeopleFilter, string] => [`group:${g}`, g]),
+    ["archived", "Archived"],
+  ];
+  const pick = (next: PeopleFilter) => {
+    setFilter(next);
+    setShown(PEOPLE_PAGE);
+  };
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
@@ -45,17 +42,20 @@ export default function PeopleScreen() {
         </View>
         <TextInput
           accessibilityLabel="Search people"
-          placeholder="Search by name or relationship"
+          placeholder="Search by name, group or phone"
           placeholderTextColor={c.textMuted}
           value={q}
-          onChangeText={setQ}
+          onChangeText={(t) => {
+            setQ(t);
+            setShown(PEOPLE_PAGE);
+          }}
           clearButtonMode="while-editing"
           autoCorrect={false}
           style={{ minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, color: c.text, paddingHorizontal: space.md, fontSize: 16 }}
         />
         <ChipRow>
-          {FILTERS.map(([key, label]) => (
-            <Chip key={key} label={label} selected={filter === key} onPress={() => setFilter(key)} />
+          {filters.map(([key, label]) => (
+            <Chip key={key} label={label} selected={filter === key} onPress={() => pick(key)} />
           ))}
         </ChipRow>
       </View>
@@ -63,7 +63,10 @@ export default function PeopleScreen() {
       {isPending ? (
         <Loading />
       ) : visible.length > 0 ? (
-        <Rows>{visible.map((p) => <ContactRow key={p.id} contact={p} today={today} />)}</Rows>
+        <View style={{ gap: space.md }}>
+          <Rows>{visible.slice(0, shown).map((p) => <ContactRow key={p.id} contact={p} today={today} />)}</Rows>
+          {visible.length > shown ? <Button variant="secondary" label={`Show more (${visible.length - shown} more)`} onPress={() => setShown((n) => n + PEOPLE_PAGE)} /> : null}
+        </View>
       ) : data.length === 0 && filter === "all" ? (
         <EmptyState icon="people" title="No one here yet" body="Add the people you want to stay close to, or bring them in from your phone's contacts." />
       ) : (

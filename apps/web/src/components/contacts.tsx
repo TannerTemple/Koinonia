@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   CADENCE_PRESETS,
   CHANNELS,
+  GROUP_PRESETS,
   CHANNEL_LABELS,
   MAX_CADENCE_DAYS,
   cadenceLabel,
@@ -46,8 +47,16 @@ export function ContactRow({ contact, today }: { contact: Contact; today: string
       <Link href={`/people/${contact.id}`} className="flex min-h-16 items-center gap-3 px-4 py-2.5 hover:bg-surface-alt">
         <Avatar name={contact.name} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-lg font-semibold">{contact.name}</span>
+          <span className="block truncate text-lg font-semibold">
+            {contact.favorite ? (
+              <span className="text-gold" title="Favorite">
+                ★<span className="sr-only"> Favorite.</span>{" "}
+              </span>
+            ) : null}
+            {contact.name}
+          </span>
           <span className="block truncate text-sm text-muted">
+            {contact.groups.length ? `${contact.groups.join(", ")} · ` : ""}
             {cadenceLabel(contact.cadenceDays)}
             {contact.lastContactedDay ? ` · last ${relativeDay(contact.lastContactedDay, today)}` : ""}
           </span>
@@ -273,6 +282,59 @@ export function CadencePicker({ value, onChange }: { value: number | null; onCha
 }
 
 // ---------------------------------------------------------------------------
+// Groups and favorite
+// ---------------------------------------------------------------------------
+export function GroupPicker({ groups, favorite, onGroups, onFavorite }: { groups: string[]; favorite: boolean; onGroups: (groups: string[]) => void; onFavorite: (favorite: boolean) => void }) {
+  const [custom, setCustom] = useState("");
+  const has = (g: string) => groups.some((x) => x.toLowerCase() === g.toLowerCase());
+  const toggle = (g: string) => onGroups(has(g) ? groups.filter((x) => x.toLowerCase() !== g.toLowerCase()) : [...groups, g].slice(0, 6));
+  const options = [...GROUP_PRESETS, ...groups.filter((g) => !GROUP_PRESETS.some((p) => p.toLowerCase() === g.toLowerCase()))];
+  const chip = (active: boolean) =>
+    cn("h-10 rounded-full border px-3.5 text-sm font-semibold transition-colors", active ? "border-primary bg-primary text-on-primary" : "border-border bg-surface hover:bg-surface-alt");
+  const addCustom = () => {
+    const name = custom.trim().slice(0, 24);
+    if (name && !has(name)) onGroups([...groups, name].slice(0, 6));
+    setCustom("");
+  };
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-semibold">Group (optional)</legend>
+      <div className="flex flex-wrap items-center gap-2">
+        {options.map((g) => (
+          <button key={g} type="button" aria-pressed={has(g)} className={chip(has(g))} onClick={() => toggle(g)}>
+            {g}
+          </button>
+        ))}
+        <button type="button" aria-pressed={favorite} className={chip(favorite)} onClick={() => onFavorite(!favorite)}>
+          {favorite ? "★" : "☆"} Favorite
+        </button>
+        <span className="flex items-center gap-1.5">
+          <Input
+            aria-label="Add another group"
+            placeholder="Another group…"
+            value={custom}
+            maxLength={24}
+            onChange={(e) => setCustom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustom();
+              }
+            }}
+            className="h-10 w-40"
+          />
+          {custom.trim() ? (
+            <Button size="sm" variant="secondary" onClick={addCustom}>
+              Add
+            </Button>
+          ) : null}
+        </span>
+      </div>
+    </fieldset>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Birthday: month, day, and a year only if you know it
 // ---------------------------------------------------------------------------
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -328,6 +390,8 @@ export interface ContactFormValues {
   cadenceDays: number | null;
   preferredChannel: Channel;
   lastContactedDay: string;
+  favorite: boolean;
+  groups: string[];
 }
 
 export const EMPTY_CONTACT: ContactFormValues = {
@@ -339,6 +403,8 @@ export const EMPTY_CONTACT: ContactFormValues = {
   cadenceDays: 14,
   preferredChannel: "TEXT",
   lastContactedDay: "",
+  favorite: false,
+  groups: [],
 };
 
 export function contactToForm(c: Contact): ContactFormValues {
@@ -351,6 +417,8 @@ export function contactToForm(c: Contact): ContactFormValues {
     cadenceDays: c.cadenceDays,
     preferredChannel: c.preferredChannel,
     lastContactedDay: c.lastContactedDay ?? "",
+    favorite: c.favorite,
+    groups: c.groups,
   };
 }
 
@@ -400,6 +468,8 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
       </Field>
 
       <CadencePicker value={v.cadenceDays} onChange={(d) => set("cadenceDays", d)} />
+
+      <GroupPicker groups={v.groups} favorite={v.favorite} onGroups={(g) => set("groups", g)} onFavorite={(f) => set("favorite", f)} />
 
       <Disclosure label={more ? "Fewer details" : "More details (optional): phone, email, birthday"} open={more} onToggle={() => setMore((m) => !m)}>
         <div className="grid gap-5 sm:grid-cols-2">

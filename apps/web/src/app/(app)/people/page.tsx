@@ -3,38 +3,35 @@
 import { FileUp, Plus, Search, UserSearch, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { dayInTimezone, dueStatus, type Contact } from "@koinonia/shared";
+import { PEOPLE_PAGE, dayInTimezone, filterPeople, groupsInUse, type PeopleFilter } from "@koinonia/shared";
 import { ContactList } from "@/components/contacts";
 import { Button, EmptyState, ErrorState, Input, PageHeader, Spinner } from "@/components/ui";
 import { useUser } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { useContacts } from "@/lib/hooks";
 
-type Filter = "all" | "due" | "none" | "archived";
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all", label: "Everyone" },
-  { key: "due", label: "Due" },
-  { key: "none", label: "No reminder" },
-  { key: "archived", label: "Archived" },
-];
-
 export default function PeoplePage() {
   const user = useUser();
   const today = dayInTimezone(new Date(), user.timezone);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<PeopleFilter>("all");
   const [q, setQ] = useState("");
+  const [shown, setShown] = useState(PEOPLE_PAGE);
   const { data, error, isPending, refetch } = useContacts({ archived: filter === "archived" });
 
-  const visible = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return (data ?? []).filter((c: Contact) => {
-      if (needle && !`${c.name} ${c.relationship ?? ""}`.toLowerCase().includes(needle)) return false;
-      const status = dueStatus(c.dueDay, today);
-      if (filter === "due") return status === "overdue" || status === "today";
-      if (filter === "none") return status === "none";
-      return true;
-    });
-  }, [data, q, filter, today]);
+  const visible = useMemo(() => filterPeople(data ?? [], { q, filter, today }), [data, q, filter, today]);
+  // The group chips come from the groups people are actually in.
+  const active = useContacts();
+  const filters: { key: PeopleFilter; label: string }[] = [
+    { key: "all", label: "Everyone" },
+    { key: "due", label: "Due" },
+    { key: "favorites", label: "★ Favorites" },
+    ...groupsInUse(active.data ?? []).map((g) => ({ key: `group:${g}` as PeopleFilter, label: g })),
+    { key: "archived", label: "Archived" },
+  ];
+  const pick = (next: PeopleFilter) => {
+    setFilter(next);
+    setShown(PEOPLE_PAGE);
+  };
 
   return (
     <>
@@ -64,15 +61,15 @@ export default function PeoplePage() {
       <div className="mb-4 space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-          <Input type="search" aria-label="Search people" placeholder="Search by name or relationship" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+          <Input type="search" aria-label="Search people" placeholder="Search by name, group, phone or email" value={q} onChange={(e) => { setQ(e.target.value); setShown(PEOPLE_PAGE); }} className="pl-9" />
         </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter people">
-          {FILTERS.map((f) => (
+          {filters.map((f) => (
             <button
               key={f.key}
               type="button"
               aria-pressed={filter === f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => pick(f.key)}
               className={cn(
                 "h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors",
                 filter === f.key ? "border-primary bg-primary text-on-primary" : "border-border bg-surface hover:bg-surface-alt",
@@ -104,7 +101,16 @@ export default function PeoplePage() {
           <EmptyState title="No matches" body="Nobody fits that search or filter." />
         )
       ) : (
-        <ContactList contacts={visible} today={today} actions={false} />
+        <>
+          <ContactList contacts={visible.slice(0, shown)} today={today} />
+          {visible.length > shown ? (
+            <div className="mt-4 text-center">
+              <Button variant="secondary" onClick={() => setShown((n) => n + PEOPLE_PAGE)}>
+                Show more ({visible.length - shown} more)
+              </Button>
+            </div>
+          ) : null}
+        </>
       )}
     </>
   );

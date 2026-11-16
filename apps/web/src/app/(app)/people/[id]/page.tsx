@@ -23,6 +23,7 @@ import { DueBadge, QuickActions, ReachOutModal } from "@/components/contacts";
 import { IntentionList, IntentionModal } from "@/components/prayer";
 import { Avatar, Badge, Button, Card, ErrorState, Field, FormError, IconButton, Input, SectionTitle, Spinner, Textarea } from "@/components/ui";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { useUser } from "@/lib/auth";
 import { useAction, useContact } from "@/lib/hooks";
 
@@ -224,6 +225,15 @@ export default function PersonPage() {
   const [logging, setLogging] = useState(false);
   const [praying, setPraying] = useState(false);
   const snooze = useAction((input: Parameters<typeof api.contacts.snooze>[1]) => api.contacts.snooze(id, input));
+  const star = useAction((favorite: boolean) => api.contacts.update(id, { favorite }));
+  // The page arrives with the latest 50 reach-outs; older ones are fetched on request.
+  const [older, setOlder] = useState<Interaction[]>([]);
+  const [noMore, setNoMore] = useState(false);
+  const loadOlder = useAction(async () => {
+    const page = await api.contacts.history(id, { offset: 50 + older.length });
+    setOlder((prev) => [...prev, ...page]);
+    if (page.length < 50) setNoMore(true);
+  });
 
   if (isPending) return <Spinner />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -251,9 +261,25 @@ export default function PersonPage() {
                     <Cake className="size-3" aria-hidden /> {birthdayLabel(contact.birthday)}
                   </Badge>
                 ) : null}
+                {contact.groups.map((g) => (
+                  <Badge key={g} tone="primary">
+                    {g}
+                  </Badge>
+                ))}
                 {contact.linkedUserId ? <Badge tone="forest">On Koinonia</Badge> : null}
               </div>
             </div>
+            <button
+              type="button"
+              aria-pressed={contact.favorite}
+              aria-label={contact.favorite ? `Remove ${contact.name} from favorites` : `Add ${contact.name} to favorites`}
+              title={contact.favorite ? "Favorite" : "Add to favorites"}
+              disabled={star.isPending}
+              onClick={() => star.mutate(!contact.favorite)}
+              className={cn("inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-xl leading-none hover:bg-surface-alt", contact.favorite ? "text-gold" : "text-muted")}
+            >
+              {contact.favorite ? "★" : "☆"}
+            </button>
             <Link href={`/people/${id}/edit`} aria-label={`Edit ${contact.name}`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-alt hover:text-text">
               <Pencil className="size-[18px]" />
             </Link>
@@ -333,13 +359,20 @@ export default function PersonPage() {
         <SectionTitle count={contact.interactions.length}>History</SectionTitle>
         {contact.interactions.length ? (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {contact.interactions.map((i) => (
+            {[...contact.interactions, ...older].map((i) => (
               <HistoryItem key={i.id} interaction={i} today={today} />
             ))}
           </ul>
         ) : (
           <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-muted">Each time you reach out, it lands here.</p>
         )}
+        {contact.interactions.length >= 50 && !noMore ? (
+          <div className="mt-3 text-center">
+            <Button variant="secondary" size="sm" loading={loadOlder.isPending} onClick={() => loadOlder.mutate(undefined)}>
+              Show older
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <ReachOutModal contact={contact} today={today} open={logging} onClose={() => setLogging(false)} />

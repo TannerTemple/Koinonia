@@ -8,3 +8,4 @@ export * from "./templates";
 export * from "./review";
 export * from "./vcard";
 export * from "./start";
+export * from "./people";
