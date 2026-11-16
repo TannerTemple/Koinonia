@@ -1,12 +1,12 @@
 # Koinonia — Status
 
-_Last updated: end of the fifth unattended round (end-to-end walkthrough and bug fixes, a simpler Today on web and mobile, polish)._
+_Last updated: end of the sixth unattended round (iPhone reminders, onboarding, export, hardening, flaky networks, people list, CI, phone test checklist)._
 
 > Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it.
 
 ## After `git pull`, run exactly this
 
-No new database migration and no new dependencies this round. Run the install anyway; it is quick.
+There is **one new database migration** this round (`reminder_time_groups_indexes`: reminder time, favorite, groups, indexes) and no new dependencies. `pnpm db:migrate` applies it; `pnpm db:seed` is optional and only refreshes the demo accounts.
 
 ```bash
 pnpm install
@@ -34,9 +34,31 @@ If `apps/api/.env` does not exist yet (fresh clone), create it before `pnpm db:m
 cp .env.example apps/api/.env
 ```
 
-`pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Optional new setting in `.env`: `TRUST_PROXY=true`, only if the API runs behind a reverse proxy.
+`pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Nothing new is required in `apps/api/.env`. Optional settings added this round, all off unless set: `PUSH_PROVIDER=expo` (real push) and `SENTRY_DSN` (error reporting); see `.env.example`.
 
-## What changed in this round (fifth)
+## What changed in this round (sixth)
+
+| Step | Result |
+| --- | --- |
+| 1. Hosting | **Skipped: already done.** Dockerfile, `/health` and `/health/ready`, `render.yaml`, and [docs/DEPLOY.md](docs/DEPLOY.md) for Neon (pooled `DATABASE_URL`, direct `DIRECT_URL`), Render and Vercel with every variable were delivered in round four. Nothing was missing. |
+| 2. Reminders on iPhone | Each person gets their own notification on the day they are due, at their own time (9am unless you pick another under More details). They are re-planned whenever anything changes (reach-out, "Not today", an edit), tapping one opens that person, and the app icon badge shows how many people are due. Permission is asked only after a screen explains what will be sent. Server: Resend email (`EMAIL_PROVIDER=resend`) and Expo push (`PUSH_PROVIDER=expo`) sit behind flags; mocks stay the default. |
+| 3. First-run welcome | Four short steps on both apps: what Koinonia does, add people (a name and one of four rhythms, or import), reminders (mobile) or a first prayer (web), done. Every step can be skipped; shown once. |
+| 4. Data safety | **Export my data**: one JSON file of everything, or spreadsheets (CSV) of people, notes, reach-outs and the prayer list. Web: Settings → Your data. Mobile: Profile → Export my data. Privacy and terms pages and the in-app links already existed. A test now fills every table and proves deleting an account empties each one and leaves other accounts alone. |
+| 5. Hardening | Every endpoint that changes something has a rate limit (a test fails if one doesn't). Optional Sentry error reporting behind `SENTRY_DSN`. New indexes. Lists page with `limit`/`offset`. CORS, security headers and log scrubbing were done in round four and are unchanged. Details: third part of [docs/REVIEW.md](docs/REVIEW.md). |
+| 6. Flaky networks (mobile) | Requests time out with a clear message instead of hanging; reads retry, writes never do. Notes and prayers are kept on the phone as you type and restored if the save failed or the app closed. An offline strip offers "Try again". |
+| 7. People list | Filters: Everyone, Due, Favorites, one per group in use, Archived. A favorite star and groups (Family, Friends, Ministry, Work, or your own) on each person. Search also matches group, email and phone digits. 50 at a time with "Show more"; older history loads on request. |
+| 8. CI | `.github/workflows/ci.yml` runs `pnpm check` (against PostgreSQL) and the three production builds on every push and pull request. **It ran on GitHub and passed.** |
+| 9. Phone checklist | [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md): a 10-minute tick-box list of exactly what could not be run here. [docs/APP_STORE.md](docs/APP_STORE.md) gained icon and splash requirements (the current images meet them). |
+
+**How this round was tested**
+
+- 211 automated tests (API 149 plus 2 opt-in live email tests skipped by default, shared 41, mobile 19), all passing locally and on GitHub.
+- In a real browser, on the web app and the mobile preview: the welcome flow, every main flow again end to end, people filters / star / groups / reminder time, export downloads, a save that fails with the network cut, drafts restoring after the screen is closed, and the offline strip appearing and clearing.
+
+**One thing I found in my own work.** The per-endpoint write limits were first recorded but not enforced, because the hook was registered after the rate limiter. The test that sends 62 requests caught it before it was pushed.
+
+
+## What changed in the fifth round
 
 You said the web app was confusing and asked for something a 12-year-old and a 70-year-old could both use, centred on reaching out and praying. That is what this round was about.
 
@@ -145,9 +167,9 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 | Milestone | State | How it was verified |
 | --- | --- | --- |
 | 1. Scaffold | Done | `pnpm check` (lint + typecheck + tests) passes |
-| 2. Backend core | Done | 121 API tests against real PostgreSQL, 35 shared-logic tests |
+| 2. Backend core | Done | 149 API tests against real PostgreSQL, 41 shared-logic tests |
 | 3. Web app core | Done | Production build; full flow run in a headless browser (desktop light, phone dark) with no console errors |
-| 4. iOS app core | Done, see caveat | Typecheck, lint, 14 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
+| 4. iOS app core | Done, see caveat | Typecheck, lint, 19 unit tests, `expo export --platform ios` succeeds; screens and the main flows run in a browser preview |
 | 5. Nice-to-haves | Done (three) | Calendar feed covered by API tests; starters and birthdays seen in the browser runs |
 | 6. Polish | Done | Empty, loading and error states on every screen; labels and roles on controls; README |
 
@@ -161,7 +183,13 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 
 ## Stubbed, unfinished, or not verified
 
-- **iOS app has not been run on a simulator or device** (none available here). It typechecks, bundles for iOS, and every main flow ran in a browser preview with no errors (list in "What changed in this round"). Expect small layout fixes on a real iPhone.
+- **The iPhone app has still never run on a simulator or device.** It typechecks, bundles for iOS, and every flow passes in a browser preview. [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md) is the 10-minute list of what only a phone can prove.
+- **Notifications are untested on a device.** The planning (who, which day, what time, badge number) is covered by unit tests; the actual scheduling, the system prompt, the badge and tap-to-open (including when the app was closed) are sections 3 and 4 of the phone checklist.
+- **Export on iPhone goes through the share sheet as text**, not as a file attachment (that needs two native modules that could not be installed or tried here). Web and the browser preview save real files.
+- **Sentry and Expo push have never talked to the real services** (the build environment cannot reach them); both are covered with the network stubbed. Same as Resend.
+- **Drafts are kept for notes and prayers only**, not for the reach-out summary or the person form.
+- **Per-person reminder time is set in the iPhone app only.** The web form does not show it (the web app sends no notifications) and leaves it untouched.
+- **CI runs twice per push while a pull request is open** (once for the push, once for the pull request), as asked ("pushes and PRs"). Harmless; limit `push` to `main` in the workflow if the duplication bothers you.
 - **Reset and verification links open the web app.** In the iPhone app you paste the code from the same email. Opening the app straight from the email (universal links) needs a real domain and Apple setup.
 - **Unverified accounts are not restricted**; they see a "Confirm your email" banner (decision 33).
 - **Nothing has been deployed.** DEPLOY.md and `render.yaml` have not been followed on real Neon, Render or Vercel accounts (none may be created here). `render.yaml` was checked for valid syntax only. A pooled Neon connection has not been tried.
@@ -170,11 +198,10 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 - **The privacy policy and terms are drafts, not legal advice.** They show a "Draft" banner and [BRACKETED] placeholders (operator name, contact address, governing law, hosting region, backup retention, liability cap) until you fill in `apps/web/src/lib/legal.ts`, have them reviewed, and set `LEGAL_DRAFT = false`.
 - **No EAS build or App Store submission has been made.** `eas.json` and the commands in APP_STORE.md are untested, and `eas.json` holds placeholder server addresses.
 - **Screen labels on Neon, Render, Vercel, Resend, Expo and App Store Connect are from memory** and change often; prices and free-tier terms too.
-- **Native-only features are untested at runtime:** local notifications, reading the address book for contact import (expo-contacts), Keychain storage, haptics, the native tab bar.
+- **Other native-only features are untested at runtime:** reading the address book for contact import, Keychain storage (sign-in and drafts), haptics, the native tab bar.
 - **Email, SMS and push run on mocks by default.** Email switches to Resend with `EMAIL_PROVIDER=resend`. The Twilio and Expo push adapters are written and unit-tested with the network stubbed, but have never been called for real.
 - **Daily digest is off by default** (`DIGEST_ENABLED=false`).
-- **No Sign in with Apple / Google. No way to change your email address.**
-- **Web import reads vCard (.vcf) files only**, not CSV.
+- **No Sign in with Apple / Google. No way to change your email address. Web import reads vCard only.**
 - **"Remind me later" offers fixed choices** ("Not today" = tomorrow, and "Next week" on a person's page), not a date picker.
 - **Admin is web only.**
 - **Android** is configured but untried.
@@ -233,12 +260,13 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 
 ## What you need to do next
 
-1. **Merge the pull request** (or deploy its branch).
-2. **Deploy** by following [docs/DEPLOY.md](docs/DEPLOY.md) top to bottom: Neon, then Render, then Vercel, then real email. About an hour the first time. Tell me where a step did not match what you saw and I will correct the guide.
-3. **Finish the legal pages**: fill in `apps/web/src/lib/legal.ts`, get them reviewed, set `LEGAL_DRAFT = false`.
-4. **Ship to TestFlight** by following [docs/APP_STORE.md](docs/APP_STORE.md): choose the real bundle identifier, put the server addresses in `apps/mobile/eas.json`, `eas init`, build, submit.
-5. **On the phone, walk the flows once** (the list is in APP_STORE.md) and send me anything that looks off. The iPhone app has still never run on a device.
-6. **Turn on two-factor sign-in** on GitHub, Neon, Render, Vercel, Resend, Expo and Apple before real people's data is in there.
+1. **Pull and migrate** (commands at the top of this file).
+2. **Merge the pull request** when you are happy; CI is green on it.
+3. **Deploy** with [docs/DEPLOY.md](docs/DEPLOY.md): Neon, Render, Vercel, then real email. About an hour the first time. Tell me where a step did not match what you saw.
+4. **Build for TestFlight** with [docs/APP_STORE.md](docs/APP_STORE.md): choose the real bundle identifier, put the server addresses in `apps/mobile/eas.json`, `eas init`, build, submit.
+5. **Run [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md)** on your iPhone: 10 minutes, and send me the numbers of anything that fails.
+6. **Finish the legal pages**: fill in `apps/web/src/lib/legal.ts`, have them reviewed, set `LEGAL_DRAFT = false`.
+7. **Turn on two-factor sign-in** on GitHub, Neon, Render, Vercel, Resend, Expo and Apple.
 
 ## Suggested next features
 
@@ -246,9 +274,9 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 - Home-screen widget and lock-screen "who's due" on iOS
 - Share an intention with the person you're praying for ("I prayed for you today")
 - Groups (family, small group) with shared prayer lists
-- Per-person reminder time; calendar picker for snooze and birthday
-- CSV import on web; merge duplicates
+- A calendar picker for "remind me later"; reminder time on the web form
+- CSV import on web; merge duplicates; export as a real file on iPhone
 - Liturgical touches: saint of the day, novena tracking, rosary intentions
 - Weekly review as a Sunday email or push; month and year views
 
-See [docs/PLAN.md](docs/PLAN.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/REVIEW.md](docs/REVIEW.md), [docs/BUGS.md](docs/BUGS.md), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/APP_STORE.md](docs/APP_STORE.md) and [README.md](README.md).
+See [docs/PLAN.md](docs/PLAN.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/REVIEW.md](docs/REVIEW.md), [docs/BUGS.md](docs/BUGS.md), [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/APP_STORE.md](docs/APP_STORE.md) and [README.md](README.md).

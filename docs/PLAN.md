@@ -67,6 +67,7 @@ counters to drift.
 - Devices: `POST /devices`
 - Admin: `GET /admin/stats`, `GET /admin/users`, `PATCH /admin/users/:id`
 - Calendar (nice-to-have): `GET /calendar.ics?token=`
+- Export: `GET /me/export` (JSON), `GET /me/export/<table>.csv`
 
 ## Screens
 
@@ -152,3 +153,14 @@ counters to drift.
 - [x] End-to-end walkthrough on web and the mobile preview; findings in `docs/BUGS.md`, fixed
 - [x] Today rebuilt around two sections, "Reach out" and "Pray"; getting-started card for new accounts
 - [x] Shorter forms, plain wording, worded buttons, larger web text, better empty states
+
+### 11. Sixth round
+- [x] iPhone reminders: per-person time, re-planned on change, tap opens the person, badge, permission after an explanation
+- [x] Expo push behind `PUSH_PROVIDER`; Resend already behind `EMAIL_PROVIDER`
+- [x] First-run welcome on web and mobile
+- [x] Export (JSON and CSV); deletion verified table by table
+- [x] Write rate limits, optional Sentry, indexes, pagination
+- [x] Mobile timeouts, retries, offline notice, drafts
+- [x] People list filters, favorites, groups
+- [x] CI workflow (passing on GitHub)
+- [x] `docs/TEST_ON_PHONE.md`; icon and splash requirements in `docs/APP_STORE.md`
