@@ -14,6 +14,8 @@
     "db:migrate": "node scripts/prisma.mjs migrate deploy && node scripts/prisma.mjs generate",
     "db:migrate:dev": "node scripts/prisma.mjs migrate dev",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
+    "db:seed:prod": "node scripts/seed-prod.mjs",
+    "make-admin": "node scripts/make-admin.mjs",
     "db:reset": "node scripts/prisma.mjs migrate reset --force && pnpm db:seed",
     "digest": "tsx --env-file-if-exists=.env src/jobs/run-digest.ts",
     "email:test": "tsx --env-file-if-exists=.env src/jobs/send-test-email.ts"

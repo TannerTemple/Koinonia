@@ -113,6 +113,17 @@ async function main() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Refusing to seed: NODE_ENV is production. The seed creates demo accounts with public passwords.");
   }
+  // NODE_ENV is not set when someone runs this from a laptop with a hosted address pasted in.
+  const host = (() => {
+    try {
+      return new URL(process.env.DATABASE_URL ?? "").hostname;
+    } catch {
+      return "";
+    }
+  })();
+  if (!["localhost", "127.0.0.1", "::1", "[::1]", "db"].includes(host) && process.env.SEED_DEMO_ANYWHERE !== "yes") {
+    throw new Error(`Refusing to seed: the database is on "${host}", not this computer. The seed creates demo accounts with public passwords. For a real database use: pnpm db:seed:prod`);
+  }
   await prisma.user.deleteMany({ where: { email: { endsWith: "@koinonia.app" } } });
 
   await prisma.user.create({
