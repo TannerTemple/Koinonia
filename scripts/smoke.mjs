@@ -70,6 +70,7 @@ const account = { name: "Smoke Test", email: `smoke-${stamp}@example.com`, passw
 let token = null;
 let personId = null;
 let created = false;
+let proxied = true;
 
 console.log(`\nKoinonia smoke test\n  API: ${api}\n  Web: ${web ?? "(not given; web checks skipped)"}\n`);
 
@@ -108,10 +109,18 @@ if (web) {
     if (r.status !== 200) throw fail(`answered ${r.status}`, "Vercel > project > Deployments: open the latest one and read the build log. Root Directory must be apps/web.");
     if (!/koinonia/i.test(r.text)) throw fail("a page loaded, but it is not Koinonia", "Check the web address.");
   });
-  await check("Web app forwards /api to the API", async () => {
-    const r = await call(web, "/api/health");
-    if (r.status !== 200 || (r.json?.status !== "ok" && r.json?.ok !== true)) throw fail(`${web}/api/health answered ${r.status}`, `Vercel > Settings > Environment Variables: API_PROXY_TARGET must be ${api}. Then Deployments > ... > Redeploy.`);
-  });
+  // On your own computer the web app talks to the API directly; there is no /api forwarding to test.
+  const localWeb = ["localhost", "127.0.0.1"].includes(new URL(web).hostname);
+  const probe = localWeb ? await call(web, "/api/health").catch(() => null) : null;
+  if (localWeb && probe?.status !== 200) {
+    proxied = false;
+    skip("Web app forwards /api to the API", "local development calls the API directly");
+  } else {
+    await check("Web app forwards /api to the API", async () => {
+      const r = await call(web, "/api/health");
+      if (r.status !== 200 || (r.json?.status !== "ok" && r.json?.ok !== true)) throw fail(`${web}/api/health answered ${r.status}`, `Vercel > Settings > Environment Variables: API_PROXY_TARGET must be ${api}. Then Deployments > ... > Redeploy.`);
+    });
+  }
 } else {
   skip("CORS, web app, /api forwarding", "no web address given");
 }
@@ -151,7 +160,7 @@ if (created) {
     const r = await call(api, "/v1/contacts");
     if (r.status !== 401) throw fail(`answered ${r.status}`, "Redeploy the API from the latest commit.");
   });
-  if (web) {
+  if (web && proxied) {
     await check("Web sign-in keeps you signed in (cookie through /api)", async () => {
       const r = await call(web, "/api/v1/auth/login", { method: "POST", headers: { "X-Koinonia-Client": "web", Origin: new URL(web).origin }, body: { email: account.email, password: account.password } });
       if (r.status !== 200) throw fail(`answered ${r.status}: ${said(r)}`, `Vercel: API_PROXY_TARGET must be ${api}; redeploy.`);

@@ -1,5 +1,8 @@
 # Deploying Koinonia: Neon + Render + Vercel
 
+> **In a hurry?** [TONIGHT.md](TONIGHT.md) is the same deployment as a one-page checklist. This
+> file is the reference: every variable, why it is there, and the optional extras.
+
 | Piece | Host | What it is |
 | --- | --- | --- |
 | Database | **Neon** | PostgreSQL. Two connection strings: pooled (`DATABASE_URL`) and direct (`DIRECT_URL`). |
@@ -27,9 +30,9 @@ below tell you when.
 | --- | --- | --- |
 | `DATABASE_URL` | Neon **pooled** connection string | Host contains `-pooler`. Used by the running API. |
 | `DIRECT_URL` | Neon **direct** connection string | Host has no `-pooler`. Used only to apply migrations when the API starts. |
-| `WEB_URL` | `https://YOUR-WEB.vercel.app` | **You choose.** The web app's address. Goes into the links in emails. No trailing slash. |
-| `CORS_ORIGINS` | same as `WEB_URL` | Browser origins allowed to call the API. Comma-separate if there are several. Never `*`. |
-| `API_PUBLIC_URL` | `https://YOUR-API.onrender.com` | **You choose.** The API's own address. Used to build calendar links. |
+| `WEB_URL` | `https://YOUR-WEB.vercel.app` | **You choose.** The web app's address. Goes into the links in emails, and is the browser origin allowed to call the API. Added by hand in step 4. |
+| `CORS_ORIGINS` | do not set | Defaults to `WEB_URL`. Set it only to allow more than one origin (comma-separated, never `*`). |
+| `API_PUBLIC_URL` | do not set | Defaults to the address Render gives the service. Set it only when the API has its own domain. |
 | `NODE_ENV` | `production` | Set by `render.yaml`. |
 | `TRUST_PROXY` | `1` | Set by `render.yaml`. Render has one proxy in front of the service. |
 | `EMAIL_PROVIDER` | `mock`, later `resend` | Set by `render.yaml`. See "Real email". |
@@ -43,8 +46,8 @@ below tell you when.
 
 | Variable | Value | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `/api` | Yes, a path, not the Render address. See "Why `/api`" below. |
-| `API_PROXY_TARGET` | `https://YOUR-API.onrender.com` | The web app forwards `/api/*` here. No trailing slash. |
+| `API_PROXY_TARGET` | `https://YOUR-API.onrender.com` | **The only one required.** The web app forwards `/api/*` here. The build stops with a plain message if it is missing. |
+| `NEXT_PUBLIC_API_URL` | do not set | Defaults to `/api` when `API_PROXY_TARGET` is set. See "Why `/api`" below. |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | your contact address | Shown on the privacy and terms pages. |
 | `NEXT_PUBLIC_OPERATOR_NAME` | your name or company | Shown on the privacy and terms pages. |
 
@@ -120,15 +123,12 @@ health check, auto-deploy), so most settings are filled in for you.
 2. If asked, click **Connect GitHub** and give Render access to the `Koinonia` repository.
 3. Pick the **Koinonia** repository from the list.
 4. **Blueprint Name:** `koinonia`. **Branch:** `main`.
-5. Render shows one service, **koinonia-api**, and asks for five values. Fill them in:
+5. Render shows one service, **koinonia-api**, and asks for two values. Paste them without quotes:
 
    | Field | What to paste |
    | --- | --- |
    | `DATABASE_URL` | the **pooled** Neon string |
    | `DIRECT_URL` | the **direct** Neon string |
-   | `WEB_URL` | `https://koinonia.vercel.app` for now (corrected in step 4) |
-   | `CORS_ORIGINS` | the same as `WEB_URL` |
-   | `API_PUBLIC_URL` | `https://koinonia-api.onrender.com` for now (corrected in a moment) |
 
 6. Click **Deploy Blueprint** (or **Apply**). Render asks for a payment method if you have none,
    because the Starter instance is paid.
@@ -146,8 +146,7 @@ health check, auto-deploy), so most settings are filled in for you.
 8. At the top of the service page is its address, something like
    `https://koinonia-api.onrender.com` (Render adds a suffix if the name is taken). Paste it into
    your text file as **the Render address**.
-9. If it differs from what you typed for `API_PUBLIC_URL`: left menu → **Environment** → edit
-   `API_PUBLIC_URL` → **Save Changes** (Render redeploys).
+9. The API works out its own public address from Render; there is nothing to set.
 10. Check it from your computer. Both must answer with `"ok":true`:
 
     ```bash
@@ -183,8 +182,7 @@ the Render table above → **Create Web Service**.
 
    | Key | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_API_URL` | `/api` |
-   | `API_PROXY_TARGET` | the Render address, e.g. `https://koinonia-api.onrender.com` |
+   | `API_PROXY_TARGET` | the Render address, e.g. `https://koinonia-api.onrender.com` (required) |
    | `NEXT_PUBLIC_CONTACT_EMAIL` | the address people should write to |
    | `NEXT_PUBLIC_OPERATOR_NAME` | your name or company |
 
@@ -199,8 +197,8 @@ the Render table above → **Create Web Service**.
 ## Step 4. Tell the API the web app's real address
 
 1. Render → **koinonia-api** → **Environment**.
-2. Set `WEB_URL` to the Vercel address, exactly, with `https://` and no trailing slash.
-3. Set `CORS_ORIGINS` to the same value.
+2. **Add Environment Variable**: `WEB_URL` = the Vercel address, with `https://`.
+3. Leave `CORS_ORIGINS` unset; it follows `WEB_URL`.
 4. **Save Changes**. Wait for the redeploy to finish (a minute or two).
 5. Open **Logs**. Near the start, lines beginning with a warning tell you about any setting that is
    still wrong for a public site. Right now you should see only the one about `EMAIL_PROVIDER=mock`.
@@ -210,17 +208,25 @@ the Render table above → **Create Web Service**.
 1. Open the Vercel address. Click **Create an account** and sign up with your real email.
 2. You should land on Today and stay signed in when you reload the page. (If reloading signs you
    out, see "If something goes wrong".)
-3. Make yourself an admin: Neon console → your project → **SQL Editor** → paste, with your email →
-   **Run**:
+3. Make yourself an admin, from the Koinonia folder on your computer, with your email and the
+   **direct** Neon string:
 
-   ```sql
-   UPDATE "User" SET role = 'ADMIN' WHERE email = 'you@example.com';
+   ```bash
+   pnpm make-admin you@example.com --db "postgresql://...your DIRECT_URL..."
    ```
 
+   It changes that one account and nothing else, and running it twice is harmless.
 4. Reload the web app. **Admin** appears in the menu.
+5. Check the whole deployment from outside (it makes and deletes a throwaway account):
 
-Never run `pnpm db:seed` against this database: it creates demo accounts with published passwords.
-(It refuses to run when `NODE_ENV=production`.)
+   ```bash
+   pnpm smoke https://YOUR-API.onrender.com https://YOUR-WEB.vercel.app
+   ```
+
+Never run `pnpm db:seed` against this database: it creates demo accounts with published passwords,
+and it refuses any database that is not on your own computer. The production-safe counterpart,
+`pnpm db:seed:prod --db "..."`, creates nothing: it reports whether migrations are applied, how
+many accounts and admins exist, and whether any demo accounts slipped in.
 
 ## Step 6. Real email (needed for "Forgot password")
 
@@ -324,7 +330,7 @@ pg_dump "YOUR_DIRECT_URL" > koinonia-backup.sql
 | What you see | Likely cause and fix |
 | --- | --- |
 | Render build fails at `pnpm install --frozen-lockfile` | `pnpm-lock.yaml` does not match a `package.json`. Run `pnpm install` locally, commit the lockfile, push. |
-| Render log: `Invalid environment: CORS_ORIGINS ...` | It must be plain origins like `https://koinonia.vercel.app`: no path, no trailing slash, no `*`. |
+| Render log: `Koinonia API cannot start` or `Koinonia cannot apply database migrations` | The lines under it name each wrong variable and say what to paste instead. Fix under Environment, Save Changes. |
 | Render log: `Invalid environment: ...` (anything else) | The message names the variable that is missing or malformed. |
 | Render log: `P1001` / `Can't reach database server` during migrations | `DIRECT_URL` is wrong or missing `?sslmode=require`. |
 | Render log: `P1002` or a timeout during migrations | `DIRECT_URL` holds the pooled string. It must be the one **without** `-pooler`. |
