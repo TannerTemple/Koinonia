@@ -1,7 +1,7 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, DEFAULT_REMINDER_TIME, GROUP_PRESETS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel, type Contact } from "@koinonia/shared";
+import { CADENCE_PRESETS, isCommonCadence, CHANNELS, CHANNEL_LABELS, DEFAULT_REMINDER_TIME, GROUP_PRESETS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel, type Contact } from "@koinonia/shared";
 import { BirthdayField, Disclosure, DraftNotice, Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
@@ -75,6 +75,8 @@ export default function ContactFormScreen() {
   const [groups, setGroups] = useState<string[]>([]);
   const [cadenceDays, setCadenceDays] = useState<number | null>(14);
   const [custom, setCustom] = useState(false);
+  // Four rhythms cover most people; the rest appear on request, or when one of them is already chosen.
+  const [moreRhythms, setMoreRhythms] = useState(false);
   const [preferredChannel, setChannel] = useState<Channel>("TEXT");
   const [lastTalked, setLastTalked] = useState<string | null>(null);
 
@@ -128,6 +130,8 @@ export default function ContactFormScreen() {
     if (hydrated) keep(snapshot === stored ? "" : snapshot);
   }, [hydrated, snapshot, stored, keep]);
 
+  const allRhythms = moreRhythms || custom || !isCommonCadence(cadenceDays);
+
   const save = useAction(() => {
     const input = { name, phone, email, relationship, birthday: joinBirthday(birthday), cadenceDays, preferredChannel, reminderTime, favorite, groups };
     return id ? api.contacts.update(id, input) : api.contacts.create({ ...input, lastContactedDay: lastTalked });
@@ -158,11 +162,17 @@ export default function ContactFormScreen() {
       <View>
         <Label>How often do you want to reach out?</Label>
         <ChipRow>
-          {CADENCE_PRESETS.map((p) => (
+          {CADENCE_PRESETS.filter((p) => allRhythms || isCommonCadence(p.days)).map((p) => (
             <Chip key={p.days} label={p.label} selected={!custom && cadenceDays === p.days} onPress={() => { setCustom(false); setCadenceDays(p.days); }} />
           ))}
-          <Chip label="Custom" selected={custom} onPress={() => { setCustom(true); setCadenceDays((d) => d ?? 10); }} />
-          <Chip label="No reminder" selected={!custom && cadenceDays === null} onPress={() => { setCustom(false); setCadenceDays(null); }} />
+          {allRhythms ? (
+            <>
+              <Chip label="Custom" selected={custom} onPress={() => { setCustom(true); setCadenceDays((d) => d ?? 10); }} />
+              <Chip label="No reminder" selected={!custom && cadenceDays === null} onPress={() => { setCustom(false); setCadenceDays(null); }} />
+            </>
+          ) : (
+            <Chip label="Other…" selected={false} onPress={() => setMoreRhythms(true)} />
+          )}
         </ChipRow>
         {custom ? (
           <View style={{ marginTop: space.md }}>
@@ -180,6 +190,7 @@ export default function ContactFormScreen() {
         ) : null}
       </View>
 
+      <Disclosure label={more ? "Fewer details" : "More details (optional): phone, birthday, group"} open={more} onToggle={() => setMore((m) => !m)}>
       <View>
         <Label>Group (optional)</Label>
         <ChipRow>
@@ -191,7 +202,6 @@ export default function ContactFormScreen() {
         </ChipRow>
       </View>
 
-      <Disclosure label={more ? "Fewer details" : "More details (optional): phone, email, birthday"} open={more} onToggle={() => setMore((m) => !m)}>
       <Field label="Phone" value={phone} onChangeText={setPhone} error={errors.phone} keyboardType="phone-pad" placeholder="(555) 010-2000" />
       <Field label="Email" value={email} onChangeText={setEmail} error={errors.email} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="maria@example.com" />
       <Field label="Who are they to you?" value={relationship} onChangeText={setRelationship} error={errors.relationship} maxLength={40} placeholder="College friend, Family, Small group…" />

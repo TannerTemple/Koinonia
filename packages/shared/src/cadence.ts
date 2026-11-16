@@ -11,6 +11,10 @@ export const CADENCE_PRESETS = [
   { days: 365, label: "Once a year" },
 ] as const;
 
+/** The rhythms offered first; the rest sit behind "Other". Fewer choices, faster start. */
+export const COMMON_CADENCE_DAYS: readonly number[] = [7, 14, 28, 90];
+export const isCommonCadence = (days: number | null) => days !== null && COMMON_CADENCE_DAYS.includes(days);
+
 export const MAX_CADENCE_DAYS = 730;
 
 export function cadenceLabel(days: number | null | undefined): string {

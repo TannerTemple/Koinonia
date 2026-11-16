@@ -37,10 +37,10 @@ export default function PeoplePage() {
     <>
       <PageHeader
         title="People"
-        subtitle={data ? `${data.length} ${data.length === 1 ? "person" : "people"}${filter === "archived" ? " archived" : " you're keeping up with"}` : undefined}
+        subtitle={data?.length ? `${data.length} ${data.length === 1 ? "person" : "people"}${filter === "archived" ? " archived" : " you're keeping up with"}` : undefined}
         action={
           <div className="flex flex-wrap gap-2">
-            <Link href="/people/find">
+            <Link href="/people/find" className={cn(data?.length === 0 && "hidden")}>
               <Button variant="secondary">
                 <UserSearch className="size-4" aria-hidden /> Find
               </Button>
@@ -58,7 +58,8 @@ export default function PeoplePage() {
           </div>
         }
       />
-      <div className="mb-4 space-y-3">
+      {/* With nobody on the list there is nothing to search or filter. */}
+      <div className={cn("mb-4 space-y-3", data?.length === 0 && "hidden")}>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
           <Input type="search" aria-label="Search people" placeholder="Search by name, group, phone or email" value={q} onChange={(e) => { setQ(e.target.value); setShown(PEOPLE_PAGE); }} className="pl-9" />

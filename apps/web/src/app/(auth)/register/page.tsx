@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 
 export default function RegisterPage() {
   const { signIn } = useAuth();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
   const errors = fieldErrors(error);
@@ -39,9 +39,6 @@ export default function RegisterPage() {
       </Field>
       <Field label="Email" error={errors.email}>
         {(p) => <Input {...p} type="email" autoComplete="email" value={form.email} onChange={set("email")} required />}
-      </Field>
-      <Field label="Phone" hint="Optional. Lets friends find you by number." error={errors.phone}>
-        {(p) => <Input {...p} type="tel" autoComplete="tel" value={form.phone} onChange={set("phone")} />}
       </Field>
       <Field label="Password" hint="At least 8 characters." error={errors.password}>
         {(p) => <Input {...p} type="password" autoComplete="new-password" value={form.password} onChange={set("password")} required minLength={8} />}

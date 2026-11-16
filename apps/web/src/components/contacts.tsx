@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   CADENCE_PRESETS,
+  isCommonCadence,
   CHANNELS,
   GROUP_PRESETS,
   CHANNEL_LABELS,
@@ -232,6 +233,9 @@ export function QuickActions({ contact }: { contact: Contact }) {
 export function CadencePicker({ value, onChange }: { value: number | null; onChange: (days: number | null) => void }) {
   const isPreset = value === null || CADENCE_PRESETS.some((p) => p.days === value);
   const [custom, setCustom] = useState(!isPreset);
+  // Four rhythms cover most people; the rest appear on request, or when one of them is already chosen.
+  const [moreRhythms, setMoreRhythms] = useState(false);
+  const all = moreRhythms || custom || !isCommonCadence(value);
   const chip = (active: boolean) =>
     cn(
       "h-10 rounded-full border px-3.5 text-sm font-semibold transition-colors",
@@ -242,7 +246,7 @@ export function CadencePicker({ value, onChange }: { value: number | null; onCha
     <fieldset>
       <legend className="mb-1.5 text-sm font-semibold">How often do you want to reach out?</legend>
       <div className="flex flex-wrap gap-2">
-        {CADENCE_PRESETS.map((p) => (
+        {CADENCE_PRESETS.filter((p) => all || isCommonCadence(p.days)).map((p) => (
           <button
             key={p.days}
             type="button"
@@ -256,12 +260,20 @@ export function CadencePicker({ value, onChange }: { value: number | null; onCha
             {p.label}
           </button>
         ))}
+        {all ? (
+          <>
         <button type="button" aria-pressed={custom} className={chip(custom)} onClick={() => { setCustom(true); onChange(value ?? 10); }}>
           Custom
         </button>
         <button type="button" aria-pressed={!custom && value === null} className={chip(!custom && value === null)} onClick={() => { setCustom(false); onChange(null); }}>
           No reminder
         </button>
+          </>
+        ) : (
+          <button type="button" className={chip(false)} onClick={() => setMoreRhythms(true)} >
+            Other…
+          </button>
+        )}
       </div>
       {custom ? (
         <label className="mt-3 flex items-center gap-2 text-sm">
@@ -443,7 +455,7 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
   const [saving, setSaving] = useState(false);
   const errors = fieldErrors(error);
   // Open when there is already something inside, and whenever a problem is inside.
-  const hasDetails = Boolean(initial.phone || initial.email || initial.relationship || initial.birthday.month || initial.lastContactedDay || initial.reminderTime);
+  const hasDetails = Boolean(initial.phone || initial.email || initial.relationship || initial.birthday.month || initial.lastContactedDay || initial.reminderTime || initial.groups.length || initial.favorite);
   const hiddenError = ["phone", "email", "relationship", "birthday", "lastContactedDay", "reminderTime"].some((key) => errors[key]);
   const [more, setMore] = useState(hasDetails);
   useEffect(() => {
@@ -475,9 +487,8 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
 
       <CadencePicker value={v.cadenceDays} onChange={(d) => set("cadenceDays", d)} />
 
-      <GroupPicker groups={v.groups} favorite={v.favorite} onGroups={(g) => set("groups", g)} onFavorite={(f) => set("favorite", f)} />
-
-      <Disclosure label={more ? "Fewer details" : "More details (optional): phone, email, birthday"} open={more} onToggle={() => setMore((m) => !m)}>
+      <Disclosure label={more ? "Fewer details" : "More details (optional): phone, birthday, group"} open={more} onToggle={() => setMore((m) => !m)}>
+        <GroupPicker groups={v.groups} favorite={v.favorite} onGroups={(g) => set("groups", g)} onFavorite={(f) => set("favorite", f)} />
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Phone" error={errors.phone}>
             {(p) => <Input {...p} type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} autoComplete="off" placeholder="(555) 010-2000" />}

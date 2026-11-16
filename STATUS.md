@@ -48,13 +48,14 @@ cp .env.example apps/api/.env
 | 4. Tonight | [docs/TONIGHT.md](docs/TONIGHT.md): one page, in order, each step ending in what success looks like, plus the five likeliest errors. [docs/DEPLOY.md](docs/DEPLOY.md) is updated to match and stays as the reference. |
 | 5. Known gaps | iPhone export now hands the share sheet a real file. The person form and the reach-out screen keep drafts. The web person form has "Reminder time on your iPhone" under More details. CI runs once per change (pull requests, and pushes to `main`). |
 | 6. Feedback | "Send feedback or report a problem" in Settings (web) and Profile (phone): three choices, one box, Send. Messages carry the app version and platform, are saved and shown under **Admin → Feedback** on the web, and are also emailed if you set `FEEDBACK_EMAIL` on Render. |
-| 7. Final pass | Your message was cut off after "7. A final first", so I took it as a final first-run pass (decision 121): a brand-new clone, installed, migrated, started, smoke-tested, then walked through as a first-time user on web and in the phone preview. All passed. |
+| 7. First-time-user pass | Every first-run screen on web (phone and desktop width) and the phone preview was captured and looked at as a newcomer. Four rough edges fixed: sign-up no longer asks for a phone number (three boxes: name, email, password); an empty People or Prayer list no longer shows search, filters and counts; the add-person form offers four rhythms (every week, 2 weeks, 4 weeks, 3 months) with the rest behind "Other…"; and Group and Favorite moved under "More details". Then every end-to-end browser test was run again: web walk at two widths, phone-preview walk, drafts, feedback, people list and bad-network tests all pass. Also verified from a brand-new clone (install, migrate, start, smoke test). |
 
 **How this round was tested**
 
 - 223 automated tests (API 163 plus 2 opt-in live email tests skipped by default, shared 41, mobile 19), all passing.
 - The production path, as far as this environment allows: the Dockerfile's steps replayed by hand, the result started in production mode with a clean environment against an empty PostgreSQL (all 5 migrations applied the way Render does it), the web app built and started the way Vercel does it with only `API_PROXY_TARGET` set, and `pnpm smoke` passing all 14 checks against the pair.
 - Each wrong-setting message was triggered for real (missing address, swapped Neon addresses, `psql '...'` pasted, bad `WEB_URL`, unreachable database).
+- After the first-time-user fixes, all seven browser test scripts were re-run and pass.
 - In a real browser: drafts on the person and reach-out forms (failed save, close, reopen, Start over, save once), the web reminder time, feedback from both apps appearing under Admin, and the first-run walks.
 
 **Not tried, because it cannot be here:** the real Neon, Render and Vercel; `docker build` itself; Expo Go on a phone; the iPhone file export on a device.

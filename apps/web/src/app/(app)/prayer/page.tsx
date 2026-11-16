@@ -80,7 +80,7 @@ export default function PrayerPage() {
       {active.length > 0 ? <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => setChoosing(true) : undefined} /> : null}
 
       <div>
-        <div className="mb-5 flex gap-2" role="group" aria-label="Filter the prayer list">
+        <div className={cn("mb-5 flex gap-2", all.length === 0 && "hidden")} role="group" aria-label="Filter the prayer list">
           {TABS.map((t) => (
             <button
               key={t.key}

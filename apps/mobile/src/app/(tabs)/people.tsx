@@ -33,6 +33,8 @@ export default function PeopleScreen() {
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
+  const hasPeople = !data || data.length > 0;
+
   return (
     <Screen topInset {...refresh}>
       <View style={{ gap: space.md }}>
@@ -40,6 +42,9 @@ export default function PeopleScreen() {
           <Title>People</Title>
           <Button small icon="add" label="Add" accessibilityLabel="Add a person" onPress={() => router.push("/contact/form")} />
         </View>
+        {/* With nobody on the list there is nothing to search or filter. */}
+        {hasPeople ? (
+          <>
         <TextInput
           accessibilityLabel="Search people"
           placeholder="Search by name, group or phone"
@@ -58,6 +63,8 @@ export default function PeopleScreen() {
             <Chip key={key} label={label} selected={filter === key} onPress={() => pick(key)} />
           ))}
         </ChipRow>
+          </>
+        ) : null}
       </View>
 
       {isPending ? (
@@ -75,8 +82,8 @@ export default function PeopleScreen() {
 
       <View style={{ gap: space.sm }}>
         <Button variant="secondary" icon="download-outline" label="Import from my contacts" onPress={() => router.push("/contact/import")} />
-        <Button variant="secondary" icon="search" label="Find people on Koinonia" onPress={() => router.push("/contact/find")} />
-        {data ? (
+        {hasPeople ? <Button variant="secondary" icon="search" label="Find people on Koinonia" onPress={() => router.push("/contact/find")} /> : null}
+        {data && hasPeople ? (
           <Body muted style={{ textAlign: "center", fontSize: 13 }}>
             {data.length} {data.length === 1 ? "person" : "people"}
           </Body>

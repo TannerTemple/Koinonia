@@ -45,11 +45,14 @@ export default function PrayerScreen() {
       {/* With nothing on the list, the empty state below says it once. */}
       {active.length > 0 ? <DailyIntentionCard prayer={today.data} onChoose={active.length > 1 ? () => router.push("/choose-intention") : undefined} /> : null}
 
-      <ChipRow>
-        {TABS.map(([key, label]) => (
-          <Chip key={key} tone="forest" label={`${label} ${all.filter((i) => i.status === key).length}`} selected={tab === key} onPress={() => setTab(key)} />
-        ))}
-      </ChipRow>
+      {/* Nothing to filter until something is on the list. */}
+      {all.length > 0 ? (
+        <ChipRow>
+          {TABS.map(([key, label]) => (
+            <Chip key={key} tone="forest" label={`${label} ${all.filter((i) => i.status === key).length}`} selected={tab === key} onPress={() => setTab(key)} />
+          ))}
+        </ChipRow>
+      ) : null}
 
       {shown.length === 0 ? (
         tab === "ACTIVE" ? (
