@@ -1,14 +1,59 @@
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, DEFAULT_REMINDER_TIME, GROUP_PRESETS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel } from "@koinonia/shared";
-import { BirthdayField, Disclosure, Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
+import { CADENCE_PRESETS, CHANNELS, CHANNEL_LABELS, DEFAULT_REMINDER_TIME, GROUP_PRESETS, MAX_CADENCE_DAYS, joinBirthday, splitBirthday, type BirthdayParts, type Channel, type Contact } from "@koinonia/shared";
+import { BirthdayField, Disclosure, DraftNotice, Button, Chip, ChipRow, Field, FormError, Label, Loading, Screen, fieldErrors } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
 import { showDialog } from "@/lib/dialog";
+import { useDraft } from "@/lib/draft";
 import { formatTime } from "@/lib/reminder-plan";
 import { useAction, useContact, useToday } from "@/lib/hooks";
 import { space } from "@/lib/theme";
+
+interface PersonDraft {
+  name: string;
+  phone: string;
+  email: string;
+  relationship: string;
+  birthday: BirthdayParts;
+  cadenceDays: number | null;
+  custom: boolean;
+  preferredChannel: Channel;
+  reminderTime: string | null;
+  favorite: boolean;
+  groups: string[];
+  lastTalked: string | null;
+}
+
+/** A new person's form before anything is typed. Key order matters: drafts are compared as text. */
+const BLANK: PersonDraft = { name: "", phone: "", email: "", relationship: "", birthday: { month: "", day: "", year: "" }, cadenceDays: 14, custom: false, preferredChannel: "TEXT", reminderTime: null, favorite: false, groups: [], lastTalked: null };
+
+const fromContact = (c: Contact): PersonDraft => ({
+  name: c.name,
+  phone: c.phone ?? "",
+  email: c.email ?? "",
+  relationship: c.relationship ?? "",
+  birthday: splitBirthday(c.birthday),
+  cadenceDays: c.cadenceDays,
+  custom: c.cadenceDays !== null && !CADENCE_PRESETS.some((p) => p.days === c.cadenceDays),
+  preferredChannel: c.preferredChannel,
+  reminderTime: c.reminderTime,
+  favorite: c.favorite,
+  groups: c.groups,
+  lastTalked: null,
+});
+
+/** A kept draft, or null if it is unreadable (for example written by an older version). */
+function readDraft(text: string): PersonDraft | null {
+  try {
+    const f = JSON.parse(text) as Partial<PersonDraft>;
+    if (typeof f.name !== "string" || !f.birthday || !Array.isArray(f.groups)) return null;
+    return { ...BLANK, ...f };
+  } catch {
+    return null;
+  }
+}
 
 /** A few sensible times; 9am is the default. */
 const REMINDER_TIMES = ["07:00", "09:00", "12:00", "15:00", "18:00", "20:00"];
@@ -33,23 +78,55 @@ export default function ContactFormScreen() {
   const [preferredChannel, setChannel] = useState<Channel>("TEXT");
   const [lastTalked, setLastTalked] = useState<string | null>(null);
 
+  // Everything typed here is kept on the phone until it is saved, so a failed save, a phone
+  // call or closing the app loses nothing. Only kept when it differs from what is stored.
+  const draft = useDraft(`draft.person.${id ?? "new"}`);
+  const [hydrated, setHydrated] = useState(false);
+  const fields: PersonDraft = { name, phone, email, relationship, birthday, cadenceDays, custom, preferredChannel, reminderTime, favorite, groups, lastTalked };
+  const snapshot = JSON.stringify(fields);
+  const stored = JSON.stringify(existing.data ? fromContact(existing.data) : BLANK);
+  const fill = (f: PersonDraft) => {
+    setName(f.name);
+    setPhone(f.phone);
+    setEmail(f.email);
+    setRelationship(f.relationship);
+    setBirthday(f.birthday);
+    setCadenceDays(f.cadenceDays);
+    setCustom(f.custom);
+    setChannel(f.preferredChannel);
+    setReminderTime(f.reminderTime);
+    setFavorite(f.favorite);
+    setGroups(f.groups);
+    setLastTalked(f.lastTalked);
+  };
+
   useEffect(() => {
+    if (!draft.ready || hydrated) return;
+    if (draft.restored) {
+      const kept = readDraft(draft.value);
+      if (kept) {
+        fill(kept);
+        setMore(true);
+        setLoaded(true);
+        setHydrated(true);
+        return;
+      }
+    }
     const c = existing.data;
-    if (!c || loaded) return;
-    setName(c.name);
-    setPhone(c.phone ?? "");
-    setEmail(c.email ?? "");
-    setRelationship(c.relationship ?? "");
-    setBirthday(splitBirthday(c.birthday));
-    setCadenceDays(c.cadenceDays);
-    setCustom(c.cadenceDays !== null && !CADENCE_PRESETS.some((p) => p.days === c.cadenceDays));
-    setChannel(c.preferredChannel);
-    setReminderTime(c.reminderTime);
-    setFavorite(c.favorite);
-    setGroups(c.groups);
-    setMore(true);
+    if (id && !c) return;
+    if (c) {
+      fill(fromContact(c));
+      setMore(true);
+    }
     setLoaded(true);
-  }, [existing.data, loaded]);
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing.data, draft.ready, draft.restored, hydrated, id]);
+
+  const { setValue: keep } = draft;
+  useEffect(() => {
+    if (hydrated) keep(snapshot === stored ? "" : snapshot);
+  }, [hydrated, snapshot, stored, keep]);
 
   const save = useAction(() => {
     const input = { name, phone, email, relationship, birthday: joinBirthday(birthday), cadenceDays, preferredChannel, reminderTime, favorite, groups };
@@ -69,6 +146,14 @@ export default function ContactFormScreen() {
   return (
     <Screen keyboard>
       <Stack.Screen options={{ title: id ? "Edit person" : "Add a person" }} />
+      {draft.restored ? (
+        <DraftNotice
+          onDiscard={() => {
+            void draft.clear();
+            fill(existing.data ? fromContact(existing.data) : BLANK);
+          }}
+        />
+      ) : null}
       <Field label="Name" value={name} onChangeText={setName} error={errors.name} maxLength={80} autoFocus={!id} placeholder="Maria Lopez" autoCapitalize="words" />
       <View>
         <Label>How often do you want to reach out?</Label>
@@ -145,6 +230,7 @@ export default function ContactFormScreen() {
         onPress={() =>
           save.mutate(undefined, {
             onSuccess: (contact) => {
+              void draft.clear();
               if (id) router.back();
               else router.replace(`/contact/${contact.id}`);
             },

@@ -1,9 +1,11 @@
 # Runs the same check a developer runs locally (`pnpm check`: lint, typecheck, all tests)
-# on every push and pull request, against a real PostgreSQL.
+# on every pull request and on pushes to main, against a real PostgreSQL.
 name: CI
 
 on:
+  # Once per change: branches are checked through their pull request, main when it is pushed.
   push:
+    branches: [main]
   pull_request:
 
 # A newer push to the same branch makes the older run pointless.

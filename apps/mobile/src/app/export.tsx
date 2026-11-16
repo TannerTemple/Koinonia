@@ -1,3 +1,4 @@
+import { File, Paths } from "expo-file-system";
 import { useState } from "react";
 import { Platform, Share, Text, View } from "react-native";
 import { EXPORT_TABLES } from "@koinonia/shared";
@@ -5,7 +6,7 @@ import { Body, Button, FormError, Screen, Title } from "@/components/ui";
 import { api } from "@/lib/api";
 import { space, useTheme } from "@/lib/theme";
 
-/** In the browser preview a file can be saved directly; on a phone it goes to the share sheet. */
+/** In the browser preview a file is saved directly; on an iPhone it goes to the share sheet as a file. */
 async function deliver(name: string, text: string, type: string) {
   if (Platform.OS === "web") {
     const url = URL.createObjectURL(new Blob([text], { type }));
@@ -18,7 +19,18 @@ async function deliver(name: string, text: string, type: string) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     return;
   }
-  await Share.share({ title: name, message: text });
+  // A real file in the app's temporary folder, handed to the share sheet: "Save to Files",
+  // AirDrop and Mail then receive koinonia-....json / .csv as an attachment.
+  try {
+    const file = new File(Paths.cache, name);
+    if (file.exists) file.delete();
+    file.create();
+    file.write(text);
+    await Share.share(Platform.OS === "ios" ? { url: file.uri } : { title: name, message: text });
+  } catch {
+    // If the file cannot be written, sharing the text is still better than nothing.
+    await Share.share({ title: name, message: text });
+  }
 }
 
 /** "Export my data": everything in the account, as one file or as spreadsheets. */

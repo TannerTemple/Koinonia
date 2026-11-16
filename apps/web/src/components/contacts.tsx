@@ -22,6 +22,7 @@ import {
   type Channel,
   type Contact,
   type CreateContactInput,
+  DEFAULT_REMINDER_TIME,
 } from "@koinonia/shared";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -392,6 +393,8 @@ export interface ContactFormValues {
   lastContactedDay: string;
   favorite: boolean;
   groups: string[];
+  /** "HH:MM", or "" for the usual 9:00 AM. */
+  reminderTime: string;
 }
 
 export const EMPTY_CONTACT: ContactFormValues = {
@@ -405,6 +408,7 @@ export const EMPTY_CONTACT: ContactFormValues = {
   lastContactedDay: "",
   favorite: false,
   groups: [],
+  reminderTime: "",
 };
 
 export function contactToForm(c: Contact): ContactFormValues {
@@ -419,6 +423,7 @@ export function contactToForm(c: Contact): ContactFormValues {
     lastContactedDay: c.lastContactedDay ?? "",
     favorite: c.favorite,
     groups: c.groups,
+    reminderTime: c.reminderTime ?? "",
   };
 }
 
@@ -438,8 +443,8 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
   const [saving, setSaving] = useState(false);
   const errors = fieldErrors(error);
   // Open when there is already something inside, and whenever a problem is inside.
-  const hasDetails = Boolean(initial.phone || initial.email || initial.relationship || initial.birthday.month || initial.lastContactedDay);
-  const hiddenError = ["phone", "email", "relationship", "birthday", "lastContactedDay"].some((key) => errors[key]);
+  const hasDetails = Boolean(initial.phone || initial.email || initial.relationship || initial.birthday.month || initial.lastContactedDay || initial.reminderTime);
+  const hiddenError = ["phone", "email", "relationship", "birthday", "lastContactedDay", "reminderTime"].some((key) => errors[key]);
   const [more, setMore] = useState(hasDetails);
   useEffect(() => {
     if (hiddenError) setMore(true);
@@ -454,8 +459,9 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
         setSaving(true);
         setError(null);
         try {
-          const { lastContactedDay, birthday, ...fields } = v;
-          const rest = { ...fields, birthday: joinBirthday(birthday) };
+          const { lastContactedDay, birthday, reminderTime, ...fields } = v;
+          // 9:00 AM is the default, stored as "no special time".
+          const rest = { ...fields, birthday: joinBirthday(birthday), reminderTime: !reminderTime || reminderTime === DEFAULT_REMINDER_TIME ? null : reminderTime };
           await onSubmit(showLastContacted ? { ...rest, lastContactedDay } : rest);
         } catch (err) {
           setError(err);
@@ -495,6 +501,9 @@ export function ContactForm({ initial, today, submitLabel, showLastContacted = t
           </Field>
         </div>
         <BirthdayInput value={v.birthday} onChange={(b) => set("birthday", b)} error={errors.birthday} />
+        <Field label="Reminder time on your iPhone" hint="When the iPhone app should remind you about this person. 9:00 AM unless you choose another." error={errors.reminderTime}>
+          {(p) => <Input {...p} type="time" step={300} value={v.reminderTime || DEFAULT_REMINDER_TIME} onChange={(e) => set("reminderTime", e.target.value)} className="sm:w-40" />}
+        </Field>
         {showLastContacted ? (
           <Field label="Last time you talked" hint="The first reminder counts from here." error={errors.lastContactedDay}>
             {(p) => <Input {...p} type="date" max={today} value={v.lastContactedDay} onChange={(e) => set("lastContactedDay", e.target.value)} className="sm:w-60" />}
