@@ -382,7 +382,10 @@ export default function SettingsPage() {
           </Button>
           <DeleteAccount onDeleted={() => void signOut()} />
         </Card>
-        <p className="mt-4 flex gap-5 text-sm text-muted">
+        <p className="mt-4 flex flex-wrap gap-5 text-sm text-muted">
+          <Link href="/feedback" className="font-semibold text-primary underline underline-offset-2">
+            Send feedback or report a problem
+          </Link>
           <Link href="/privacy" className="underline underline-offset-2">
             Privacy Policy
           </Link>

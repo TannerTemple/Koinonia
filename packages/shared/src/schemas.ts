@@ -523,3 +523,29 @@ export const EXPORT_TABLES = [
   { key: "prayers", label: "Prayer list" },
 ] as const;
 export type ExportTable = (typeof EXPORT_TABLES)[number]["key"];
+
+// ---- Feedback ---------------------------------------------------------------------------
+
+export const FEEDBACK_KINDS = ["PROBLEM", "IDEA", "OTHER"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+export const FEEDBACK_KIND_LABELS: Record<FeedbackKind, string> = { PROBLEM: "Something is broken", IDEA: "An idea", OTHER: "Something else" };
+
+export const feedbackSchema = z.object({
+  kind: z.enum(FEEDBACK_KINDS).default("PROBLEM"),
+  message: z.string().trim().min(3, "Tell us a little more").max(4000, "That is too long; please shorten it"),
+  /** Filled in by the app, never typed: "1.0.0", "0.1.0 (a1b2c3d)". */
+  appVersion: z.string().trim().min(1).max(60),
+  platform: z.enum(["web", "ios", "android"]),
+});
+export type FeedbackInput = z.input<typeof feedbackSchema>;
+
+export interface AdminFeedback {
+  id: string;
+  kind: FeedbackKind;
+  message: string;
+  appVersion: string;
+  platform: string;
+  createdAt: string;
+  userName: string;
+  userEmail: string;
+}

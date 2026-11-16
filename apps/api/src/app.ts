@@ -15,6 +15,7 @@ import { authRoutes } from "./routes/auth";
 import { calendarRoutes } from "./routes/calendar";
 import { contactRoutes } from "./routes/contacts";
 import { exportRoutes } from "./routes/export";
+import { feedbackRoutes } from "./routes/feedback";
 import { homeRoutes } from "./routes/home";
 import { jobRoutes } from "./routes/jobs";
 import { noteRoutes } from "./routes/notes";
@@ -262,6 +263,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       await v1.register(calendarRoutes);
       await v1.register(jobRoutes);
       await v1.register(exportRoutes);
+      await v1.register(feedbackRoutes);
     },
     { prefix: "/v1" },
   );

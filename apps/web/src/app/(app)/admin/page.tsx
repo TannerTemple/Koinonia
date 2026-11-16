@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { AdminUser } from "@koinonia/shared";
+import { FEEDBACK_KIND_LABELS, type AdminUser } from "@koinonia/shared";
 import { Badge, Button, Card, ErrorState, FormError, Input, PageHeader, SectionTitle, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
@@ -55,6 +55,7 @@ export default function AdminPage() {
 
   const [q, setQ] = useState("");
   const stats = useQuery({ queryKey: ["admin", "stats"], queryFn: api.admin.stats, enabled: isAdmin });
+  const feedback = useQuery({ queryKey: ["admin", "feedback"], queryFn: api.admin.feedback, enabled: isAdmin });
   const users = useQuery({ queryKey: ["admin", "users", q], queryFn: () => api.admin.users(q.trim() || undefined), enabled: isAdmin });
 
   if (!isAdmin) return null;
@@ -114,6 +115,33 @@ export default function AdminPage() {
               </tbody>
             </table>
           </Card>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle count={feedback.data?.length}>Feedback</SectionTitle>
+        {feedback.isPending ? (
+          <Spinner />
+        ) : feedback.error ? (
+          <ErrorState error={feedback.error} onRetry={feedback.refetch} />
+        ) : feedback.data.length === 0 ? (
+          <Card className="p-5 text-muted">Nothing yet. Messages sent from &ldquo;Send feedback&rdquo; in either app appear here.</Card>
+        ) : (
+          <div className="space-y-3">
+            {feedback.data.map((f) => (
+              <Card key={f.id} className="space-y-2 p-5">
+                <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                  <Badge>{FEEDBACK_KIND_LABELS[f.kind] ?? f.kind}</Badge>
+                  <span>
+                    {f.userName} &middot; <a className="underline underline-offset-2" href={`mailto:${f.userEmail}`}>{f.userEmail}</a>
+                  </span>
+                  <span>&middot; {f.platform} {f.appVersion}</span>
+                  <span>&middot; {new Date(f.createdAt).toLocaleString()}</span>
+                </p>
+                <p className="whitespace-pre-wrap break-words">{f.message}</p>
+              </Card>
+            ))}
+          </div>
         )}
       </section>
     </div>

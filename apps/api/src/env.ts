@@ -46,6 +46,8 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Koinonia <hello@example.com>"),
   EMAIL_REPLY_TO: z.string().optional(),
+  /** Where "Send feedback" messages are emailed. Unset = they are only saved (Admin > Feedback). */
+  FEEDBACK_EMAIL: z.string().trim().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "must be an email address, like you@example.com").optional(),
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),

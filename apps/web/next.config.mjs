@@ -2,6 +2,13 @@
 // forwards /api/* to the API. The browser then only ever talks to the web app's own address,
 // so the session cookie is first-party and no custom domain is needed. Pair it with
 // NEXT_PUBLIC_API_URL=/api. See docs/DEPLOY.md.
+import { readFileSync } from "node:fs";
+
+// Shown on feedback messages so a report can be matched to the code that was running.
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+const appVersion = commit ? `${pkg.version} (${commit})` : pkg.version;
+
 const tidy = (value) => value?.trim().replace(/^(["'])(.*)\1$/, "$2").trim().replace(/\/+$/, "") || undefined;
 const apiProxyTarget = tidy(process.env.API_PROXY_TARGET);
 
@@ -71,7 +78,7 @@ const nextConfig = {
   transpilePackages: ["@koinonia/shared"],
   poweredByHeader: false,
   // Hands the address worked out above to the pages (it is read as NEXT_PUBLIC_API_URL).
-  env: { NEXT_PUBLIC_API_URL: apiUrl },
+  env: { NEXT_PUBLIC_API_URL: apiUrl, NEXT_PUBLIC_APP_VERSION: appVersion },
   async rewrites() {
     return apiProxyTarget ? [{ source: "/api/:path*", destination: `${apiProxyTarget}/:path*` }] : [];
   },

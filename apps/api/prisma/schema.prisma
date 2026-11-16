@@ -74,6 +74,7 @@ model User {
   prayerLogs      PrayerLog[]
   dailyIntentions DailyIntention[]
   devices         PushDevice[]
+  feedback        Feedback[]
   authTokens      AuthToken[]
 
   @@index([phone])
@@ -253,5 +254,22 @@ model PushDevice {
   platform  String
   createdAt DateTime @default(now())
 
+  @@index([userId])
+}
+
+/// "Send feedback / report a problem": what a tester wrote, and from which app version.
+model Feedback {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// PROBLEM | IDEA | OTHER
+  kind       String
+  message    String
+  appVersion String
+  /// web | ios | android
+  platform   String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
   @@index([userId])
 }

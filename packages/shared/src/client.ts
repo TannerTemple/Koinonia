@@ -1,4 +1,5 @@
 import type {
+  AdminFeedback,
   AdminStats,
   AdminUpdateUserInput,
   AdminUser,
@@ -38,6 +39,7 @@ import type {
   UserSearchResult,
   VerifyEmailInput,
   WeeklyReview,
+  FeedbackInput,
 } from "./schemas";
 
 export class ApiError extends Error {
@@ -214,7 +216,11 @@ export function createApiClient(options: ApiClientOptions) {
     devices: {
       register: (input: RegisterDeviceInput) => post<void>("/devices", input),
     },
+    feedback: {
+      send: (input: FeedbackInput) => post<{ id: string }>("/feedback", input),
+    },
     admin: {
+      feedback: () => get<AdminFeedback[]>("/admin/feedback"),
       stats: () => get<AdminStats>("/admin/stats"),
       users: (q?: string) =>
         get<AdminUser[]>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),

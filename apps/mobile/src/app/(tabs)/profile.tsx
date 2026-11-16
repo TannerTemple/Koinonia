@@ -164,6 +164,11 @@ export default function ProfileScreen() {
       </View>
 
       <View style={{ gap: space.md }}>
+        <SectionTitle>Help</SectionTitle>
+        <Button variant="secondary" icon="chatbubble-ellipses-outline" label="Send feedback or report a problem" onPress={() => router.push("/feedback")} />
+      </View>
+
+      <View style={{ gap: space.md }}>
         <SectionTitle tone="danger">Account</SectionTitle>
         <Button variant="secondary" icon="download-outline" label="Export my data" onPress={() => router.push("/export")} />
         <Button variant="secondary" icon="log-out-outline" label="Sign out" onPress={() => void signOut()} />
