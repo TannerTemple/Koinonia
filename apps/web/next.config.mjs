@@ -2,13 +2,37 @@
 // forwards /api/* to the API. The browser then only ever talks to the web app's own address,
 // so the session cookie is first-party and no custom domain is needed. Pair it with
 // NEXT_PUBLIC_API_URL=/api. See docs/DEPLOY.md.
-const apiProxyTarget = process.env.API_PROXY_TARGET?.replace(/\/+$/, "");
+const tidy = (value) => value?.trim().replace(/^(["'])(.*)\1$/, "$2").trim().replace(/\/+$/, "") || undefined;
+const apiProxyTarget = tidy(process.env.API_PROXY_TARGET);
 
 const production = process.env.NODE_ENV === "production";
 
-// Where the browser is allowed to send data: this site, plus the API when it is called directly.
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Where the browser sends API calls. With a proxy target, that is this site's own /api,
+// so API_PROXY_TARGET is the only variable a Vercel project needs.
+const apiUrl = tidy(process.env.NEXT_PUBLIC_API_URL) ?? (apiProxyTarget ? "/api" : "http://localhost:4000");
 const apiOrigin = /^https?:\/\//.test(apiUrl) ? new URL(apiUrl).origin : "";
+
+// A hosted build with the wrong address looks fine and then cannot sign anyone in.
+// Stop the build instead, and say what to set.
+function buildProblem() {
+  if (apiProxyTarget && !/^https?:\/\/[^/\s]+$/.test(apiProxyTarget)) {
+    return `API_PROXY_TARGET must be the API's address and nothing else, like https://koinonia-api.onrender.com. It is "${apiProxyTarget}".`;
+  }
+  if (apiUrl.startsWith("/") && !apiProxyTarget) {
+    return `NEXT_PUBLIC_API_URL is "${apiUrl}" but API_PROXY_TARGET is not set. Add API_PROXY_TARGET with the API's address, like https://koinonia-api.onrender.com.`;
+  }
+  if (!apiUrl.startsWith("/") && !/^https?:\/\/[^\s]+$/.test(apiUrl)) {
+    return `NEXT_PUBLIC_API_URL must be /api or an address starting with https://. It is "${apiUrl}".`;
+  }
+  if (process.env.VERCEL && /\/\/(localhost|127\.0\.0\.1)/.test(apiProxyTarget ?? apiUrl)) {
+    return "API_PROXY_TARGET is not set, so this site would look for the API on localhost. Add API_PROXY_TARGET with the API's address, like https://koinonia-api.onrender.com.";
+  }
+  return null;
+}
+const problem = buildProblem();
+if (problem) {
+  throw new Error(`\n\nKoinonia web cannot be built: ${problem}\nOn Vercel: Project > Settings > Environment Variables, then Deployments > Redeploy.\n`);
+}
 
 // Next.js needs inline scripts and styles, so this policy cannot stop every injected script.
 // What it does guarantee: scripts and fonts load only from this site, data can be sent only
@@ -46,6 +70,8 @@ const nextConfig = {
   // The shared package ships TypeScript source.
   transpilePackages: ["@koinonia/shared"],
   poweredByHeader: false,
+  // Hands the address worked out above to the pages (it is read as NEXT_PUBLIC_API_URL).
+  env: { NEXT_PUBLIC_API_URL: apiUrl },
   async rewrites() {
     return apiProxyTarget ? [{ source: "/api/:path*", destination: `${apiProxyTarget}/:path*` }] : [];
   },

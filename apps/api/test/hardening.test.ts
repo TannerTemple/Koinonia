@@ -241,9 +241,11 @@ describe("hosted configuration", () => {
   it("refuses a wildcard or malformed CORS list and a malformed web address", () => {
     const env = (extra: Record<string, string>) => () => loadEnv({ ...process.env, ...extra });
     expect(env({ CORS_ORIGINS: "*" })).toThrow(/CORS_ORIGINS/);
-    expect(env({ CORS_ORIGINS: "https://app.example.com/" })).toThrow(/CORS_ORIGINS/);
+    expect(env({ CORS_ORIGINS: "https://app.example.com/path" })).toThrow(/CORS_ORIGINS/);
     expect(env({ CORS_ORIGINS: "app.example.com" })).toThrow(/CORS_ORIGINS/);
-    expect(env({ CORS_ORIGINS: "" })).toThrow(/CORS_ORIGINS/);
+    // A trailing slash or an empty box is forgiven rather than refused.
+    expect(env({ CORS_ORIGINS: "https://app.example.com/" })).not.toThrow();
+    expect(env({ CORS_ORIGINS: "" })).not.toThrow();
     expect(env({ WEB_URL: "app.example.com" })).toThrow(/WEB_URL/);
     expect(env({ CORS_ORIGINS: "https://app.example.com, https://www.example.com", WEB_URL: "https://app.example.com/" })).not.toThrow();
   });

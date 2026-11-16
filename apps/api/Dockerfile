@@ -24,7 +24,9 @@ COPY apps/api/package.json apps/api/package.json
 # The API's postinstall runs `prisma generate`, which needs the schema and the CLI wrapper.
 COPY apps/api/prisma apps/api/prisma
 COPY apps/api/scripts apps/api/scripts
-RUN pnpm install --frozen-lockfile --filter "@koinonia/api..."
+# "isolated" installs only what the API needs. (The repository's default, "hoisted", is there
+# for the phone app and would pull the web and phone apps' packages into this image too.)
+RUN pnpm install --frozen-lockfile --filter "@koinonia/api..." --config.node-linker=isolated
 
 COPY packages/shared packages/shared
 COPY apps/api apps/api
@@ -37,6 +39,7 @@ ENV PORT=4000
 # node_modules stays whole: the Prisma CLI is needed at start to apply migrations.
 COPY --from=build --chown=node:node /app/node_modules /app/node_modules
 COPY --from=build --chown=node:node /app/apps/api/package.json /app/apps/api/package.json
+COPY --from=build --chown=node:node /app/apps/api/node_modules /app/apps/api/node_modules
 COPY --from=build --chown=node:node /app/apps/api/prisma /app/apps/api/prisma
 COPY --from=build --chown=node:node /app/apps/api/scripts /app/apps/api/scripts
 COPY --from=build --chown=node:node /app/apps/api/dist /app/apps/api/dist

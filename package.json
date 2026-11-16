@@ -11,6 +11,7 @@
     "db:up": "docker compose up -d db",
     "db:migrate": "pnpm --filter @koinonia/api db:migrate",
     "db:seed": "pnpm --filter @koinonia/api db:seed",
+    "smoke": "node scripts/smoke.mjs",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

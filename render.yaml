@@ -26,16 +26,12 @@ services:
       # Direct connection string (no "-pooler"). Used only to apply migrations at start.
       - key: DIRECT_URL
         sync: false
-      # --- Addresses: asked for when the Blueprint is created ---------------
-      # The web app's address on Vercel, e.g. https://koinonia.vercel.app (no trailing slash).
-      - key: WEB_URL
-        sync: false
-      # Browser origins allowed to call the API. Same value as WEB_URL.
-      - key: CORS_ORIGINS
-        sync: false
-      # This service's own public address, e.g. https://koinonia-api.onrender.com
-      - key: API_PUBLIC_URL
-        sync: false
+      # --- Added by hand after the web app exists (docs/TONIGHT.md, step 4) ---
+      # WEB_URL: the web app's address on Vercel, e.g. https://koinonia.vercel.app
+      # It goes into emailed links and is the browser origin allowed to call the API.
+      # Not listed here so that creating the Blueprint asks for the two database
+      # addresses only. CORS_ORIGINS defaults to WEB_URL, and API_PUBLIC_URL to the
+      # address Render gives this service; set them only to override.
       # --- Fixed settings ---------------------------------------------------
       # Render puts one proxy in front of the service.
       - key: TRUST_PROXY
