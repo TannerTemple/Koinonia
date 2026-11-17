@@ -140,3 +140,9 @@ export function joinBirthday({ month, day, year }: BirthdayParts): string {
   const md = `${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   return /^\d{4}$/.test(year) ? `${year}-${md}` : md;
 }
+
+/** The Monday of the week a day falls in. */
+export function weekStart(day: Day): Day {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  return addDays(day, -((weekday + 6) % 7));
+}

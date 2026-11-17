@@ -41,6 +41,7 @@ import type {
   WeeklyReview,
   FeedbackInput,
 } from "./schemas";
+import type { AdminMetrics } from "./metrics";
 
 export class ApiError extends Error {
   constructor(
@@ -216,11 +217,16 @@ export function createApiClient(options: ApiClientOptions) {
     devices: {
       register: (input: RegisterDeviceInput) => post<void>("/devices", input),
     },
+    usage: {
+      /** Tells the server which screens were opened. Counts only; failures are ignored. */
+      screens: (platform: "web" | "app", screens: string[]) => post<void>("/usage", { platform, screens }),
+    },
     feedback: {
       send: (input: FeedbackInput) => post<{ id: string }>("/feedback", input),
     },
     admin: {
       feedback: () => get<AdminFeedback[]>("/admin/feedback"),
+      metrics: () => get<AdminMetrics>("/admin/metrics"),
       stats: () => get<AdminStats>("/admin/stats"),
       users: (q?: string) =>
         get<AdminUser[]>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),

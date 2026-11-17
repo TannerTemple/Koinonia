@@ -16,6 +16,7 @@ import { calendarRoutes } from "./routes/calendar";
 import { contactRoutes } from "./routes/contacts";
 import { exportRoutes } from "./routes/export";
 import { feedbackRoutes } from "./routes/feedback";
+import { countActions, metricsRoutes } from "./routes/metrics";
 import { homeRoutes } from "./routes/home";
 import { jobRoutes } from "./routes/jobs";
 import { noteRoutes } from "./routes/notes";
@@ -253,6 +254,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   await app.register(
     async (v1) => {
+      countActions(v1);
       await v1.register(authRoutes);
       await v1.register(homeRoutes);
       await v1.register(contactRoutes);
@@ -264,6 +266,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       await v1.register(jobRoutes);
       await v1.register(exportRoutes);
       await v1.register(feedbackRoutes);
+      await v1.register(metricsRoutes);
     },
     { prefix: "/v1" },
   );

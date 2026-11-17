@@ -77,6 +77,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (user === null) router.replace("/login");
   }, [user, router]);
 
+  // Which screens get used: a count per address pattern, nothing about what is on the screen.
+  const signedIn = Boolean(user);
+  useEffect(() => {
+    if (signedIn && pathname) void api.usage.screens("web", [pathname]).catch(() => undefined);
+  }, [pathname, signedIn]);
+
   if (!user) return <Spinner />;
 
   const items = user.role === "ADMIN" ? [...NAV, { href: "/admin", label: "Admin", icon: ShieldCheck }] : NAV;

@@ -273,3 +273,19 @@ model Feedback {
   @@index([createdAt])
   @@index([userId])
 }
+
+/// Beta metrics: how many times a screen was opened or an action done, per day. Counts only:
+/// there is no user on this table, and names are patterns ("/people/:id"), never identifiers.
+model UsageCount {
+  id       String @id @default(cuid())
+  day      String
+  /// screen | action
+  kind     String
+  name     String
+  /// web | app
+  platform String
+  count    Int    @default(0)
+
+  @@unique([day, kind, name, platform])
+  @@index([day])
+}

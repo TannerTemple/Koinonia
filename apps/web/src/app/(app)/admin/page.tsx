@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -77,6 +78,11 @@ export default function AdminPage() {
       <PageHeader title="Admin" subtitle="How Koinonia is being used, and who is using it." />
       <section>
         <SectionTitle>At a glance</SectionTitle>
+        <p className="mb-3">
+          <Link href="/admin/metrics" className="font-semibold text-primary underline underline-offset-2">
+            Beta metrics: sign-ups, activation, retention and what gets used
+          </Link>
+        </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {tiles.map((t) => (
             <Card key={t.label} className="p-4">

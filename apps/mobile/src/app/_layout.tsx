@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { isConnectionError } from "@koinonia/shared";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { OfflineNotice } from "@/components/offline";
+import { ScreenCounter } from "@/components/screen-counter";
 import { ReminderSync } from "@/components/reminders";
 import { DialogHost } from "@/lib/dialog";
 import { onReminderTapped } from "@/lib/notifications";
@@ -95,6 +96,7 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <RootStack />
           <ReminderSync />
+          <ScreenCounter />
           <OfflineNotice />
           <DialogHost />
         </ThemeProvider>
