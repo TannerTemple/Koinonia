@@ -253,3 +253,32 @@ export function dailyWord(day: Day): DailyWord {
   const index = ((diffDays("2026-01-01", day) % DAILY_WORDS.length) + DAILY_WORDS.length) % DAILY_WORDS.length;
   return DAILY_WORDS[index]!;
 }
+
+// ---- "Used last time" -----------------------------------------------------------------
+
+/** How someone signed in on this device last time. Only "email" exists today; the shape leaves room for Apple, Google and Microsoft. */
+export interface LastSignIn {
+  method: "email" | "apple" | "google" | "microsoft";
+  email: string;
+  firstName: string;
+}
+
+export const LAST_SIGN_IN_KEY = "koinonia.lastSignIn";
+
+export const rememberSignIn = (user: { name: string; email: string }, method: LastSignIn["method"] = "email"): string =>
+  JSON.stringify({ method, email: user.email, firstName: user.name.trim().split(/\s+/)[0] ?? "" } satisfies LastSignIn);
+
+export function readLastSignIn(text: string | null | undefined): LastSignIn | null {
+  try {
+    const v = JSON.parse(text ?? "") as Partial<LastSignIn>;
+    return typeof v.email === "string" && v.email.includes("@") && typeof v.firstName === "string" && typeof v.method === "string" ? (v as LastSignIn) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** "pat@example.com" becomes "p•••@example.com": enough to recognise, not enough to read over a shoulder. */
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  return at < 1 ? email : `${email[0]}•••${email.slice(at)}`;
+}
