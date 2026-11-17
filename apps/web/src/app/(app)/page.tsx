@@ -3,7 +3,7 @@
 import { ArrowRight, Cake, Check, ChevronRight, Flame, HandHeart, MessagesSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
+import { dailyWord, formatDay, formatLongDay, gettingStarted, greetingFor, prayerStreakLine, reachOutSummary, relativeDay, soFarLine, weekStreakLine, type Contact, type Home, type Note } from "@koinonia/shared";
 import { ReachOutCard } from "@/components/contacts";
 import { IntentionModal, PrayTodayCard } from "@/components/prayer";
 import { Avatar, Button, Card, ErrorState, Spinner } from "@/components/ui";
@@ -11,6 +11,59 @@ import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { useAction, useHome } from "@/lib/hooks";
+
+/** One or two encouraging lines under the greeting: what is going well, or what today would keep going. */
+function StreakStrip({ home }: { home: Home }) {
+  const lines = [prayerStreakLine(home.keep.prayerStreak), weekStreakLine(home.keep.reachOutWeeks)].filter((l): l is string => Boolean(l));
+  if (lines.length === 0) return null;
+  return (
+    <div className="-mt-6 flex items-start gap-3 rounded-2xl bg-surface-alt px-4 py-3.5" aria-label="Your streaks">
+      <Flame className="mt-0.5 size-5 shrink-0 text-gold" aria-hidden />
+      <div className="space-y-1">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The quiet end of Today: a memory, a word for today, and what has been built up so far. */
+function KeepGoing({ home }: { home: Home }) {
+  const word = dailyWord(home.today);
+  const memory = home.keep.memory;
+  const soFar = soFarLine(home.keep.totals);
+  return (
+    <section className="space-y-4" aria-label="For today">
+      {memory ? (
+        <Link href={`/people/${memory.contactId}`} className="block rounded-2xl border border-border bg-surface p-5 hover:bg-surface-alt">
+          <p className="text-sm font-semibold uppercase tracking-wide text-gold">{memory.label}</p>
+          <p className="mt-1 text-lg">
+            You reached out to <span className="font-semibold">{memory.contactName}</span>.
+          </p>
+          {memory.summary ? <p className="mt-1 text-muted">&ldquo;{memory.summary}&rdquo;</p> : null}
+          <p className="mt-2 font-semibold text-primary">How are they now?</p>
+        </Link>
+      ) : null}
+
+      <figure className="rounded-2xl bg-surface-alt p-5">
+        <figcaption className="text-sm font-semibold uppercase tracking-wide text-muted">A word for today</figcaption>
+        <blockquote className="mt-2 font-serif text-xl leading-snug">&ldquo;{word.text}&rdquo;</blockquote>
+        <p className="mt-1 text-sm text-muted">{word.reference}</p>
+        <p className="mt-3 font-semibold">{word.nudge}</p>
+      </figure>
+
+      {soFar ? (
+        <Link href="/review" className="flex items-center gap-3 rounded-2xl px-1 py-1 hover:underline">
+          <span className="min-w-0 flex-1 text-muted">
+            {soFar} <span className="font-semibold text-primary">See your week</span>
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-primary" aria-hidden />
+        </Link>
+      ) : null}
+    </section>
+  );
+}
 
 /** A big, plain heading for one of the two things the app is for. */
 function Heading({ icon, tone, title, summary }: { icon: React.ReactNode; tone: "primary" | "forest"; title: string; summary?: string }) {
@@ -143,7 +196,6 @@ export default function TodayPage() {
   const hasPeople = home.stats.contacts > 0;
   // Until the first prayer is added, the getting-started card is the only prompt for it.
   const hasPrayers = gettingStarted(home).addedPrayer;
-  const { reachOut, prayer } = home.streaks;
 
   return (
     <div className="space-y-10">
@@ -153,6 +205,8 @@ export default function TodayPage() {
           {greetingFor(new Date().getHours())}, {user.name.split(" ")[0]}.
         </h1>
       </header>
+
+      <StreakStrip home={home} />
 
       <GettingStartedCard home={home} onAddPrayer={() => setAddingPrayer(true)} />
 
@@ -241,18 +295,7 @@ export default function TodayPage() {
         </section>
       ) : null}
 
-      {/* Encouragement, kept small and only once there is something to show. */}
-      {reachOut.longest > 0 || prayer.longest > 0 ? (
-        <Link href="/review" className="flex items-center gap-3 rounded-2xl bg-surface-alt px-4 py-3.5 hover:brightness-95">
-          <Flame className="size-5 shrink-0 text-gold" aria-hidden />
-          <span className="min-w-0 flex-1">
-            {reachOut.current > 0 ? `Reached out ${reachOut.current} day${reachOut.current === 1 ? "" : "s"} in a row. ` : ""}
-            {prayer.current > 0 ? `Prayed ${prayer.current} day${prayer.current === 1 ? "" : "s"} in a row. ` : ""}
-            <span className="font-semibold text-primary">See your week</span>
-          </span>
-          <ArrowRight className="size-4 shrink-0 text-primary" aria-hidden />
-        </Link>
-      ) : null}
+      <KeepGoing home={home} />
 
       <IntentionModal open={addingPrayer} onClose={() => setAddingPrayer(false)} />
     </div>
