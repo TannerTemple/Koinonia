@@ -28,8 +28,8 @@ exact commands, the listing text, and the answers to Apple's privacy questions.
 - [ ] **Server addresses.** `apps/mobile/eas.json` → replace both `REPLACE-WITH-YOUR-...` values in
       the `preview` and `production` profiles with your API address and your web app address
       (no trailing slash).
-- [ ] **Legal pages.** Fill in every placeholder in `apps/web/src/lib/legal.ts`, have the text
-      reviewed, set `LEGAL_DRAFT = false`, and redeploy the web app.
+- [ ] **Legal pages.** Fill in every blank as described in [LEGAL.md](LEGAL.md), have the
+      text reviewed, set `NEXT_PUBLIC_LEGAL_FINAL=true`, and redeploy the web app.
 - [ ] Commit and push those changes.
 
 ### Before submitting for review
@@ -288,17 +288,26 @@ Purpose: **App Functionality** only.
 | Contact Info → **Email Address** | Yes | Your sign-in email |
 | Contact Info → **Phone Number** | Yes | Optional phone number on your profile |
 | **Contacts** | Yes | The people you add or choose to import: names, phone numbers, emails, birthdays |
-| User Content → **Other User Content** | Yes | Notes, reach-out summaries, prayer intentions |
+| User Content → **Other User Content** | Yes | Notes, reach-out summaries, prayer intentions, and feedback messages you send |
 | **Sensitive Info** | Yes | Prayer intentions can reveal religious beliefs. Declaring this is the cautious, honest choice for a prayer app. |
 | Identifiers → **User ID** | Yes | Your account ID |
 | Identifiers → **Device ID** | Yes | The push notification token, if notifications are turned on |
 
-Everything else: **Not collected.** In particular: Location, Health & Fitness, Financial Info,
-Purchases, Browsing History, Search History, Usage Data, Diagnostics, Emails or Text Messages,
-Photos or Videos, Audio, Advertising Data.
+One more, answered differently:
 
-**Tracking:** the app does not track. There is no advertising or analytics SDK, so no App Tracking
-Transparency prompt is needed.
+| Data type | Collected | Linked to the user | Tracking | Purpose | What it is |
+| --- | --- | --- | --- | --- | --- |
+| Usage Data → **Product Interaction** | Yes | **No** | No | **Analytics** | The app reports which screen was opened, as a pattern with no ids ("a person's page"), and the server counts successful actions per day. Stored as daily totals with no account attached (docs/METRICS.md). |
+
+Signing in with Apple, Google or Microsoft adds no new types: it provides the name, email and an
+account identifier already listed above.
+
+Everything else: **Not collected.** In particular: Location, Health & Fitness, Financial Info,
+Purchases, Browsing History, Search History, Diagnostics, Emails or Text Messages, Photos or
+Videos, Audio, Advertising Data.
+
+**Tracking:** the app does not track. There is no advertising or third-party analytics SDK, so no
+App Tracking Transparency prompt is needed.
 
 The optional server-side error reporting (`SENTRY_DSN` on the API) does not change these answers: it
 runs on the server, not in the app, and sends an error's type and a scrubbed one-line message with

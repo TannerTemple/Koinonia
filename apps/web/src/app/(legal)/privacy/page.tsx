@@ -1,8 +1,8 @@
 import { BRAND } from "@koinonia/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bullets, Contact, LegalSection, LegalTitle } from "@/components/legal";
-import { BACKUP_RETENTION, CONTACT_EMAIL, LAST_UPDATED, OPERATOR, PROCESSORS } from "@/lib/legal";
+import { Bullets, Contact, Fill, LegalSection, LegalTitle } from "@/components/legal";
+import { BACKUP_RETENTION, CONTACT_EMAIL, HOSTING_REGION, LAST_UPDATED, OPERATOR, PROCESSORS, TRANSFER_MECHANISM } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -18,14 +18,14 @@ export default function PrivacyPage() {
           you pray for. This page says exactly what is stored, who can see it, and how to remove it.
         </p>
         <p>
-          {BRAND.name} is run by {OPERATOR} (&ldquo;we&rdquo;). Questions and requests: <Contact email={CONTACT_EMAIL} />.
+          {BRAND.name} is run by <Fill>{OPERATOR}</Fill> (&ldquo;we&rdquo;). Questions and requests: <Contact email={CONTACT_EMAIL} />.
         </p>
       </LegalTitle>
 
       <LegalSection id="short" title="The short version">
         <Bullets>
           <li>We store what you type in, so the app can show it back to you and remind you. Nothing more.</li>
-          <li>We do not sell your information, show ads, or track you across other apps or websites. There is no analytics or advertising code in {BRAND.name}.</li>
+          <li>We do not sell your information, show ads, or track you across other apps or websites. There is no outside analytics or advertising code in {BRAND.name}; the only usage figures we keep are anonymous daily counts.</li>
           <li>Your notes, your prayer intentions and your list of people are visible only to you inside the app.</li>
           <li>You can delete your account, and everything in it, yourself at any time.</li>
         </Bullets>
@@ -39,6 +39,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Your password,</strong> only as a one-way scrambled value (a salted scrypt hash). We cannot read it.
+          </li>
+          <li>
+            <strong>If you sign in with Google, Microsoft or Apple:</strong> that company tells us your name, your email address (with Apple, possibly a private relay address that
+            forwards to you), whether it has confirmed the address, and a permanent account number it uses for you. We keep the account number and email to recognise you next time. We never see
+            your password for that account. That company knows you used its sign-in with {BRAND.name}; its own privacy policy covers what it does with that.
           </li>
           <li>
             <strong>Sign-in records:</strong> when you signed in and were last active, so sessions can expire and be revoked. Failed sign-in attempts are counted per email address for 15 minutes to
@@ -74,10 +79,30 @@ export default function PrivacyPage() {
           intention; turn the reminder off in Settings if you would rather it did not.
         </p>
 
+        <h3 className="text-lg font-semibold">Feedback you send</h3>
+        <p>
+          If you use &ldquo;Send feedback or report a problem&rdquo;, we keep your message with your name, email address, the kind of message, and which app and version you used, so we can reply and
+          find the problem. It may also be emailed to us. It is deleted with your account.
+        </p>
+
+        <h3 className="text-lg font-semibold">Asking for a beta invite</h3>
+        <p>
+          If you ask for an invitation on our public page, we keep the email address, the first name if you give one, which kind of phone you have, and when you agreed to be contacted. We use
+          it only to invite you to try {BRAND.name} and to tell you about the beta, and remove it when you ask. You do not need an account for this.
+        </p>
+
+        <h3 className="text-lg font-semibold">Anonymous usage counts</h3>
+        <p>
+          To learn which parts of {BRAND.name} are used, we count, per day, how many times each screen is opened and each kind of action is done (for example &ldquo;logged a reach-out&rdquo;).
+          These counts are not linked to you or your account and contain no names or content: a screen about a person is counted as &ldquo;a person&rsquo;s page&rdquo;, never which person. We
+          also work out totals such as how many accounts were created each week, from dates we already hold.
+        </p>
+
         <h3 className="text-lg font-semibold">Technical records</h3>
         <p>
           Our server keeps a short technical log of requests: the time, the address of the page requested (without search terms), the response code, and your IP address. It does not log what you
-          type, your notes, your intentions, or email contents. Logs are kept by our hosting provider for a limited time and are used only to keep the service running and secure.
+          type, your notes, your intentions, or email contents. Logs are kept by our hosting provider for a limited time and are used only to keep the service running and secure. If error reporting is switched on, a report of an unexpected error
+          (the kind of error and the page, never your content or who you are) is sent to the error reporting service listed below.
         </p>
       </LegalSection>
 
@@ -99,6 +124,8 @@ export default function PrivacyPage() {
           </li>
           <li>To send account emails: confirming your address and resetting your password.</li>
           <li>To keep the service secure, for example limiting repeated sign-in attempts.</li>
+          <li>To reply to feedback you send, and to invite people who asked to join the beta.</li>
+          <li>To improve {BRAND.name}, using only the anonymous counts described above.</li>
         </Bullets>
         <p>We do not use your information to train artificial intelligence, to build advertising profiles, or for any purpose not listed here.</p>
         <p>
@@ -114,20 +141,20 @@ export default function PrivacyPage() {
             <strong>You.</strong> Everything in your account is private to your account.
           </li>
           <li>
-            <strong>Other members, in one limited way.</strong> Someone signed in to {BRAND.name} can look you up by typing the start of your name, your exact email address, or your exact phone
-            number, and will see your name so they can add you to their own list. They never see your people, notes, intentions or activity, and a search by name does not reveal your email or
+            <strong>Other members, in one limited way.</strong> Someone signed in to {BRAND.name} can look you up by typing your first name and the start of your last name, your exact email address
+            (once you have confirmed it), or your exact phone number, and will see your name so they can add you to their own list. They never see your people, notes, intentions or activity, and a search by name does not reveal your email or
             phone. Turn this off in Settings under &ldquo;Let friends find me&rdquo;.
           </li>
           <li>
             <strong>Administrators</strong> of this {BRAND.name} service can see a list of accounts (name, email, phone number if given, when last active, and how many people and intentions each has) and can disable an
-            account. The admin screens do not show the content of anyone&rsquo;s notes, people or intentions.
+            account. They also see feedback messages (with the sender&rsquo;s name and email), the list of beta invite requests, and the anonymous counts. The admin screens do not show the content of anyone&rsquo;s notes, people or intentions.
           </li>
           <li>
             <strong>Companies that run the service for us.</strong> They hold the data on our behalf and may not use it for their own purposes:
             <Bullets>
               {PROCESSORS.map((p) => (
                 <li key={p.name}>
-                  {p.name}: {p.purpose}.
+                  <Fill>{p.name}</Fill>: {p.purpose}.
                 </li>
               ))}
             </Bullets>
@@ -161,15 +188,20 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Everything:</strong> on the web go to Settings, then &ldquo;Delete my account&rdquo;; in the iPhone app go to Profile, then &ldquo;Delete my account&rdquo;. You will be asked
-            for your password. This permanently deletes your account and all of your people, notes, reach-out history, prayer intentions, prayer history, sessions, push tokens and calendar link.
+            for your password (or, if you have never set one because you sign in with Google, Microsoft or Apple, to type DELETE). This permanently deletes your account and all of your people,
+            notes, reach-out history, prayer intentions, prayer history, feedback messages, linked Google/Microsoft/Apple sign-ins, sessions, push tokens and calendar link. The anonymous counts
+            are not linked to you, so there is nothing of yours in them to delete.
             It cannot be undone, and we cannot restore it for you.
+          </li>
+          <li>
+            <strong>A beta invite request:</strong> write to <Contact email={CONTACT_EMAIL} /> and we will remove it.
           </li>
           <li>
             <strong>Can&rsquo;t sign in?</strong> Email <Contact email={CONTACT_EMAIL} /> from the address on the account and we will delete it for you.
           </li>
         </Bullets>
         <p>
-          Deleted data is removed from the live database at once. Copies may remain in our database provider&rsquo;s backups for up to {BACKUP_RETENTION} before they are overwritten; they are
+          Deleted data is removed from the live database at once. Copies may remain in our database provider&rsquo;s backups for up to <Fill>{BACKUP_RETENTION}</Fill> before they are overwritten; they are
           not used for anything in the meantime. Technical logs expire on our hosting provider&rsquo;s schedule.
         </p>
         <p>We keep your data for as long as your account exists. If you simply stop using {BRAND.name}, your data stays until you delete it or ask us to.</p>
@@ -185,6 +217,9 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Delete</strong> it, as described above.
+          </li>
+          <li>
+            <strong>Take it elsewhere.</strong> The download is in common formats (JSON and CSV) that other tools can read.
           </li>
           <li>
             <strong>Turn off</strong> the daily email, push notifications, being findable by other members, and the calendar link, each in Settings or Profile.
@@ -211,7 +246,10 @@ export default function PrivacyPage() {
 
       <LegalSection id="cookies" title="Cookies and storage on your device">
         <p>
-          The web app sets one cookie, <code>koinonia_session</code>, which keeps you signed in. It is essential, it is not used for tracking, and it is removed when you sign out. Your choice of
+          The web app sets one cookie, <code>koinonia_session</code>, which keeps you signed in. It is essential, it is not used for tracking, and it is removed when you sign out. While you
+          sign in with Google, Microsoft or Apple, a second cookie, <code>koinonia_oauth</code>, holds a random value for at most ten minutes so the sign-in can only finish in the browser
+          that started it. After you sign in, the browser or phone remembers your first name, your email address and how you signed in, so the sign-in screen can say &ldquo;Welcome back&rdquo;
+          and mark the way you used last time; &ldquo;Not you?&rdquo; forgets it. Your choice of
           light or dark theme is saved in your browser. The iPhone app stores your sign-in token in the Keychain and schedules reminder notifications on the phone itself. We use no advertising
           or analytics cookies.
         </p>
@@ -226,8 +264,8 @@ export default function PrivacyPage() {
 
       <LegalSection id="where" title="Where data is kept">
         <p>
-          {BRAND.name}&rsquo;s server and database are located in [HOSTING REGION]. If you use {BRAND.name} from another country, your information is transferred to and stored there. Where the law
-          requires safeguards for such transfers, we rely on [TRANSFER MECHANISM, e.g. standard contractual clauses offered by our providers].
+          {BRAND.name}&rsquo;s server and database are located in <Fill>{HOSTING_REGION}</Fill>. If you use {BRAND.name} from another country, your information is transferred to and stored there. Where the law
+          requires safeguards for such transfers, we rely on <Fill>{TRANSFER_MECHANISM}</Fill>.
         </p>
       </LegalSection>
 
@@ -240,7 +278,7 @@ export default function PrivacyPage() {
 
       <LegalSection id="contact" title="Contact">
         <p>
-          {OPERATOR}
+          <Fill>{OPERATOR}</Fill>
           <br />
           <Contact email={CONTACT_EMAIL} />
         </p>

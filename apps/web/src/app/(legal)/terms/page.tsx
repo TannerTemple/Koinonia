@@ -1,8 +1,8 @@
 import { BRAND } from "@koinonia/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bullets, Contact, LegalSection, LegalTitle } from "@/components/legal";
-import { CONTACT_EMAIL, GOVERNING_LAW, LAST_UPDATED, OPERATOR } from "@/lib/legal";
+import { Bullets, Contact, Fill, LegalSection, LegalTitle } from "@/components/legal";
+import { CONTACT_EMAIL, GOVERNING_LAW, LAST_UPDATED, LIABILITY_CAP, OPERATOR } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
@@ -14,7 +14,7 @@ export default function TermsPage() {
     <>
       <LegalTitle title="Terms of Use" updated={LAST_UPDATED}>
         <p>
-          These terms are the agreement between you and {OPERATOR} (&ldquo;we&rdquo;), who runs {BRAND.name}. By creating an account or using {BRAND.name} you agree to them. If you do not agree, please
+          These terms are the agreement between you and <Fill>{OPERATOR}</Fill> (&ldquo;we&rdquo;), who runs {BRAND.name}. By creating an account or using {BRAND.name} you agree to them. If you do not agree, please
           do not use it.
         </p>
       </LegalTitle>
@@ -29,6 +29,10 @@ export default function TermsPage() {
         <Bullets>
           <li>You must be at least 13 years old (or 16 where local law sets that age) to use {BRAND.name}.</li>
           <li>Give a real email address you control. It is the only way to reset your password.</li>
+          <li>
+            If you sign in with Google, Microsoft or Apple, keeping that account safe is part of keeping this one safe, and that company&rsquo;s own terms apply to it. You can also set a
+            password in Settings.
+          </li>
           <li>Keep your password to yourself. You are responsible for what happens under your account; tell us promptly if you think someone else has used it.</li>
           <li>One person per account. Accounts are for personal use, not for running a business or mailing list.</li>
         </Bullets>
@@ -45,6 +49,14 @@ export default function TermsPage() {
           <li>passwords, payment card numbers, government ID numbers, or medical records;</li>
           <li>information about other people gathered to harass, stalk, or harm them.</li>
         </Bullets>
+        <p>
+          Prayer intentions often concern other people&rsquo;s health, families and struggles. Write them as you would want someone to write about you, and keep in mind that the daily
+          reminder email, if you turn it on, includes the title of the day&rsquo;s intention.
+        </p>
+        <p>
+          If you send us feedback or suggestions, we may use them to improve {BRAND.name} without owing you anything for them. Please do not include other people&rsquo;s private information in
+          feedback.
+        </p>
       </LegalSection>
 
       <LegalSection id="others" title="4. Other people's information">
@@ -60,6 +72,7 @@ export default function TermsPage() {
         <Bullets>
           <li>try to get into someone else&rsquo;s account or data;</li>
           <li>use the member search to collect names, emails or phone numbers, or to contact people who do not know you;</li>
+          <li>put someone else&rsquo;s email address on the beta invite list without their agreement;</li>
           <li>probe, overload or disrupt the service, or get around its limits;</li>
           <li>use automated tools to create accounts or copy data in bulk;</li>
           <li>pretend to be someone else.</li>
@@ -79,12 +92,19 @@ export default function TermsPage() {
 
       <LegalSection id="ending" title="7. Leaving, and closing accounts">
         <p>
-          You can stop using {BRAND.name} and delete your account at any time from Settings (web) or Profile (iPhone). Deletion is permanent and removes everything in the account; the Privacy Policy
-          describes it in detail.
+          You can stop using {BRAND.name} and delete your account at any time from Settings (web) or Profile (iPhone). Before you do, you can download everything you have stored (Settings or
+          Profile, then &ldquo;Your data&rdquo;). Deletion is permanent and removes everything in the account; the Privacy Policy describes it in detail.
         </p>
         <p>
           We may suspend or close an account that breaks these terms or puts other people or the service at risk. Where we reasonably can, we will tell you first and give you a chance to put it
           right. We may also stop offering {BRAND.name} altogether; if we do, we will give at least 30 days&rsquo; notice by email or in the app so you can copy out what you need.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="beta" title="7a. While it is in beta">
+        <p>
+          {BRAND.name} is new. Features may change or disappear, and things may break. We will try hard not to lose anything you store, but please keep your own copy of anything important
+          (the download in Settings or Profile makes that easy).
         </p>
       </LegalSection>
 
@@ -105,7 +125,7 @@ export default function TermsPage() {
       <LegalSection id="liability" title="10. Limit of liability">
         <p>
           To the fullest extent the law allows, we are not liable for indirect or consequential losses, lost data, or losses arising from a missed or late reminder, and our total liability to you
-          for any claim relating to {BRAND.name} is limited to [LIABILITY CAP, e.g. 50 US dollars]. Nothing in these terms limits liability that cannot be limited by law, or takes away rights you
+          for any claim relating to {BRAND.name} is limited to <Fill>{LIABILITY_CAP}</Fill>. Nothing in these terms limits liability that cannot be limited by law, or takes away rights you
           have as a consumer where you live.
         </p>
       </LegalSection>
@@ -120,14 +140,14 @@ export default function TermsPage() {
 
       <LegalSection id="law" title="12. Governing law">
         <p>
-          These terms are governed by the laws of {GOVERNING_LAW}, without affecting any mandatory protections of the country where you live. If part of these terms turns out to be
+          These terms are governed by the laws of <Fill>{GOVERNING_LAW}</Fill>, without affecting any mandatory protections of the country where you live. If part of these terms turns out to be
           unenforceable, the rest still applies.
         </p>
       </LegalSection>
 
       <LegalSection id="contact" title="13. Contact">
         <p>
-          {OPERATOR}
+          <Fill>{OPERATOR}</Fill>
           <br />
           <Contact email={CONTACT_EMAIL} />
         </p>
