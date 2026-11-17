@@ -1,5 +1,5 @@
 // When API_PROXY_TARGET is set (for example https://koinonia-api.onrender.com), the web app
-// forwards /api/* to the API. The browser then only ever talks to the web app's own address,
+// forwards /api/* to the API (src/app/api/[...path]/route.ts). The browser then only ever talks to the web app's own address,
 // so the session cookie is first-party and no custom domain is needed. Pair it with
 // NEXT_PUBLIC_API_URL=/api. See docs/DEPLOY.md.
 import { readFileSync } from "node:fs";
@@ -86,10 +86,7 @@ const nextConfig = {
   // does its own packaging, so this is opt-in through NEXT_OUTPUT=standalone.
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone", outputFileTracingRoot: fileURLToPath(new URL("../..", import.meta.url)) } : {}),
   // Hands the address worked out above to the pages (it is read as NEXT_PUBLIC_API_URL).
-  env: { NEXT_PUBLIC_API_URL: apiUrl, NEXT_PUBLIC_APP_VERSION: appVersion },
-  async rewrites() {
-    return apiProxyTarget ? [{ source: "/api/:path*", destination: `${apiProxyTarget}/:path*` }] : [];
-  },
+  env: { NEXT_PUBLIC_API_URL: apiUrl, NEXT_PUBLIC_APP_VERSION: appVersion, API_PROXY_TARGET_BUILT: apiProxyTarget ?? "" },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

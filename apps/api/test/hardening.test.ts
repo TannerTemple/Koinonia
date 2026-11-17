@@ -254,7 +254,7 @@ describe("hosted configuration", () => {
     const base = { ...process.env, DATABASE_URL: "postgresql://x" };
     expect(productionWarnings(loadEnv(base))).toEqual([]);
     const sloppy = productionWarnings(loadEnv({ ...base, NODE_ENV: "production" })).join(" ");
-    for (const word of ["CORS_ORIGINS", "WEB_URL", "TRUST_PROXY", "EMAIL_PROVIDER", "API_PUBLIC_URL"]) expect(sloppy).toContain(word);
+    for (const word of ["CORS_ORIGINS", "WEB_URL", "TRUST_PROXY", "EMAIL_PROVIDER", "API_PUBLIC_URL", "PROXY_SECRET"]) expect(sloppy).toContain(word);
     const tidy = productionWarnings(
       loadEnv({
         ...base,
@@ -266,6 +266,7 @@ describe("hosted configuration", () => {
         EMAIL_PROVIDER: "resend",
         RESEND_API_KEY: "re_x",
         EMAIL_FROM: "Koinonia <hello@koinonia.test>",
+        PROXY_SECRET: "a-long-random-shared-secret-value",
       }),
     );
     expect(tidy).toEqual([]);

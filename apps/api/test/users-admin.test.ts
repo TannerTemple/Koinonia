@@ -19,8 +19,12 @@ describe("finding people on Koinonia", () => {
     const maria = await signUp(ctx.app, { name: "Maria Lopez", email: "maria@example.com", phone: "+1 555 010 2000" });
     await signUp(ctx.app, { name: "Mario Rossi", email: "mario@example.com" });
 
-    const byName = await api.call("GET", "/users/search?q=mari");
-    expect(byName.body.map((u: any) => u.name)).toEqual(["Maria Lopez", "Mario Rossi"]);
+    // A first name and the start of a last name; a fragment alone finds nobody.
+    const byName = await api.call("GET", "/users/search?q=maria%20lo");
+    expect(byName.body.map((u: any) => u.name)).toEqual(["Maria Lopez"]);
+    expect((await api.call("GET", "/users/search?q=mari")).body).toEqual([]);
+    expect((await api.call("GET", "/users/search?q=lopez")).body).toEqual([]);
+    expect((await api.call("GET", "/users/search?q=m%20l")).body).toEqual([]);
     expect(byName.body[0]).toMatchObject({ matchedBy: "name", email: null, phone: null, alreadyContact: false });
 
     // An address nobody has confirmed can't be found: anyone could have typed it at sign-up.
@@ -38,10 +42,11 @@ describe("finding people on Koinonia", () => {
     expect((await api.call("GET", "/users/search?q=5550102000")).body).toHaveLength(1);
     expect((await api.call("GET", "/users/search?q=Searcher")).body).toEqual([]);
     expect((await api.call("GET", "/users/search?q=m")).body).toEqual([]);
-    // Names match from the start of a first or last name only, so the list can't be browsed by fragment.
+    // Names need a first name and the start of a last name, so the list can't be browsed by fragment.
     expect((await api.call("GET", "/users/search?q=ma")).body).toEqual([]);
     expect((await api.call("GET", "/users/search?q=ari")).body).toEqual([]);
-    expect((await api.call("GET", "/users/search?q=lop")).body.map((u: any) => u.name)).toEqual(["Maria Lopez"]);
+    expect((await api.call("GET", "/users/search?q=lop")).body).toEqual([]);
+    expect((await api.call("GET", "/users/search?q=MARIA%20L")).body.map((u: any) => u.name)).toEqual(["Maria Lopez"]);
   });
 
   it("respects the discoverable setting", async () => {
@@ -58,7 +63,7 @@ describe("finding people on Koinonia", () => {
     const created = await api.call("POST", "/contacts", { name: "Maria Lopez", linkedUserId: maria.userId, cadenceDays: 14 });
     expect(created.status).toBe(201);
     expect(created.body.linkedUserId).toBe(maria.userId);
-    const again = await api.call("GET", "/users/search?q=maria");
+    const again = await api.call("GET", "/users/search?q=maria%20lopez");
     expect(again.body[0].alreadyContact).toBe(true);
     expect((await api.call("POST", "/contacts", { name: "Me", linkedUserId: api.userId })).status).toBe(400);
   });

@@ -63,7 +63,7 @@ export default function FindPeoplePage() {
       </div>
 
       {q.length < 2 ? (
-        <EmptyState title="Look someone up" body="Type at least two letters. People who turned off discovery in their settings won't appear." />
+        <EmptyState title="Look someone up" body="Type their first and last name (the start of the last name is enough), or their exact email or phone. People who turned off discovery in their settings won't appear." />
       ) : error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : !data && isFetching ? (

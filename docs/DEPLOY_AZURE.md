@@ -74,6 +74,7 @@ no scale to zero) and a virtual machine (cheap, but you patch and secure it your
 | `WEB_URL` | the web app's address | Goes into emailed links and is the browser origin allowed to call the API. Added in step 6. |
 | `API_PUBLIC_URL` | the API's own address | Used for calendar links. Added in step 6. (Only Render fills this in by itself.) |
 | `TRUST_PROXY` | `1` | Container Apps puts one proxy in front of the container. |
+| `PROXY_SECRET` | a long random value | Stored as a **secret**; the same value goes on the web app. Gives each web visitor their own rate limit. Made in step 2. |
 | `EMAIL_PROVIDER` | `mock`, later `resend` | See "Real email" in [DEPLOY.md](DEPLOY.md); the Resend steps are the same. |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `FEEDBACK_EMAIL` | from Resend / your address | Only with real email. Store the key as a secret. |
 | `DIGEST_ENABLED` | `false` | Leave off while the API can scale to zero; see "Daily email". |
@@ -86,6 +87,7 @@ no scale to zero) and a virtual machine (cheap, but you patch and secure it your
 | Variable | Value | Notes |
 | --- | --- | --- |
 | `API_PROXY_TARGET` | the API's address | **Given when the image is built** (`--build-arg`), not in the container's settings. The web app forwards `/api/*` there. Changing it means building the web image again. |
+| `PROXY_SECRET` | the same value as the API's | A **secret** in the container's settings (not a build argument). |
 | `NEXT_PUBLIC_CONTACT_EMAIL`, `NEXT_PUBLIC_OPERATOR_NAME` | your contact details | Optional build arguments, shown on the legal pages. |
 | `PORT` | do not set | The image listens on 3000. |
 
@@ -119,9 +121,9 @@ for ns in Microsoft.App Microsoft.OperationalInsights Microsoft.ContainerRegistr
 ## Step 2. Names, resource group, registry, environment (5 min)
 
 Run this block once per terminal window; later steps use these names. `ACR` and `PG` must be
-unique in all of Azure, so the block adds a few random letters. **Copy the two `echo` lines'
-output into a text file**: if you open a new terminal you must set `ACR` and `PG` to those same
-values again, not generate new ones.
+unique in all of Azure, so the block adds a few random letters. **Copy the three `echo` lines'
+output into a text file**: if you open a new terminal you must set `ACR`, `PG` and
+`PROXY_SECRET` to those same values again, not generate new ones.
 
 ```bash
 RG=koinonia
@@ -129,8 +131,10 @@ LOC=eastus
 SUFFIX=$(openssl rand -hex 3)
 ACR=koinonia$SUFFIX
 PG=koinonia-db-$SUFFIX
+PROXY_SECRET=$(openssl rand -hex 24)
 echo "ACR=$ACR"
 echo "PG=$PG"
+echo "PROXY_SECRET=$PROXY_SECRET"
 ```
 
 ```bash
@@ -218,12 +222,11 @@ docker build --platform linux/amd64 -f apps/api/Dockerfile -t $ACR.azurecr.io/ko
 Now start it. With Azure PostgreSQL:
 
 ```bash
-az containerapp create -g $RG -n koinonia-api --environment koinonia-env --image $ACR.azurecr.io/koinonia-api:v1 --registry-server $ACR.azurecr.io --registry-username $ACR --registry-password "$(az acr credential show -n $ACR --query 'passwords[0].value' -o tsv)" --target-port 4000 --ingress external --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi --secrets database-url="$DATABASE_URL" --env-vars NODE_ENV=production DATABASE_URL=secretref:database-url TRUST_PROXY=1 EMAIL_PROVIDER=mock DIGEST_ENABLED=false LOG_LEVEL=info
+az containerapp create -g $RG -n koinonia-api --environment koinonia-env --image $ACR.azurecr.io/koinonia-api:v1 --registry-server $ACR.azurecr.io --registry-username $ACR --registry-password "$(az acr credential show -n $ACR --query 'passwords[0].value' -o tsv)" --target-port 4000 --ingress external --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi --secrets database-url="$DATABASE_URL" proxy-secret="$PROXY_SECRET" --env-vars NODE_ENV=production DATABASE_URL=secretref:database-url PROXY_SECRET=secretref:proxy-secret TRUST_PROXY=1 EMAIL_PROVIDER=mock DIGEST_ENABLED=false LOG_LEVEL=info
 ```
 
-With Neon, the same command with one more secret and one more variable: replace
-`--secrets database-url="$DATABASE_URL"` by
-`--secrets database-url="$DATABASE_URL" direct-url="$DIRECT_URL"` and add
+With Neon, the same command with one more secret and one more variable: add
+`direct-url="$DIRECT_URL"` after `proxy-secret="$PROXY_SECRET"` and add
 `DIRECT_URL=secretref:direct-url` to the end.
 
 ```bash
@@ -259,7 +262,7 @@ az acr build -r $ACR -t koinonia-web:v1 -f apps/web/Dockerfile --build-arg API_P
 `docker build --platform linux/amd64 -f apps/web/Dockerfile --build-arg API_PROXY_TARGET=$API_URL -t $ACR.azurecr.io/koinonia-web:v1 . && docker push $ACR.azurecr.io/koinonia-web:v1`)
 
 ```bash
-az containerapp create -g $RG -n koinonia-web --environment koinonia-env --image $ACR.azurecr.io/koinonia-web:v1 --registry-server $ACR.azurecr.io --registry-username $ACR --registry-password "$(az acr credential show -n $ACR --query 'passwords[0].value' -o tsv)" --target-port 3000 --ingress external --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi
+az containerapp create -g $RG -n koinonia-web --environment koinonia-env --image $ACR.azurecr.io/koinonia-web:v1 --registry-server $ACR.azurecr.io --registry-username $ACR --registry-password "$(az acr credential show -n $ACR --query 'passwords[0].value' -o tsv)" --target-port 3000 --ingress external --min-replicas 0 --max-replicas 2 --cpu 0.5 --memory 1.0Gi --secrets proxy-secret="$PROXY_SECRET" --env-vars PROXY_SECRET=secretref:proxy-secret
 ```
 
 ```bash

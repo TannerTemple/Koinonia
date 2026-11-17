@@ -37,6 +37,12 @@ const schema = z.object({
    * the X-Cron-Secret header. Unset = the endpoint does not exist.
    */
   CRON_SECRET: z.string().min(24, "must be at least 24 characters").optional(),
+  /**
+   * Shared with the web app (its PROXY_SECRET). When a request carries it, the API believes
+   * the visitor address the web app passes along, so web visitors are rate-limited one by one
+   * instead of all together. Unset = web visitors share the web server's address.
+   */
+  PROXY_SECRET: z.string().min(24, "must be at least 24 characters").optional(),
   /** Optional Domain attribute for the web session cookie, e.g. ".example.com". */
   COOKIE_DOMAIN: z.string().optional(),
   DIGEST_ENABLED: bool,
@@ -133,6 +139,7 @@ export function productionWarnings(env: Env): string[] {
   if (env.TRUST_PROXY === false) warnings.push("TRUST_PROXY is off; behind a host's proxy every visitor shares one rate limit. Set TRUST_PROXY=1.");
   if (env.TRUST_PROXY === true) warnings.push("TRUST_PROXY=true trusts any forwarded address; prefer a hop count such as 1.");
   if (env.EMAIL_PROVIDER === "mock") warnings.push("EMAIL_PROVIDER=mock: no email is sent, so password reset and email confirmation reach nobody. See the Real email step in docs/DEPLOY.md.");
+  if (!env.PROXY_SECRET) warnings.push("PROXY_SECRET is not set; everyone using the web app shares one rate limit. Set the same long random value on the API and the web app.");
   if (!env.API_PUBLIC_URL) warnings.push("API_PUBLIC_URL is not set; calendar links are built from the request's host.");
   else if (!isOrigin(env.API_PUBLIC_URL)) warnings.push("API_PUBLIC_URL should look like https://your-api.onrender.com (no path).");
   return warnings;
@@ -160,7 +167,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const input: NodeJS.ProcessEnv = { ...source };
   // An empty box on a host's settings page means "not set".
   for (const key of Object.keys(input)) if (input[key]?.trim() === "") delete input[key];
-  for (const key of ["DATABASE_URL", "DIRECT_URL", "RESEND_API_KEY", "SENTRY_DSN", "CRON_SECRET"]) if (input[key]) input[key] = tidy(input[key]);
+  for (const key of ["DATABASE_URL", "DIRECT_URL", "RESEND_API_KEY", "SENTRY_DSN", "CRON_SECRET", "PROXY_SECRET"]) if (input[key]) input[key] = tidy(input[key]);
   for (const key of ["WEB_URL", "API_PUBLIC_URL"]) if (input[key]) input[key] = tidyUrl(input[key]);
   if (input.CORS_ORIGINS) input.CORS_ORIGINS = input.CORS_ORIGINS.split(",").map((o) => tidyUrl(o)).filter(Boolean).join(",");
   // Render tells the service its own public address; use it unless one was chosen.

@@ -11,7 +11,7 @@ export async function userRoutes(app: FastifyInstance) {
 
   app.get<{ Querystring: { q?: string } }>(
     "/users/search",
-    { preHandler: app.authenticate, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    { preHandler: app.authenticate, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
     async (request): Promise<UserSearchResult[]> => {
       const q = (request.query.q ?? "").trim().slice(0, 100);
       if (q.length < 3) return [];
@@ -36,14 +36,11 @@ export async function userRoutes(app: FastifyInstance) {
           ],
         };
       } else {
-        // The start of a first or last name, not any fragment: you can find someone you know,
-        // but you can't page through the member list a letter at a time.
-        match = {
-          OR: [
-            { name: { startsWith: q, mode: "insensitive" } },
-            { name: { contains: ` ${q}`, mode: "insensitive" } },
-          ],
-        };
+        // A first name and the start of a last name ("Maria Lo"): enough to find someone you
+        // know, not enough to page through the member list a few letters at a time.
+        const words = q.split(/\s+/).filter(Boolean);
+        if (words.length < 2 || words[0]!.length < 2) return [];
+        match = { name: { startsWith: words.join(" "), mode: "insensitive" } };
       }
 
       const users = await prisma.user.findMany({

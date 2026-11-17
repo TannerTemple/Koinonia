@@ -34,6 +34,7 @@ below tell you when.
 | `CORS_ORIGINS` | do not set | Defaults to `WEB_URL`. Set it only to allow more than one origin (comma-separated, never `*`). |
 | `API_PUBLIC_URL` | do not set | Defaults to the address Render gives the service. Set it only when the API has its own domain. |
 | `NODE_ENV` | `production` | Set by `render.yaml`. |
+| `PROXY_SECRET` | generated | Set by `render.yaml` with a random value. Copy it to the web app's `PROXY_SECRET`. |
 | `TRUST_PROXY` | `1` | Set by `render.yaml`. Render has one proxy in front of the service. |
 | `EMAIL_PROVIDER` | `mock`, later `resend` | Set by `render.yaml`. See "Real email". |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | from Resend | Only with `EMAIL_PROVIDER=resend`. |
@@ -47,6 +48,7 @@ below tell you when.
 
 | Variable | Value | Notes |
 | --- | --- | --- |
+| `PROXY_SECRET` | the same value as on Render | Optional but recommended: gives each web visitor their own rate limit. Render generates it (koinonia-api → Environment → `PROXY_SECRET` → reveal and copy). |
 | `API_PROXY_TARGET` | `https://YOUR-API.onrender.com` | **The only one required.** The web app forwards `/api/*` here. The build stops with a plain message if it is missing. |
 | `NEXT_PUBLIC_API_URL` | do not set | Defaults to `/api` when `API_PROXY_TARGET` is set. See "Why `/api`" below. |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | your contact address | Shown on the privacy and terms pages. |
@@ -313,9 +315,10 @@ else", which is what rate limiting needs. To confirm: open the Render logs, make
 your phone on mobile data, and compare `remoteAddress` in the log line with your phone's public IP.
 If the log shows the same unfamiliar address for everyone, raise the number to `2`.
 
-Because browser traffic arrives through Vercel, web visitors share rate-limit buckets per Vercel
-server address. That is fine at small scale; the per-account sign-in lockout (8 wrong passwords,
-15 minutes) does not depend on addresses. Using your own domain removes the sharing.
+Browser traffic arrives through the web app, so the API would see every web visitor as the
+web app's address and put them all in one rate-limit bucket. `PROXY_SECRET` fixes that: the web
+app passes each visitor's own address along with the secret, and the API believes the address
+only when the secret matches. Without it everything still works; web visitors just share limits.
 
 ## Backups
 

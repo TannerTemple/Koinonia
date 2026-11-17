@@ -36,9 +36,9 @@ export default function FindScreen() {
 
   return (
     <Screen keyboard>
-      <Field label="Search by name, or exact email or phone" value={input} onChangeText={setInput} autoCapitalize="none" autoCorrect={false} autoFocus placeholder="Maria Lopez" />
+      <Field label="First and last name, or exact email or phone" value={input} onChangeText={setInput} autoCapitalize="none" autoCorrect={false} autoFocus placeholder="Maria Lopez" />
       {q.length < 2 ? (
-        <EmptyState icon="search" title="Look someone up" body="Type at least two letters. People who turned off discovery in their settings won't appear." />
+        <EmptyState icon="search" title="Look someone up" body="Type their first and last name (the start of the last name is enough), or their exact email or phone. People who turned off discovery in their settings won't appear." />
       ) : error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : !data && isFetching ? (

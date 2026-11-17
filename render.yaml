@@ -34,6 +34,10 @@ services:
       # address Render gives this service; set them only to override.
       # --- Fixed settings ---------------------------------------------------
       # Render puts one proxy in front of the service.
+      # Shared with the web app so each web visitor gets their own rate limit. Render makes up
+      # a long random value; copy it into the web app's PROXY_SECRET (docs/DEPLOY.md, step 3).
+      - key: PROXY_SECRET
+        generateValue: true
       - key: TRUST_PROXY
         value: "1"
       - key: LOG_LEVEL

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -29,6 +30,20 @@ export const SESSION_DAYS = 30;
 export const WRITE_LIMIT = { max: 60, timeWindow: "1 minute" };
 export const SESSION_COOKIE = "koinonia_session";
 /** Browsers send this on every call; a cookie is only honoured alongside it (see sessionToken). */
+/**
+ * The address to rate-limit by. Normally the connection's (after TRUST_PROXY). When the web
+ * app forwards a request it sends the visitor's address along with PROXY_SECRET; only with the
+ * right secret is that address believed, so nobody else can choose their own.
+ */
+export function visitorAddress(request: FastifyRequest, secret: string | undefined): string {
+  const given = request.headers["x-koinonia-proxy-secret"];
+  const claimed = request.headers["x-koinonia-client-ip"];
+  if (secret && typeof given === "string" && typeof claimed === "string" && given.length === secret.length && timingSafeEqual(Buffer.from(given), Buffer.from(secret)) && /^[0-9a-fA-F:.]{3,45}$/.test(claimed)) {
+    return claimed;
+  }
+  return request.ip;
+}
+
 export const CLIENT_HEADER = "x-koinonia-client";
 
 /** Set-Cookie value for the web session: httpOnly so page scripts can never read the token. */
@@ -163,6 +178,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       timeWindow: "1 minute",
       // Hosts poll these constantly; they must never be throttled into "unhealthy".
       allowList: (request) => request.url === "/health" || request.url === "/health/ready",
+      // One bucket per visitor: their own address, even when they come through the web app.
+      keyGenerator: (request) => visitorAddress(request, deps.env.PROXY_SECRET),
     });
   }
 

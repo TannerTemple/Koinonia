@@ -134,6 +134,9 @@ Fix it under **Environment** → **Save Changes**; Render redeploys by itself.
    setting people miss.
 3. Leave Framework (Next.js) and the build settings alone.
 4. Open **Environment Variables** and add **one**:
+   - Optional, recommended: Key `PROXY_SECRET`, Value copied from Render → koinonia-api →
+     **Environment** → `PROXY_SECRET` (click the eye to reveal). It gives each web visitor their
+     own rate limit.
    - Key `API_PROXY_TARGET`, Value your **API address** (for example
      `https://koinonia-api.onrender.com`)
 5. Click **Deploy**. 2 to 4 minutes.
