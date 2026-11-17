@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_CADENCE_DAYS } from "./cadence";
 import { isDay, isValidTimezone } from "./dates";
+import type { Keep } from "./keep";
 import type { Streak } from "./streaks";
 
 // ---------------------------------------------------------------------------
@@ -383,6 +384,8 @@ export interface Home {
   birthdays: { contact: Contact; day: string }[];
   prayer: PrayerToday;
   streaks: { reachOut: Streak; prayer: Streak };
+  /** Reasons to come back: a forgiving prayer streak, the weekly rhythm, totals and a memory. */
+  keep: Keep;
   stats: { contacts: number; reachOutsThisWeek: number; activeIntentions: number };
 }
 

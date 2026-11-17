@@ -49,6 +49,9 @@ const list = (names: string[]) => (names.length <= 2 ? names.join(" and ") : `${
  * Re-planned from scratch whenever the data changes, so a reach-out, a snooze or an edit
  * moves the reminders with it. Pure, so it can be unit tested without a phone.
  */
+/** Evening, when the day is nearly over but there is still time. */
+export const STREAK_NUDGE_TIME = { hour: 20, minute: 0 };
+
 export function planReminders(home: Home, now: { hour: number; minute: number }): PlannedReminder[] {
   const { today } = home;
   const plans: PlannedReminder[] = [];
@@ -114,6 +117,21 @@ export function planReminders(home: Home, now: { hour: number; minute: number })
       ...time,
       url: `/contact/${note.contactId}`,
       badge: dueBy(day),
+    });
+  }
+
+  // A prayer streak worth keeping: one gentle evening nudge, today only, and only if today is not done.
+  // (Re-planned every time the app opens, so praying cancels it.)
+  const streak = home.keep.prayerStreak;
+  if (home.keep.features.streakNudge && home.keep.features.prayerStreak && streak.atRisk && streak.current >= 2 && home.stats.activeIntentions > 0 && stillToday(STREAK_NUDGE_TIME)) {
+    plans.push({
+      id: `streak-${today}`,
+      title: `Keep your ${streak.current} days of prayer going`,
+      body: home.prayer.intention ? `One minute for "${home.prayer.intention.title}" is enough.` : "One minute is enough.",
+      day: today,
+      ...STREAK_NUDGE_TIME,
+      url: "/prayer",
+      badge: dueBy(today),
     });
   }
 

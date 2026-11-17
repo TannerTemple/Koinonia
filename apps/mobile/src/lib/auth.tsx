@@ -1,4 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { LAST_SIGN_IN_KEY, rememberSignIn } from "@koinonia/shared";
+import { kv } from "./storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthResponse, User } from "@koinonia/shared";
 import { api, onUnauthorized, tokenStore } from "./api";
@@ -44,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser,
       signIn: async (auth) => {
         await tokenStore.set(auth.token);
+        // So the sign-in screen can say "welcome back" next time on this phone. Never the password.
+        await kv.set(LAST_SIGN_IN_KEY, rememberSignIn(auth.user));
         queryClient.clear();
         setUser(auth.user);
       },

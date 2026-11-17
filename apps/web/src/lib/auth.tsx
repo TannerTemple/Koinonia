@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { LAST_SIGN_IN_KEY, rememberSignIn } from "@koinonia/shared";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthResponse, User } from "@koinonia/shared";
@@ -46,6 +47,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLanding(to);
         queryClient.clear();
         setUser(auth.user);
+        // So the sign-in page can say "welcome back" next time on this browser. Never the password.
+        try {
+          window.localStorage.setItem(LAST_SIGN_IN_KEY, rememberSignIn(auth.user));
+        } catch {
+          /* storage unavailable */
+        }
         router.replace(to);
       },
       signOut: async () => {

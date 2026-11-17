@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Contact, Home, Note } from "@koinonia/shared";
+import { ALL_FEATURES_ON, type Contact, type Home, type Note } from "@koinonia/shared";
 import { MAX_REMINDERS, NUDGE_DAYS, formatTime, parseTime, planReminders } from "./reminder-plan";
 
 const TODAY = "2026-11-12";
@@ -16,6 +16,13 @@ const home = (partial: Partial<Home>): Home => ({
   today: TODAY, overdue: [], dueToday: [], upcoming: [], nextUp: null, followUps: [], birthdays: [],
   prayer: { day: TODAY, intention: null, chosenByUser: false },
   streaks: { reachOut: { current: 0, longest: 0, doneToday: false }, prayer: { current: 0, longest: 0, doneToday: false } },
+  keep: {
+    features: ALL_FEATURES_ON,
+    prayerStreak: { current: 0, longest: 0, doneToday: false, graceUsed: false, atRisk: false },
+    reachOutWeeks: { current: 0, longest: 0, doneThisWeek: false },
+    totals: { reachOuts: 0, prayers: 0, answered: 0, sinceDay: TODAY },
+    memory: null,
+  },
   stats: { contacts: 0, reachOutsThisWeek: 0, activeIntentions: 0 },
   ...partial,
 });
@@ -112,5 +119,33 @@ describe("planReminders", () => {
     expect(plans).toHaveLength(MAX_REMINDERS);
     const days = plans.map((p) => p.day);
     expect([...days].sort()).toEqual(days);
+  });
+});
+
+describe("an evening nudge for a prayer streak worth keeping", () => {
+  const keep = (prayerStreak: Partial<Home["keep"]["prayerStreak"]>, features = ALL_FEATURES_ON): Home["keep"] => ({
+    features,
+    prayerStreak: { current: 5, longest: 5, doneToday: false, graceUsed: false, atRisk: true, ...prayerStreak },
+    reachOutWeeks: { current: 0, longest: 0, doneThisWeek: false },
+    totals: { reachOuts: 0, prayers: 5, answered: 0, sinceDay: TODAY },
+    memory: null,
+  });
+  const stats = { contacts: 0, reachOutsThisWeek: 0, activeIntentions: 1 };
+
+  it("fires once at 8pm today and opens the prayer list", () => {
+    const plans = planReminders(home({ keep: keep({}), stats }), at(9));
+    expect(plans).toEqual([expect.objectContaining({ id: `streak-${TODAY}`, title: "Keep your 5 days of prayer going", day: TODAY, hour: 20, minute: 0, url: "/prayer" })]);
+  });
+
+  it("stays quiet once prayed, after 8pm, for a one-day run, or with nothing to pray for", () => {
+    expect(planReminders(home({ keep: keep({ doneToday: true, atRisk: false }), stats }), at(9))).toEqual([]);
+    expect(planReminders(home({ keep: keep({}), stats }), at(20, 30))).toEqual([]);
+    expect(planReminders(home({ keep: keep({ current: 1 }), stats }), at(9))).toEqual([]);
+    expect(planReminders(home({ keep: keep({}) }), at(9))).toEqual([]);
+  });
+
+  it("can be switched off, on its own or with the streak", () => {
+    expect(planReminders(home({ keep: keep({}, { ...ALL_FEATURES_ON, streakNudge: false }), stats }), at(9))).toEqual([]);
+    expect(planReminders(home({ keep: keep({}, { ...ALL_FEATURES_ON, prayerStreak: false }), stats }), at(9))).toEqual([]);
   });
 });

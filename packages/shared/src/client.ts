@@ -45,6 +45,7 @@ import type {
 } from "./schemas";
 import type { AdminMetrics } from "./metrics";
 import { BRAND } from "./brand";
+import type { PublicConfig } from "./keep";
 
 export class ApiError extends Error {
   constructor(
@@ -220,6 +221,8 @@ export function createApiClient(options: ApiClientOptions) {
     devices: {
       register: (input: RegisterDeviceInput) => post<void>("/devices", input),
     },
+    /** Public: which optional features are switched on. */
+    config: () => get<PublicConfig>("/config"),
     beta: {
       /** Public: ask for a TestFlight invite. */
       signup: (input: BetaSignupInput) => post<{ ok: true }>("/beta/signup", input),

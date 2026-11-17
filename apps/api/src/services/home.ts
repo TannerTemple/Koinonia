@@ -1,13 +1,13 @@
 import type { PrismaClient } from "@prisma/client";
-import { addDays, computeStreak, nextBirthday, type Contact, type Home } from "@koinonia/shared";
+import { ALL_FEATURES_ON, addDays, computeStreak, gentleStreak, memoryDays, nextBirthday, pickMemory, weekStreak, type Contact, type Features, type Home } from "@koinonia/shared";
 import { contactCounts, toContact, toNote } from "../lib/serialize";
 import { getPrayerToday } from "./prayer";
 
 const UPCOMING_DAYS = 14;
 const FOLLOW_UP_DAYS = 7;
 
-export async function buildHome(prisma: PrismaClient, userId: string, today: string): Promise<Home> {
-  const [rows, followUps, reachDays, prayerDays, activeIntentions, reachOutsThisWeek, prayer] =
+export async function buildHome(prisma: PrismaClient, userId: string, today: string, features: Features = ALL_FEATURES_ON): Promise<Home> {
+  const [rows, followUps, reachDays, prayerDays, activeIntentions, reachOutsThisWeek, prayer, totalReachOuts, totalPrayers, answered, account, remembered] =
     await Promise.all([
       prisma.contact.findMany({ where: { userId, archivedAt: null }, include: contactCounts }),
       prisma.note.findMany({
@@ -25,6 +25,18 @@ export async function buildHome(prisma: PrismaClient, userId: string, today: str
       prisma.prayerIntention.count({ where: { userId, status: "ACTIVE" } }),
       prisma.interaction.count({ where: { userId, day: { gt: addDays(today, -7) } } }),
       getPrayerToday(prisma, userId, today),
+      prisma.interaction.count({ where: { userId } }),
+      prisma.prayerLog.count({ where: { userId } }),
+      prisma.prayerIntention.count({ where: { userId, status: "ANSWERED" } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
+      // Reach-outs on the same day a week, a month, three and six months and a year ago.
+      prisma.interaction.findMany({
+        // Switched off: ask for nothing.
+        where: { userId, day: { in: features.memory ? memoryDays(today) : [] }, contact: { archivedAt: null } },
+        select: { day: true, summary: true, contactId: true, contact: { select: { name: true } } },
+        orderBy: { occurredAt: "asc" },
+        take: 50,
+      }),
     ]);
 
   const contacts = rows.map(toContact);
@@ -51,6 +63,13 @@ export async function buildHome(prisma: PrismaClient, userId: string, today: str
     streaks: {
       reachOut: computeStreak(reachDays.map((r) => r.day), today),
       prayer: computeStreak(prayerDays.map((r) => r.day), today),
+    },
+    keep: {
+      features,
+      prayerStreak: gentleStreak(prayerDays.map((r) => r.day), today),
+      reachOutWeeks: weekStreak(reachDays.map((r) => r.day), today),
+      totals: { reachOuts: totalReachOuts, prayers: totalPrayers, answered, sinceDay: (account?.createdAt ?? new Date()).toISOString().slice(0, 10) },
+      memory: pickMemory(today, remembered.map((r) => ({ day: r.day, contactId: r.contactId, contactName: r.contact.name, summary: r.summary }))),
     },
     stats: { contacts: contacts.length, reachOutsThisWeek, activeIntentions },
   };

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
-import { BRAND, dueLabel, formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
+import { BRAND, dailyWord, dueLabel, formatDay, formatLongDay, gettingStarted, greetingFor, prayerStreakLine, reachOutSummary, relativeDay, soFarLine, weekStreakLine, type Contact, type Home, type Note } from "@koinonia/shared";
 import { PrayTodayCard, ReachOutCard } from "@/components/domain";
 import { Avatar, Body, Button, Card, ErrorState, Loading, Rows, Screen, type IconName } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -12,6 +12,74 @@ import { ReminderPrompt } from "@/components/reminders";
 import { kv } from "@/lib/storage";
 import { serif, space, useTheme } from "@/lib/theme";
 import { welcomedKey } from "../welcome";
+
+/** One or two encouraging lines under the greeting: what is going well, or what today would keep going. */
+function StreakStrip({ home }: { home: Home }) {
+  const { c } = useTheme();
+  const on = home.keep.features;
+  const lines = [on.prayerStreak ? prayerStreakLine(home.keep.prayerStreak, { milestones: on.milestones }) : null, on.weekStreak ? weekStreakLine(home.keep.reachOutWeeks) : null].filter((l): l is string => Boolean(l));
+  if (lines.length === 0) return null;
+  return (
+    <View accessibilityLabel="Your streaks" style={{ flexDirection: "row", gap: space.sm, padding: space.md, borderRadius: 16, backgroundColor: c.surfaceAlt }}>
+      <Ionicons name="flame" size={20} color={c.gold} style={{ marginTop: 1 }} />
+      <View style={{ flex: 1, gap: 4 }}>
+        {lines.map((line) => (
+          <Text key={line} style={{ fontSize: 16, lineHeight: 22, color: c.text }}>
+            {line}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** The quiet end of Today: a memory, a word for today, and what has been built up so far. */
+function KeepGoing({ home }: { home: Home }) {
+  const { c } = useTheme();
+  const on = home.keep.features;
+  const word = on.dailyWord ? dailyWord(home.today) : null;
+  const memory = on.memory ? home.keep.memory : null;
+  const soFar = on.totals ? soFarLine(home.keep.totals) : null;
+  const label = { fontSize: 13, fontWeight: "700" as const, letterSpacing: 0.6, textTransform: "uppercase" as const };
+  if (!word && !memory && !soFar) return null;
+  return (
+    <View style={{ gap: space.md }}>
+      {memory ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${memory.label}, you reached out to ${memory.contactName}. Open their page.`}
+          onPress={() => router.push(`/contact/${memory.contactId}`)}
+          style={({ pressed }) => ({ gap: 4, padding: space.lg, borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: pressed ? c.surfaceAlt : c.surface })}
+        >
+          <Text style={{ ...label, color: c.gold }}>{memory.label}</Text>
+          <Text style={{ fontSize: 18, lineHeight: 24, color: c.text }}>
+            You reached out to <Text style={{ fontWeight: "700" }}>{memory.contactName}</Text>.
+          </Text>
+          {memory.summary ? <Text style={{ fontSize: 16, lineHeight: 22, color: c.textMuted }}>&ldquo;{memory.summary}&rdquo;</Text> : null}
+          <Text style={{ marginTop: 4, fontSize: 16, fontWeight: "700", color: c.primary }}>How are they now?</Text>
+        </Pressable>
+      ) : null}
+
+      {word ? (
+        <View style={{ gap: 6, padding: space.lg, borderRadius: 16, backgroundColor: c.surfaceAlt }}>
+          <Text style={{ ...label, color: c.textMuted }}>A word for today</Text>
+          <Text style={{ fontFamily: serif, fontSize: 20, lineHeight: 27, color: c.text }}>&ldquo;{word.text}&rdquo;</Text>
+          <Text style={{ fontSize: 14, color: c.textMuted }}>{word.reference}</Text>
+          <Text style={{ marginTop: 6, fontSize: 16, lineHeight: 22, fontWeight: "700", color: c.text }}>{word.nudge}</Text>
+        </View>
+      ) : null}
+
+      {soFar ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={`${soFar} See your week`} onPress={() => router.push("/review")} style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm }}>
+          <Text style={{ flex: 1, fontSize: 15, lineHeight: 21, color: c.textMuted }}>
+            {soFar} <Text style={{ fontWeight: "700", color: c.primary }}>See your week</Text>
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={c.primary} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
 
 /** A big, plain heading for one of the two things the app is for. */
 function Heading({ icon, tone, title, summary }: { icon: IconName; tone: "primary" | "forest"; title: string; summary?: string }) {
@@ -147,7 +215,6 @@ export default function TodayScreen() {
 
   const due = [...home.overdue, ...home.dueToday];
   const next = home.upcoming.length ? home.upcoming.slice(0, 5) : home.nextUp ? [home.nextUp] : [];
-  const { reachOut, prayer } = home.streaks;
   const hasPeople = home.stats.contacts > 0;
   // Until the first prayer is added, the getting-started card is the only prompt for it.
   const hasPrayers = gettingStarted(home).addedPrayer;
@@ -161,6 +228,7 @@ export default function TodayScreen() {
         </Text>
       </View>
 
+      <StreakStrip home={home} />
       <GettingStartedCard home={home} />
       <ReminderPrompt people={home.stats.contacts} />
 
@@ -227,18 +295,7 @@ export default function TodayScreen() {
         </View>
       ) : null}
 
-      {/* Encouragement, kept small and only once there is something to show. */}
-      {reachOut.longest > 0 || prayer.longest > 0 ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="See your week" onPress={() => router.push("/review")} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: space.sm, padding: space.md, borderRadius: 12, backgroundColor: c.surfaceAlt, opacity: pressed ? 0.7 : 1 })}>
-          <Ionicons name="flame" size={20} color={c.gold} />
-          <Text style={{ flex: 1, fontSize: 15, lineHeight: 21, color: c.text }}>
-            {reachOut.current > 0 ? `Reached out ${reachOut.current} day${reachOut.current === 1 ? "" : "s"} in a row. ` : ""}
-            {prayer.current > 0 ? `Prayed ${prayer.current} day${prayer.current === 1 ? "" : "s"} in a row. ` : ""}
-            <Text style={{ fontWeight: "700", color: c.primary }}>See your week</Text>
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color={c.primary} />
-        </Pressable>
-      ) : null}
+      <KeepGoing home={home} />
     </Screen>
   );
 }

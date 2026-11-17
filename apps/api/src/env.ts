@@ -1,4 +1,4 @@
-import { BRAND } from "@koinonia/shared";
+import { BRAND, RETENTION_FEATURES, featuresFrom } from "@koinonia/shared";
 import { z } from "zod";
 
 const bool = z
@@ -47,6 +47,8 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default(BRAND.emailFrom),
   EMAIL_REPLY_TO: z.string().optional(),
+  /** Retention features to switch off, comma-separated (see docs/RETENTION.md). Empty = all on. */
+  FEATURES_OFF: z.string().optional(),
   /** Where "Send feedback" messages are emailed. Unset = they are only saved (Admin > Feedback). */
   FEEDBACK_EMAIL: z.string().trim().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "must be an email address, like you@example.com").optional(),
   TWILIO_ACCOUNT_SID: z.string().optional(),
@@ -176,6 +178,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     problems.push(`DIRECT_URL is missing. DATABASE_URL is Neon's pooled address, so migrations need the direct one too: in Neon's Connect box, switch "Connection pooling" off, copy, and add it as DIRECT_URL.`);
   }
   if (production && input.PORT && !/^\d+$/.test(input.PORT)) problems.push(`PORT must be a number (on Render, do not set it at all). It is "${input.PORT}".`);
+
+  const unknownFeatures = featuresFrom(input.FEATURES_OFF).unknown;
+  if (unknownFeatures.length) problems.push(`FEATURES_OFF has ${unknownFeatures.length === 1 ? "a name" : "names"} that ${unknownFeatures.length === 1 ? "is" : "are"} not a feature: ${unknownFeatures.join(", ")}. The features are: ${RETENTION_FEATURES.join(", ")}.`);
 
   const parsed = schema.safeParse(input);
   const cross: { path: string[]; message: string }[] = [];
