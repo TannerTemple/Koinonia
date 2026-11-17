@@ -6,6 +6,10 @@ _Last updated: end of the seventh unattended round (deploy-night hardening, smok
 >
 > **Deploying tonight? Open [docs/TONIGHT.md](docs/TONIGHT.md) and follow it top to bottom.**
 
+> **Experiment, not on this branch:** `claude/retention-ideas` adds reasons to come back (a forgiving prayer streak, weekly reach-out rhythm, memories, a verse for the day, totals, "Used last time" on sign-in). See `docs/RETENTION.md` on that branch. No pull request has been opened for it.
+>
+> **Hosting on Azure instead of Render/Vercel:** the guides are written for Neon, Render and Vercel. The same pieces map to Azure (the API's Docker image on Container Apps or App Service, Azure Database for PostgreSQL, the web app on App Service or Static Web Apps) with the same variables, but no Azure guide has been written or tried. One difference: set `API_PUBLIC_URL` yourself, because only Render fills it in.
+
 ## After `git pull`, run exactly this
 
 There is **one new database migration** this round (`feedback`: one new table) and one newly declared dependency (`expo-file-system`, already present inside Expo), so run `pnpm install` and `pnpm db:migrate`. `pnpm db:seed` is optional and only refreshes the demo accounts on your own computer.
