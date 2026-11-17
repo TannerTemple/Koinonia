@@ -144,7 +144,7 @@ export class EnvError extends Error {
         "",
         ...problems.map((p) => `  - ${p}`),
         "",
-        "Fix: on Render, open the service > Environment, correct the value, Save Changes.",
+        "Fix: correct the value in your host's settings and save (Render: service > Environment. Azure: Container App > Containers > Environment variables).",
         "Locally, edit apps/api/.env. The full list is in .env.example and docs/DEPLOY.md.",
       ].join("\n"),
     );

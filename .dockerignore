@@ -10,5 +10,4 @@
 *.log
 coverage
 apps/mobile
-apps/web
 docs

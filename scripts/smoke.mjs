@@ -77,36 +77,36 @@ console.log(`\nKoinonia smoke test\n  API: ${api}\n  Web: ${web ?? "(not given; 
 const up = await check("API is up (/health)", async () => {
   const started = Date.now();
   const r = await call(api, "/health");
-  if (r.status !== 200) throw fail(`answered ${r.status}`, "Render > koinonia-api > Logs. If the last deploy failed, the log's final lines say which setting is wrong.");
-  if (r.json?.status !== "ok" && r.json?.ok !== true) throw fail("something answered, but it is not the Koinonia API", "Check the address: it should be the Render service, like https://koinonia-api.onrender.com");
+  if (r.status !== 200) throw fail(`answered ${r.status}`, "your API host's logs (Render: Logs; Azure: Container App > Log stream). If the last deploy failed, the log's final lines say which setting is wrong.");
+  if (r.json?.status !== "ok" && r.json?.ok !== true) throw fail("something answered, but it is not the Koinonia API", "Check the address: it should be the API, like https://koinonia-api.onrender.com or https://koinonia-api.<something>.azurecontainerapps.io");
   return `${Date.now() - started} ms`;
 }).catch(() => false);
 
 if (!up) {
   console.log(`\n${paint(31, "The API cannot be reached, so nothing else can be checked.")}`);
-  console.log("Fix: open the API address + /health in a browser. On Render, check the service is \"Live\" and read Logs.\n");
+  console.log("Fix: open the API address + /health in a browser. Check the API shows as running (Render: Live; Azure: Running) and read its logs.\n");
   process.exit(1);
 }
 
 await check("API can reach its database (/health/ready)", async () => {
   const r = await call(api, "/health/ready");
-  if (r.status !== 200) throw fail(`answered ${r.status}`, "DATABASE_URL on Render is wrong or the Neon project is paused. Copy the pooled string from Neon again, Save Changes.");
+  if (r.status !== 200) throw fail(`answered ${r.status}`, "DATABASE_URL in the API's settings is wrong, the database is paused, or (Azure) its firewall does not allow Azure services. Copy the connection string again and save.");
 });
 
 if (web) {
   await check(`API lets browsers at ${web} call it (CORS)`, async () => {
     const r = await call(api, "/v1/auth/login", { method: "OPTIONS", headers: { Origin: new URL(web).origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,x-koinonia-client" } });
     const allowed = r.headers.get("access-control-allow-origin");
-    if (allowed !== new URL(web).origin) throw fail(`the API allows "${allowed ?? "nobody"}"`, `Render > koinonia-api > Environment: set WEB_URL to ${new URL(web).origin} (and remove CORS_ORIGINS if it is set), Save Changes.`);
+    if (allowed !== new URL(web).origin) throw fail(`the API allows "${allowed ?? "nobody"}"`, `In the API's settings (Render: Environment; Azure: Container App > Containers > Environment variables) set WEB_URL to ${new URL(web).origin} (and remove CORS_ORIGINS if it is set), Save Changes.`);
     if (r.headers.get("access-control-allow-credentials") !== "true") throw fail("credentials are not allowed", "This should not happen; redeploy the API from the latest commit.");
   });
   await check("API refuses browsers from other sites (CORS)", async () => {
     const r = await call(api, "/v1/auth/login", { method: "OPTIONS", headers: { Origin: "https://not-koinonia.example", "Access-Control-Request-Method": "POST" } });
-    if (r.headers.get("access-control-allow-origin")) throw fail("it allowed an unknown site", "CORS_ORIGINS on Render must list only your web address, never *.");
+    if (r.headers.get("access-control-allow-origin")) throw fail("it allowed an unknown site", "CORS_ORIGINS in the API's settings must list only your web address, never *.");
   });
   await check("Web app loads", async () => {
     const r = await call(web, "/login");
-    if (r.status !== 200) throw fail(`answered ${r.status}`, "Vercel > project > Deployments: open the latest one and read the build log. Root Directory must be apps/web.");
+    if (r.status !== 200) throw fail(`answered ${r.status}`, "Read the web app's build or start log (Vercel: Deployments; Azure: Container App > Log stream). On Vercel, Root Directory must be apps/web.");
     if (!/koinonia/i.test(r.text)) throw fail("a page loaded, but it is not Koinonia", "Check the web address.");
   });
   // On your own computer the web app talks to the API directly; there is no /api forwarding to test.
@@ -118,7 +118,7 @@ if (web) {
   } else {
     await check("Web app forwards /api to the API", async () => {
       const r = await call(web, "/api/health");
-      if (r.status !== 200 || (r.json?.status !== "ok" && r.json?.ok !== true)) throw fail(`${web}/api/health answered ${r.status}`, `Vercel > Settings > Environment Variables: API_PROXY_TARGET must be ${api}. Then Deployments > ... > Redeploy.`);
+      if (r.status !== 200 || (r.json?.status !== "ok" && r.json?.ok !== true)) throw fail(`${web}/api/health answered ${r.status}`, `API_PROXY_TARGET must be ${api} when the web app is BUILT. Vercel: Settings > Environment Variables, then Redeploy. Azure: rebuild the web image with --build-arg API_PROXY_TARGET=${api}.`);
     });
   }
 } else {
@@ -128,7 +128,7 @@ if (web) {
 created = await check("Sign up", async () => {
   const r = await call(api, "/v1/auth/register", { method: "POST", body: { ...account, timezone: "America/Chicago" } });
   if (r.status === 429) throw fail("too many attempts from this network", "Wait a minute and run the smoke test again.");
-  if (r.status !== 201 && r.status !== 200) throw fail(`answered ${r.status}: ${said(r)}`, r.status >= 500 ? "Render > Logs. A 500 here usually means migrations did not run: check DIRECT_URL and redeploy." : "Read the message above.");
+  if (r.status !== 201 && r.status !== 200) throw fail(`answered ${r.status}: ${said(r)}`, r.status >= 500 ? "your API host's logs. A 500 here usually means migrations did not run: check DIRECT_URL and redeploy." : "Read the message above.");
   if (!r.json?.token) throw fail("no session token came back", "Redeploy the API from the latest commit.");
   token = r.json.token;
 });
@@ -136,7 +136,7 @@ created = await check("Sign up", async () => {
 if (created) {
   await check("Sign in", async () => {
     const r = await call(api, "/v1/auth/login", { method: "POST", body: { email: account.email, password: account.password } });
-    if (r.status !== 200 || !r.json?.token) throw fail(`answered ${r.status}: ${said(r)}`, "Render > Logs.");
+    if (r.status !== 200 || !r.json?.token) throw fail(`answered ${r.status}: ${said(r)}`, "your API host's logs.");
     token = r.json.token;
   });
   await check("A wrong password is refused", async () => {
@@ -145,15 +145,15 @@ if (created) {
   });
   await check("Create a person", async () => {
     const r = await call(api, "/v1/contacts", { method: "POST", token, body: { name: "Smoke Test Person", cadenceDays: 7 } });
-    if (r.status !== 201 || !r.json?.id) throw fail(`answered ${r.status}: ${said(r)}`, "Render > Logs.");
+    if (r.status !== 201 || !r.json?.id) throw fail(`answered ${r.status}: ${said(r)}`, "your API host's logs.");
     personId = r.json.id;
   });
   if (personId) {
     await check("Read the person back", async () => {
       const r = await call(api, `/v1/contacts/${personId}`, { token });
-      if (r.status !== 200 || r.json?.name !== "Smoke Test Person") throw fail(`answered ${r.status}: ${said(r)}`, "Render > Logs.");
+      if (r.status !== 200 || r.json?.name !== "Smoke Test Person") throw fail(`answered ${r.status}: ${said(r)}`, "your API host's logs.");
       const home = await call(api, "/v1/home", { token });
-      if (home.status !== 200) throw fail(`Today answered ${home.status}`, "Render > Logs.");
+      if (home.status !== 200) throw fail(`Today answered ${home.status}`, "your API host's logs.");
     });
   }
   await check("Nobody gets in without signing in", async () => {
@@ -163,12 +163,12 @@ if (created) {
   if (web && proxied) {
     await check("Web sign-in keeps you signed in (cookie through /api)", async () => {
       const r = await call(web, "/api/v1/auth/login", { method: "POST", headers: { "X-Koinonia-Client": "web", Origin: new URL(web).origin }, body: { email: account.email, password: account.password } });
-      if (r.status !== 200) throw fail(`answered ${r.status}: ${said(r)}`, `Vercel: API_PROXY_TARGET must be ${api}; redeploy.`);
+      if (r.status !== 200) throw fail(`answered ${r.status}: ${said(r)}`, `API_PROXY_TARGET must be ${api}; rebuild or redeploy the web app.`);
       const cookie = (r.headers.getSetCookie?.() ?? []).find((c) => c.startsWith("koinonia_session="));
-      if (!cookie) throw fail("no session cookie was set", "Vercel: NEXT_PUBLIC_API_URL must be /api or not set at all; redeploy.");
-      if (web.startsWith("https://") && !/;\s*secure/i.test(cookie)) throw fail("the cookie is not marked Secure", "Render: NODE_ENV must be production.");
+      if (!cookie) throw fail("no session cookie was set", "NEXT_PUBLIC_API_URL must be /api or not set at all; rebuild or redeploy the web app.");
+      if (web.startsWith("https://") && !/;\s*secure/i.test(cookie)) throw fail("the cookie is not marked Secure", "NODE_ENV must be production on the API.");
       const me = await call(web, "/api/v1/me", { headers: { "X-Koinonia-Client": "web", Cookie: cookie.split(";")[0] } });
-      if (me.status !== 200 || me.json?.email !== account.email) throw fail(`the cookie was not accepted (${me.status})`, "Render > Logs.");
+      if (me.status !== 200 || me.json?.email !== account.email) throw fail(`the cookie was not accepted (${me.status})`, "your API host's logs.");
     });
   }
   await check("Delete the test account", async () => {

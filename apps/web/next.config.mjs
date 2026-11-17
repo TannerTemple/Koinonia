@@ -3,10 +3,11 @@
 // so the session cookie is first-party and no custom domain is needed. Pair it with
 // NEXT_PUBLIC_API_URL=/api. See docs/DEPLOY.md.
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // Shown on feedback messages so a report can be matched to the code that was running.
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
-const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+const commit = (process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT)?.slice(0, 7);
 const appVersion = commit ? `${pkg.version} (${commit})` : pkg.version;
 
 const tidy = (value) => value?.trim().replace(/^(["'])(.*)\1$/, "$2").trim().replace(/\/+$/, "") || undefined;
@@ -31,7 +32,7 @@ function buildProblem() {
   if (!apiUrl.startsWith("/") && !/^https?:\/\/[^\s]+$/.test(apiUrl)) {
     return `NEXT_PUBLIC_API_URL must be /api or an address starting with https://. It is "${apiUrl}".`;
   }
-  if (process.env.VERCEL && /\/\/(localhost|127\.0\.0\.1)/.test(apiProxyTarget ?? apiUrl)) {
+  if ((process.env.VERCEL || process.env.NEXT_OUTPUT === "standalone") && !process.env.ALLOW_LOCAL_API && /\/\/(localhost|127\.0\.0\.1)/.test(apiProxyTarget ?? apiUrl)) {
     return apiProxyTarget
       ? `API_PROXY_TARGET is "${apiProxyTarget}", which is your own computer, not the hosted API. Set it to the API's address, like https://koinonia-api.onrender.com.`
       : "API_PROXY_TARGET is not set, so this site would look for the API on localhost. Add API_PROXY_TARGET with the API's address, like https://koinonia-api.onrender.com.";
@@ -40,7 +41,7 @@ function buildProblem() {
 }
 const problem = buildProblem();
 if (problem) {
-  throw new Error(`\n\nKoinonia web cannot be built: ${problem}\nOn Vercel: Project > Settings > Environment Variables, then Deployments > Redeploy.\n`);
+  throw new Error(`\n\nKoinonia web cannot be built: ${problem}\nOn Vercel: Project > Settings > Environment Variables, then Deployments > Redeploy. In Docker: pass --build-arg API_PROXY_TARGET=https://...\n`);
 }
 
 // Next.js needs inline scripts and styles, so this policy cannot stop every injected script.
@@ -79,6 +80,9 @@ const nextConfig = {
   // The shared package ships TypeScript source.
   transpilePackages: ["@koinonia/shared"],
   poweredByHeader: false,
+  // For Docker (Azure Container Apps): a self-contained server in .next/standalone. Vercel
+  // does its own packaging, so this is opt-in through NEXT_OUTPUT=standalone.
+  ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone", outputFileTracingRoot: fileURLToPath(new URL("../..", import.meta.url)) } : {}),
   // Hands the address worked out above to the pages (it is read as NEXT_PUBLIC_API_URL).
   env: { NEXT_PUBLIC_API_URL: apiUrl, NEXT_PUBLIC_APP_VERSION: appVersion },
   async rewrites() {
