@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // What the running API connects with. On Neon this is the pooled address ("-pooler").
+  url       = env("DATABASE_URL")
+  // What migrations connect with: a direct, unpooled connection. Locally it is the same
+  // database, and scripts/prisma.mjs fills it in from DATABASE_URL when it is not set.
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Channel {
+  CALL
+  TEXT
+  EMAIL
+  IN_PERSON
+  OTHER
+}
+
+enum AuthTokenKind {
+  PASSWORD_RESET
+  EMAIL_VERIFY
+}
+
+enum IntentionKind {
+  PROMISED
+  PERSONAL
+  THANKSGIVING
+}
+
+enum IntentionStatus {
+  ACTIVE
+  ANSWERED
+  ARCHIVED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  /// False for accounts made with Google, Microsoft or Apple: the stored hash is of a random
+  /// value nobody knows, until the person sets a password (reset, or Settings).
+  passwordSet   Boolean   @default(true)
+  name          String
+  /// Normalized: optional leading + and digits only
+  phone         String?
+  role          Role      @default(USER)
+  timezone      String    @default("UTC")
+  /// Whether other users can find this account by name / email / phone
+  discoverable  Boolean   @default(true)
+  /// Whether to send the daily reminder digest
+  digestEnabled Boolean   @default(true)
+  /// Last calendar day (user's timezone) a digest was sent, to send at most one a day
+  lastDigestDay String?
+  /// SHA-256 of the secret in the private calendar (.ics) feed URL; the secret itself is shown once
+  calendarTokenHash String? @unique
+  /// Set when the user proves they control the email address
+  emailVerifiedAt DateTime?
+  disabledAt    DateTime?
+  lastSeenAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions        Session[]
+  contacts        Contact[]         @relation("owner")
+  linkedFrom      Contact[]         @relation("linkedUser")
+  interactions    Interaction[]
+  notes           Note[]
+  intentions      PrayerIntention[]
+  prayerLogs      PrayerLog[]
+  dailyIntentions DailyIntention[]
+  devices         PushDevice[]
+  feedback        Feedback[]
+  identities      Identity[]
+  authTokens      AuthToken[]
+
+  @@index([phone])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  /// SHA-256 of the bearer token; the token itself is never stored
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  // Purging expired sessions
+  @@index([expiresAt])
+}
+
+/// Wrong-password counter per email, so the sign-in lockout holds across API instances.
+model LoginThrottle {
+  email   String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+}
+
+/// Emailed one-time secrets (password reset, email verification). Only the hash is stored.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      AuthTokenKind
+  /// SHA-256 of the emailed token
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, kind])
+}
+
+/// A person the user wants to stay in touch with. Days are "YYYY-MM-DD" in the owner's timezone.
+model Contact {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation("owner", fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  phone            String?
+  email            String?
+  relationship     String?
+  /// "YYYY-MM-DD" or "MM-DD" when the year is unknown
+  birthday         String?
+  /// Reach-out rhythm in days; null = no reminder
+  cadenceDays      Int?
+  preferredChannel Channel   @default(TEXT)
+  /// Local time of day ("HH:MM") the phone should remind about this person; null = 09:00
+  reminderTime     String?
+  favorite         Boolean   @default(false)
+  /// Free-form groups such as "Family", "Friends", "Ministry"
+  groups           String[]  @default([])
+  lastContactedDay String?
+  nextDueDay       String?
+  snoozedUntilDay  String?
+  /// Set when this person is also a Koinonia user
+  linkedUserId     String?
+  linkedUser       User?     @relation("linkedUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  interactions Interaction[]
+  notes        Note[]
+  intentions   PrayerIntention[]
+
+  @@index([userId, nextDueDay])
+  @@index([userId, name])
+  // People list (active vs archived) and "is this member already one of my people?"
+  @@index([userId, archivedAt])
+  @@index([userId, linkedUserId])
+}
+
+/// A logged reach-out.
+model Interaction {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel    Channel  @default(OTHER)
+  summary    String?
+  day        String
+  occurredAt DateTime @default(now())
+
+  @@index([userId, day])
+  // History on a person's page: newest first
+  @@index([contactId, day, occurredAt])
+}
+
+model Note {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId    String
+  contact      Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  body         String
+  pinned       Boolean  @default(false)
+  /// "What / when to reach out": surfaces on Today when the day arrives
+  followUpDay  String?
+  followUpDone Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([contactId])
+  @@index([userId, followUpDay])
+}
+
+model PrayerIntention {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The person this intention is for, if any
+  contactId     String?
+  contact       Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  title         String
+  details       String?
+  kind          IntentionKind   @default(PROMISED)
+  status        IntentionStatus @default(ACTIVE)
+  prayedCount   Int             @default(0)
+  lastPrayedDay String?
+  answeredAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  logs  PrayerLog[]
+  daily DailyIntention[]
+
+  @@index([userId, status])
+  @@index([contactId])
+}
+
+/// One row per intention per day prayed.
+model PrayerLog {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intentionId String
+  intention   PrayerIntention @relation(fields: [intentionId], references: [id], onDelete: Cascade)
+  day         String
+  createdAt   DateTime        @default(now())
+
+  @@unique([intentionId, day])
+  @@index([userId, day])
+}
+
+/// The special intention of the day.
+model DailyIntention {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day          String
+  intentionId  String
+  intention    PrayerIntention @relation(fields: [intentionId], references: [id], onDelete: Cascade)
+  chosenByUser Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+
+  @@unique([userId, day])
+  // Foreign key used when an intention is deleted
+  @@index([intentionId])
+}
+
+model PushDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// "Send feedback / report a problem": what a tester wrote, and from which app version.
+model Feedback {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// PROBLEM | IDEA | OTHER
+  kind       String
+  message    String
+  appVersion String
+  /// web | ios | android
+  platform   String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+/// Beta metrics: how many times a screen was opened or an action done, per day. Counts only:
+/// there is no user on this table, and names are patterns ("/people/:id"), never identifiers.
+model UsageCount {
+  id       String @id @default(cuid())
+  day      String
+  /// screen | action
+  kind     String
+  name     String
+  /// web | app
+  platform String
+  count    Int    @default(0)
+
+  @@unique([day, kind, name, platform])
+  @@index([day])
+}
+
+/// People who asked for a TestFlight invite on the public page. Stored only with consent.
+model BetaSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  /// iphone | android | other: which phone they use, to know who can take a TestFlight invite.
+  device    String
+  /// When they ticked "you may email me about the beta".
+  consentAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// A Google, Microsoft or Apple account linked to a user. Matched by the provider's own
+/// permanent id (`subject`), never by email after the first link.
+model Identity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// google | microsoft | apple
+  provider   String
+  subject    String
+  /// The email the provider reported when linked, for the person's own reference.
+  email      String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+/// One sign-in attempt with an outside provider, from "start" to "back again". Lives ten
+/// minutes. Only hashes of the secrets are stored.
+model OAuthState {
+  id           String    @id @default(cuid())
+  stateHash    String    @unique
+  /// Hash of the value in this browser's koinonia_oauth cookie: the attempt only completes in
+  /// the browser that began it.
+  browserHash  String
+  provider     String
+  /// web | app
+  client       String
+  codeVerifier String
+  nonce        String
+  timezone     String?
+  /// For the phone: hash of the one-time code handed back to the app, and whose it is.
+  handoffHash  String?   @unique
+  userId       String?
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}

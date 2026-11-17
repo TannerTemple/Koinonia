@@ -1,0 +1,15 @@
+{
+  "name": "Koinonia",
+  "slug": "koinonia",
+  "tagline": "Stay close to the people you mean to stay close to.",
+  "description": "Reminders to reach out on the rhythm you choose for each person, notes that remember for you, and a prayer list with one set apart each day.",
+  "origin": "κοινωνία · communion, fellowship",
+  "originCaps": "ΚΟΙΝΩΝΙΑ · COMMUNION, FELLOWSHIP",
+  "inviteMessage": "I've been using {name} to stay in touch with people and remember who I'm praying for. Want to try it with me? {url}",
+  "bundleId": "com.koinonia.app",
+  "urlScheme": "koinonia",
+  "emailSenderName": "Koinonia",
+  "emailSenderAddress": "hello@example.com",
+  "defaultWebUrl": "http://localhost:3000",
+  "defaultApiUrl": "http://localhost:4000"
+}

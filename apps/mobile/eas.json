@@ -1,0 +1,34 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "simulator": {
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000",
+        "EXPO_PUBLIC_WEB_URL": "http://localhost:3000"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-API.example.com",
+        "EXPO_PUBLIC_WEB_URL": "https://REPLACE-WITH-YOUR-WEB.example.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-API.example.com",
+        "EXPO_PUBLIC_WEB_URL": "https://REPLACE-WITH-YOUR-WEB.example.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -1,0 +1,252 @@
+import type {
+  AdminBetaSignup,
+  AdminFeedback,
+  AdminStats,
+  AdminUpdateUserInput,
+  AdminUser,
+  ApiErrorBody,
+  AuthResponse,
+  CalendarFeed,
+  ChangePasswordInput,
+  Contact,
+  ContactDetail,
+  CreateContactInput,
+  CreateIntentionInput,
+  CreateNoteInput,
+  DataExport,
+  DeleteAccountInput,
+  ExportTable,
+  ForgotPasswordInput,
+  Home,
+  ImportContactsInput,
+  ImportResult,
+  Intention,
+  IntentionStatus,
+  Interaction,
+  LoginInput,
+  LogoutInput,
+  Note,
+  PrayerToday,
+  ReachOutInput,
+  ResetPasswordInput,
+  RegisterDeviceInput,
+  RegisterInput,
+  SnoozeInput,
+  UpdateContactInput,
+  UpdateIntentionInput,
+  UpdateMeInput,
+  UpdateNoteInput,
+  User,
+  UserSearchResult,
+  VerifyEmailInput,
+  WeeklyReview,
+  FeedbackInput,
+  BetaSignupInput,
+  OAuthExchangeInput,
+} from "./schemas";
+import type { AdminMetrics } from "./metrics";
+import { BRAND } from "./brand";
+import type { PublicConfig } from "./keep";
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+    public fields?: Record<string, string>,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/** True for failures worth retrying: the request never got an answer. */
+export const isConnectionError = (error: unknown): boolean => error instanceof ApiError && error.status === 0;
+
+export interface ApiClientOptions {
+  baseUrl: string;
+  /** Returns the bearer token, if signed in. */
+  getToken?: () => string | null | undefined | Promise<string | null | undefined>;
+  /**
+   * Web only: the session lives in an httpOnly cookie instead of a token the page can read.
+   * Requests are sent with credentials and the client header the API requires next to a cookie.
+   */
+  cookieSession?: boolean;
+  /** Give up on a request after this long (default: no limit). Phones on weak signal need one. */
+  timeoutMs?: number;
+  /** Told after every request whether the server could be reached. Drives "you're offline" notices. */
+  onReachable?: (reachable: boolean) => void;
+  /** Called when the API rejects the token (expired / revoked). */
+  onUnauthorized?: () => void;
+  fetch?: typeof fetch;
+}
+
+export type ApiClient = ReturnType<typeof createApiClient>;
+
+export function createApiClient(options: ApiClientOptions) {
+  const base = options.baseUrl.replace(/\/+$/, "") + "/v1";
+
+  async function request<T>(method: string, path: string, body?: unknown, raw = false): Promise<T> {
+    const doFetch = options.fetch ?? fetch;
+    const token = await options.getToken?.();
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (options.cookieSession) headers["X-Koinonia-Client"] = "web";
+
+    let res: Response;
+    const controller = options.timeoutMs ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), options.timeoutMs) : null;
+    try {
+      res = await doFetch(base + path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        ...(options.cookieSession ? { credentials: "include" as const } : {}),
+        ...(controller ? { signal: controller.signal } : {}),
+      });
+    } catch {
+      options.onReachable?.(false);
+      if (controller?.signal.aborted) {
+        throw new ApiError(0, "TIMEOUT", "That took too long. Check your connection and try again.");
+      }
+      throw new ApiError(0, "NETWORK", `Can't reach ${BRAND.name} right now. Check your connection.`);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    options.onReachable?.(true);
+
+    if (res.status === 204) return undefined as T;
+    const text = await res.text();
+    // Files (CSV exports) come back as they are.
+    if (res.ok && raw) return text as T;
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      /* non-JSON error body */
+    }
+
+    if (!res.ok) {
+      const err = (data as ApiErrorBody | null)?.error;
+      const hadSession = Boolean(token) || (options.cookieSession && !path.startsWith("/auth/"));
+      if (res.status === 401 && hadSession) options.onUnauthorized?.();
+      throw new ApiError(
+        res.status,
+        err?.code ?? "UNKNOWN",
+        err?.message ?? "Something went wrong. Please try again.",
+        err?.fields,
+      );
+    }
+    return data as T;
+  }
+
+  const get = <T>(path: string) => request<T>("GET", path);
+  const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
+  const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
+  const put = <T>(path: string, body: unknown) => request<T>("PUT", path, body);
+  const del = (path: string, body?: unknown) => request<void>("DELETE", path, body);
+
+  return {
+    auth: {
+      register: (input: RegisterInput) => post<AuthResponse>("/auth/register", input),
+      /** The phone trades the one-time code from a Google/Microsoft/Apple sign-in for a session. */
+      oauthExchange: (input: OAuthExchangeInput) => post<AuthResponse>("/auth/oauth/exchange", input),
+      login: (input: LoginInput) => post<AuthResponse>("/auth/login", input),
+      logout: (input: LogoutInput = {}) => post<void>("/auth/logout", input),
+      /** Always succeeds, whether or not the email has an account. */
+      forgotPassword: (input: ForgotPasswordInput) => post<void>("/auth/forgot-password", input),
+      resetPassword: (input: ResetPasswordInput) => post<void>("/auth/reset-password", input),
+      verifyEmail: (input: VerifyEmailInput) => post<void>("/auth/verify-email", input),
+      resendVerification: () => post<void>("/auth/resend-verification"),
+    },
+    me: {
+      get: () => get<User>("/me"),
+      update: (input: UpdateMeInput) => patch<User>("/me", input),
+      changePassword: (input: ChangePasswordInput) => post<void>("/me/password", input),
+      /** Deleting the account needs the password again, not just a session. */
+      delete: (input: DeleteAccountInput) => del("/me", input),
+      /** Whether a calendar link exists (the link itself is only returned by createCalendarFeed). */
+      calendarFeed: () => get<CalendarFeed>("/me/calendar-feed"),
+      /** Makes a new link, shown once, and turns off the old one. */
+      createCalendarFeed: () => post<CalendarFeed>("/me/calendar-feed"),
+      removeCalendarFeed: () => del("/me/calendar-feed"),
+      /** Everything the account holds, as one object. */
+      exportAll: () => get<DataExport>("/me/export"),
+      /** One table as CSV text, ready to save as a file. */
+      exportCsv: (table: ExportTable) => request<string>("GET", `/me/export/${table}.csv`, undefined, true),
+    },
+    home: () => get<Home>("/home"),
+    weeklyReview: () => get<WeeklyReview>("/review/weekly"),
+    contacts: {
+      list: (params: { q?: string; archived?: boolean } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.q) qs.set("q", params.q);
+        if (params.archived) qs.set("archived", "true");
+        const s = qs.toString();
+        return get<Contact[]>(`/contacts${s ? `?${s}` : ""}`);
+      },
+      get: (id: string) => get<ContactDetail>(`/contacts/${id}`),
+      create: (input: CreateContactInput) => post<Contact>("/contacts", input),
+      update: (id: string, input: UpdateContactInput) => patch<Contact>(`/contacts/${id}`, input),
+      delete: (id: string) => del(`/contacts/${id}`),
+      import: (input: ImportContactsInput) => post<ImportResult>("/contacts/import", input),
+      reachOut: (id: string, input: ReachOutInput = {}) =>
+        post<{ contact: Contact; interaction: Interaction }>(`/contacts/${id}/reach-out`, input),
+      snooze: (id: string, input: SnoozeInput) => post<Contact>(`/contacts/${id}/snooze`, input),
+      /** Older reach-outs than the 50 a person's page starts with. */
+      history: (id: string, params: { offset: number; limit?: number }) => get<Interaction[]>(`/contacts/${id}/interactions?offset=${params.offset}&limit=${params.limit ?? 50}`),
+      deleteInteraction: (id: string) => del(`/interactions/${id}`),
+    },
+    notes: {
+      create: (contactId: string, input: CreateNoteInput) =>
+        post<Note>(`/contacts/${contactId}/notes`, input),
+      update: (id: string, input: UpdateNoteInput) => patch<Note>(`/notes/${id}`, input),
+      delete: (id: string) => del(`/notes/${id}`),
+    },
+    intentions: {
+      list: (status?: IntentionStatus) =>
+        get<Intention[]>(`/intentions${status ? `?status=${status}` : ""}`),
+      create: (input: CreateIntentionInput) => post<Intention>("/intentions", input),
+      update: (id: string, input: UpdateIntentionInput) =>
+        patch<Intention>(`/intentions/${id}`, input),
+      delete: (id: string) => del(`/intentions/${id}`),
+      pray: (id: string) => post<Intention>(`/intentions/${id}/pray`),
+      unpray: (id: string) => request<Intention>("DELETE", `/intentions/${id}/pray`),
+    },
+    prayer: {
+      today: () => get<PrayerToday>("/prayer/today"),
+      setToday: (intentionId: string) => put<PrayerToday>("/prayer/today", { intentionId }),
+    },
+    users: {
+      search: (q: string) => get<UserSearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`),
+    },
+    devices: {
+      register: (input: RegisterDeviceInput) => post<void>("/devices", input),
+    },
+    /** Public: which optional features are switched on. */
+    config: () => get<PublicConfig>("/config"),
+    beta: {
+      /** Public: ask for a TestFlight invite. */
+      signup: (input: BetaSignupInput) => post<{ ok: true }>("/beta/signup", input),
+    },
+    usage: {
+      /** Tells the server which screens were opened. Counts only; failures are ignored. */
+      screens: (platform: "web" | "app", screens: string[]) => post<void>("/usage", { platform, screens }),
+    },
+    feedback: {
+      send: (input: FeedbackInput) => post<{ id: string }>("/feedback", input),
+    },
+    admin: {
+      feedback: () => get<AdminFeedback[]>("/admin/feedback"),
+      metrics: () => get<AdminMetrics>("/admin/metrics"),
+      betaSignups: () => get<AdminBetaSignup[]>("/admin/beta-signups"),
+      removeBetaSignup: (id: string) => del(`/admin/beta-signups/${id}`),
+      stats: () => get<AdminStats>("/admin/stats"),
+      users: (q?: string) =>
+        get<AdminUser[]>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+      updateUser: (id: string, input: AdminUpdateUserInput) =>
+        patch<AdminUser>(`/admin/users/${id}`, input),
+    },
+  };
+}
