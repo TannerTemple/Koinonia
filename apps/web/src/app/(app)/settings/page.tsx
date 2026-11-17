@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Flame, HandHeart } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { EXPORT_TABLES } from "@koinonia/shared";
+import { BRAND, inviteText, EXPORT_TABLES } from "@koinonia/shared";
 import { Button, Card, Field, FormError, Input, Modal, PageHeader, SectionTitle, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@/lib/auth";
@@ -192,6 +192,38 @@ function saveFile(name: string, text: string, type: string) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Share the public page: the phone's share sheet where there is one, otherwise copy the words. */
+function InviteFriend() {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  const invite = async () => {
+    const text = inviteText(window.location.origin);
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      setState("copied");
+    } catch (err) {
+      // Closing the share sheet is not a failure.
+      if ((err as { name?: string })?.name !== "AbortError") setState("failed");
+    }
+  };
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">Invite a friend</p>
+        <p className="text-muted" role="status">
+          {state === "copied" ? "Copied. Paste it into a message to them." : state === "failed" ? `Couldn't copy. Send them this address: ${typeof window === "undefined" ? "" : window.location.origin}/beta` : `Staying in touch is easier together. Share ${BRAND.name} with someone.`}
+        </p>
+      </div>
+      <Button variant="secondary" onClick={() => void invite()}>
+        Invite
+      </Button>
+    </Card>
+  );
 }
 
 function ExportData() {
@@ -382,6 +414,9 @@ export default function SettingsPage() {
           </Button>
           <DeleteAccount onDeleted={() => void signOut()} />
         </Card>
+        <div className="mt-4">
+          <InviteFriend />
+        </div>
         <p className="mt-4 flex flex-wrap gap-5 text-sm text-muted">
           <Link href="/feedback" className="font-semibold text-primary underline underline-offset-2">
             Send feedback or report a problem

@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Linking, Switch, Text, View } from "react-native";
-import type { Streak } from "@koinonia/shared";
+import { Linking, Share, Switch, Text, View } from "react-native";
+import { inviteText, type Streak } from "@koinonia/shared";
 import { Avatar, Body, Button, Card, Field, FormError, LegalLinks, Screen, SectionTitle, Title, fieldErrors, type IconName } from "@/components/ui";
 import { WEB_URL, api } from "@/lib/api";
 import { showDialog } from "@/lib/dialog";
@@ -165,6 +165,7 @@ export default function ProfileScreen() {
 
       <View style={{ gap: space.md }}>
         <SectionTitle>Help</SectionTitle>
+        <Button variant="secondary" icon="person-add-outline" label="Invite a friend" onPress={() => void Share.share({ message: inviteText(WEB_URL) }).catch(() => undefined)} />
         <Button variant="secondary" icon="chatbubble-ellipses-outline" label="Send feedback or report a problem" onPress={() => router.push("/feedback")} />
       </View>
 

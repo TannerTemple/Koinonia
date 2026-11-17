@@ -12,6 +12,7 @@ import { createSentryReporter, noReporter, type ErrorReporter } from "./lib/sent
 import type { Providers } from "./providers";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
+import { betaRoutes } from "./routes/beta";
 import { calendarRoutes } from "./routes/calendar";
 import { contactRoutes } from "./routes/contacts";
 import { exportRoutes } from "./routes/export";
@@ -267,6 +268,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       await v1.register(exportRoutes);
       await v1.register(feedbackRoutes);
       await v1.register(metricsRoutes);
+      await v1.register(betaRoutes);
     },
     { prefix: "/v1" },
   );

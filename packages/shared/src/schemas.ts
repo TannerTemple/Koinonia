@@ -549,3 +549,25 @@ export interface AdminFeedback {
   userName: string;
   userEmail: string;
 }
+
+// ---- Beta sign-up (public page) -----------------------------------------------------------
+
+export const BETA_DEVICES = ["iphone", "android", "other"] as const;
+export type BetaDevice = (typeof BETA_DEVICES)[number];
+
+export const betaSignupSchema = z.object({
+  email: emailSchema,
+  name: trimmed(80).optional(),
+  device: z.enum(BETA_DEVICES).default("iphone"),
+  /** Must be ticked: without it nothing is stored. */
+  consent: z.literal(true, { error: "Please tick the box so we may email you" }),
+});
+export type BetaSignupInput = z.input<typeof betaSignupSchema>;
+
+export interface AdminBetaSignup {
+  id: string;
+  email: string;
+  name: string | null;
+  device: BetaDevice;
+  createdAt: string;
+}

@@ -10,3 +10,4 @@ export * from "./vcard";
 export * from "./start";
 export * from "./people";
 export * from "./metrics";
+export * from "./brand";

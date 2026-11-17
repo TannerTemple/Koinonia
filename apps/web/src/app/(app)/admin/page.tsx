@@ -56,6 +56,8 @@ export default function AdminPage() {
 
   const [q, setQ] = useState("");
   const stats = useQuery({ queryKey: ["admin", "stats"], queryFn: api.admin.stats, enabled: isAdmin });
+  const signups = useQuery({ queryKey: ["admin", "beta-signups"], queryFn: api.admin.betaSignups, enabled: isAdmin });
+  const [copied, setCopied] = useState(false);
   const feedback = useQuery({ queryKey: ["admin", "feedback"], queryFn: api.admin.feedback, enabled: isAdmin });
   const users = useQuery({ queryKey: ["admin", "users", q], queryFn: () => api.admin.users(q.trim() || undefined), enabled: isAdmin });
 
@@ -120,6 +122,45 @@ export default function AdminPage() {
                 ))}
               </tbody>
             </table>
+          </Card>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle count={signups.data?.length}>Beta invite requests</SectionTitle>
+        {signups.isPending ? (
+          <Spinner />
+        ) : signups.error ? (
+          <ErrorState error={signups.error} onRetry={signups.refetch} />
+        ) : signups.data.length === 0 ? (
+          <Card className="p-5 text-muted">Nobody yet. People who ask for an invite on the public page (/beta) appear here.</Card>
+        ) : (
+          <Card className="space-y-4 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-muted">Copy the iPhone addresses and paste them into TestFlight (docs/BETA.md).</p>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void navigator.clipboard.writeText(signups.data.filter((s) => s.device === "iphone").map((s) => s.email).join(", ")).then(() => setCopied(true));
+                }}
+              >
+                {copied ? "Copied" : "Copy iPhone emails"}
+              </Button>
+            </div>
+            <ul className="divide-y divide-border">
+              {signups.data.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                  <span className="min-w-0 break-all">
+                    <span className="font-semibold">{s.email}</span>
+                    {s.name ? ` · ${s.name}` : ""} <Badge>{s.device === "iphone" ? "iPhone" : s.device === "android" ? "Android" : "Other"}</Badge>{" "}
+                    <span className="text-sm text-muted">{new Date(s.createdAt).toLocaleDateString()}</span>
+                  </span>
+                  <Button size="sm" variant="secondary" onClick={() => void api.admin.removeBetaSignup(s.id).then(() => signups.refetch())}>
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
           </Card>
         )}
       </section>

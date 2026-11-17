@@ -289,3 +289,17 @@ model UsageCount {
   @@unique([day, kind, name, platform])
   @@index([day])
 }
+
+/// People who asked for a TestFlight invite on the public page. Stored only with consent.
+model BetaSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  /// iphone | android | other: which phone they use, to know who can take a TestFlight invite.
+  device    String
+  /// When they ticked "you may email me about the beta".
+  consentAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

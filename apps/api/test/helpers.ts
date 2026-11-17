@@ -34,7 +34,7 @@ export async function resetDb() {
   // Emails are recorded after the response; let that finish so it can't collide with the wipe.
   await Promise.all([...apps].map((app) => app.background.idle()));
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User", "Session", "Contact", "Interaction", "Note", "PrayerIntention", "PrayerLog", "DailyIntention", "PushDevice", "AuthToken", "UsageCount", "LoginThrottle" RESTART IDENTITY CASCADE`,
+    `TRUNCATE "User", "Session", "Contact", "Interaction", "Note", "PrayerIntention", "PrayerLog", "DailyIntention", "PushDevice", "AuthToken", "UsageCount", "BetaSignup", "LoginThrottle" RESTART IDENTITY CASCADE`,
   );
 }
 

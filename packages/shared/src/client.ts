@@ -1,4 +1,5 @@
 import type {
+  AdminBetaSignup,
   AdminFeedback,
   AdminStats,
   AdminUpdateUserInput,
@@ -40,6 +41,7 @@ import type {
   VerifyEmailInput,
   WeeklyReview,
   FeedbackInput,
+  BetaSignupInput,
 } from "./schemas";
 import type { AdminMetrics } from "./metrics";
 
@@ -217,6 +219,10 @@ export function createApiClient(options: ApiClientOptions) {
     devices: {
       register: (input: RegisterDeviceInput) => post<void>("/devices", input),
     },
+    beta: {
+      /** Public: ask for a TestFlight invite. */
+      signup: (input: BetaSignupInput) => post<{ ok: true }>("/beta/signup", input),
+    },
     usage: {
       /** Tells the server which screens were opened. Counts only; failures are ignored. */
       screens: (platform: "web" | "app", screens: string[]) => post<void>("/usage", { platform, screens }),
@@ -227,6 +233,8 @@ export function createApiClient(options: ApiClientOptions) {
     admin: {
       feedback: () => get<AdminFeedback[]>("/admin/feedback"),
       metrics: () => get<AdminMetrics>("/admin/metrics"),
+      betaSignups: () => get<AdminBetaSignup[]>("/admin/beta-signups"),
+      removeBetaSignup: (id: string) => del(`/admin/beta-signups/${id}`),
       stats: () => get<AdminStats>("/admin/stats"),
       users: (q?: string) =>
         get<AdminUser[]>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),

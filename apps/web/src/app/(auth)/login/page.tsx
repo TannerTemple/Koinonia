@@ -54,6 +54,11 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
+      <p className="text-center text-sm">
+        <Link href="/beta" className="font-semibold text-primary underline-offset-2 hover:underline">
+          What is Koinonia?
+        </Link>
+      </p>
     </form>
   );
 }
