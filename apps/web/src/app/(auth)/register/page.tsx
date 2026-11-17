@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { PublicConfig } from "@koinonia/shared";
+import { ProviderButtons } from "@/components/provider-buttons";
 import { Button, Field, FormError, Input, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +15,12 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const errors = fieldErrors(error);
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  // Google, Microsoft or Apple, when the person running the service has switched them on.
+  const [config, setConfig] = useState<PublicConfig | null>(null);
+  useEffect(() => {
+    void api.config().then(setConfig, () => undefined);
+  }, []);
 
   return (
     <form
@@ -34,6 +42,14 @@ export default function RegisterPage() {
         <h2 className="text-3xl font-semibold">Create your account</h2>
         <p className="mt-1 text-muted">Free. Takes a minute.</p>
       </div>
+      {config && config.signIn.providers.length > 0 ? (
+        <>
+          <ProviderButtons providers={config.signIn.providers} startBase={config.signIn.startBase} lastUsed={null} />
+          <p className="flex items-center gap-3 text-sm text-muted" aria-hidden>
+            <span className="h-px flex-1 bg-border" /> or with your email <span className="h-px flex-1 bg-border" />
+          </p>
+        </>
+      ) : null}
       <Field label="Your name" error={errors.name}>
         {(p) => <Input {...p} autoComplete="name" value={form.name} onChange={set("name")} required maxLength={80} />}
       </Field>

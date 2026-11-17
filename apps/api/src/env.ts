@@ -53,6 +53,21 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default(BRAND.emailFrom),
   EMAIL_REPLY_TO: z.string().optional(),
+  /** Outside sign-in, off unless listed: "google,microsoft,apple". Each needs its keys below. */
+  SIGNIN_PROVIDERS: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_CLIENT_ID: z.string().optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().optional(),
+  /** Apple: the Services ID, your Team ID, the key's ID, and the .p8 key's contents. */
+  APPLE_CLIENT_ID: z.string().optional(),
+  APPLE_TEAM_ID: z.string().optional(),
+  APPLE_KEY_ID: z.string().optional(),
+  APPLE_PRIVATE_KEY: z.string().optional(),
+  /** Where providers send people back; defaults to WEB_URL/api when hosted (see SIGNIN_SETUP.md). */
+  OAUTH_CALLBACK_BASE: z.string().optional(),
+  /** Pretend providers for trying the flow locally. Refused in production. */
+  OAUTH_MOCK: bool,
   /** Retention features to switch off, comma-separated (see docs/RETENTION.md). Empty = all on. */
   FEATURES_OFF: z.string().optional(),
   /** Where "Send feedback" messages are emailed. Unset = they are only saved (Admin > Feedback). */
@@ -188,6 +203,24 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 
   const unknownFeatures = featuresFrom(input.FEATURES_OFF).unknown;
   if (unknownFeatures.length) problems.push(`FEATURES_OFF has ${unknownFeatures.length === 1 ? "a name" : "names"} that ${unknownFeatures.length === 1 ? "is" : "are"} not a feature: ${unknownFeatures.join(", ")}. The features are: ${RETENTION_FEATURES.join(", ")}.`);
+
+  // Outside sign-in: every provider listed must have its keys (unless pretending, locally).
+  const listed = (input.SIGNIN_PROVIDERS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const mock = input.OAUTH_MOCK === "true" || input.OAUTH_MOCK === "1";
+  if (mock && production) problems.push("OAUTH_MOCK must not be on in production: it lets anyone sign in as anyone. Remove it.");
+  const needs: Record<string, string[]> = {
+    google: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+    microsoft: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
+    apple: ["APPLE_CLIENT_ID", "APPLE_TEAM_ID", "APPLE_KEY_ID", "APPLE_PRIVATE_KEY"],
+  };
+  for (const name of listed) {
+    if (!needs[name]) {
+      problems.push(`SIGNIN_PROVIDERS has "${name}", which is not one of: google, microsoft, apple.`);
+      continue;
+    }
+    const missing = mock ? [] : needs[name]!.filter((key) => !input[key]?.trim());
+    if (missing.length) problems.push(`SIGNIN_PROVIDERS includes ${name}, so ${missing.join(" and ")} must be set too (docs/SIGNIN_SETUP.md).`);
+  }
 
   const parsed = schema.safeParse(input);
   const cross: { path: string[]; message: string }[] = [];

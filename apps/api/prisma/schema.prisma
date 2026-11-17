@@ -45,6 +45,9 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   passwordHash  String
+  /// False for accounts made with Google, Microsoft or Apple: the stored hash is of a random
+  /// value nobody knows, until the person sets a password (reset, or Settings).
+  passwordSet   Boolean   @default(true)
   name          String
   /// Normalized: optional leading + and digits only
   phone         String?
@@ -75,6 +78,7 @@ model User {
   dailyIntentions DailyIntention[]
   devices         PushDevice[]
   feedback        Feedback[]
+  identities      Identity[]
   authTokens      AuthToken[]
 
   @@index([phone])
@@ -302,4 +306,46 @@ model BetaSignup {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// A Google, Microsoft or Apple account linked to a user. Matched by the provider's own
+/// permanent id (`subject`), never by email after the first link.
+model Identity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// google | microsoft | apple
+  provider   String
+  subject    String
+  /// The email the provider reported when linked, for the person's own reference.
+  email      String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+/// One sign-in attempt with an outside provider, from "start" to "back again". Lives ten
+/// minutes. Only hashes of the secrets are stored.
+model OAuthState {
+  id           String    @id @default(cuid())
+  stateHash    String    @unique
+  /// Hash of the value in this browser's koinonia_oauth cookie: the attempt only completes in
+  /// the browser that began it.
+  browserHash  String
+  provider     String
+  /// web | app
+  client       String
+  codeVerifier String
+  nonce        String
+  timezone     String?
+  /// For the phone: hash of the one-time code handed back to the app, and whose it is.
+  handoffHash  String?   @unique
+  userId       String?
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
 }

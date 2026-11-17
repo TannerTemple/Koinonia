@@ -22,6 +22,10 @@ const PUBLIC = new Set([
   "POST /v1/beta/signup", // public invite form; consent required, 5 an hour
   "GET /v1/calendar/:file", // the secret token is the file name
   "POST /v1/jobs/digest", // only exists with CRON_SECRET, and checks it
+  "GET /v1/auth/oauth/:provider/start", // outside sign-in: sends the browser to the provider
+  "GET /v1/auth/oauth/:provider/callback", // ...and back: needs the attempt's state and browser cookie
+  "POST /v1/auth/oauth/:provider/callback", // (Apple posts it)
+  "POST /v1/auth/oauth/exchange", // the phone's one-time code from that flow
 ]);
 
 let ctx: TestContext;

@@ -319,4 +319,6 @@ export function maskEmail(email: string): string {
 /** What anyone may know before signing in: only which optional features are on. */
 export interface PublicConfig {
   features: Features;
+  /** Outside sign-in: which providers are switched on, and where a sign-in starts. */
+  signIn: { providers: ("apple" | "google" | "microsoft")[]; startBase: string };
 }

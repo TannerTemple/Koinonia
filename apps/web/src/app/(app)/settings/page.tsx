@@ -93,29 +93,37 @@ function ProfileForm() {
 }
 
 function PasswordForm() {
+  const user = useUser();
+  const { setUser } = useAuth();
   const [currentPassword, setCurrent] = useState("");
   const [newPassword, setNew] = useState("");
-  const change = useAction(() => api.me.changePassword({ currentPassword, newPassword }));
+  // Signed up with Google, Microsoft or Apple: there is no current password yet; this sets one.
+  const hasPassword = user.hasPassword;
+  const change = useAction(() => api.me.changePassword({ currentPassword: hasPassword ? currentPassword : undefined, newPassword }));
   const errors = fieldErrors(change.error);
   return (
     <form
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        change.mutate(undefined, { onSuccess: () => { setCurrent(""); setNew(""); } });
+        change.mutate(undefined, { onSuccess: () => { setCurrent(""); setNew(""); void api.me.get().then(setUser); } });
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Current password" error={errors.currentPassword}>
-          {(p) => <Input {...p} type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} required />}
-        </Field>
+        {hasPassword ? (
+          <Field label="Current password" error={errors.currentPassword}>
+            {(p) => <Input {...p} type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} required />}
+          </Field>
+        ) : (
+          <p className="text-muted sm:col-span-2">You sign in with Google, Microsoft or Apple. You can also set a password, to sign in with your email.</p>
+        )}
         <Field label="New password" error={errors.newPassword} hint="At least 8 characters.">
           {(p) => <Input {...p} type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNew(e.target.value)} required minLength={8} />}
         </Field>
       </div>
       <FormError error={change.error} />
       <Button type="submit" variant="secondary" loading={change.isPending}>
-        {change.isSuccess ? "Password changed" : "Change password"}
+        {change.isSuccess ? (hasPassword ? "Password changed" : "Password set") : hasPassword ? "Change password" : "Set a password"}
       </Button>
     </form>
   );
@@ -280,6 +288,7 @@ function ExportData() {
 }
 
 function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
+  const { hasPassword } = useUser();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const remove = useAction(() => api.me.delete({ password }));
@@ -298,9 +307,15 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
           }}
         >
           <p className="text-muted">Everything in it will be removed: your people, notes, history and prayer list. This can&rsquo;t be undone.</p>
-          <Field label="Your password" error={errors.password}>
-            {(p) => <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
-          </Field>
+          {hasPassword ? (
+            <Field label="Your password" error={errors.password}>
+              {(p) => <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+            </Field>
+          ) : (
+            <Field label="Type DELETE to confirm" error={errors.password}>
+              {(p) => <Input {...p} autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+            </Field>
+          )}
           <FormError error={remove.error} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>

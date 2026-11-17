@@ -19,6 +19,7 @@ import { contactRoutes } from "./routes/contacts";
 import { exportRoutes } from "./routes/export";
 import { feedbackRoutes } from "./routes/feedback";
 import { countActions, metricsRoutes } from "./routes/metrics";
+import { oauthRoutes } from "./routes/oauth";
 import { homeRoutes } from "./routes/home";
 import { jobRoutes } from "./routes/jobs";
 import { noteRoutes } from "./routes/notes";
@@ -94,6 +95,8 @@ export interface AppDeps {
   /** Where unexpected errors are reported (default: Sentry when SENTRY_DSN is set, else nowhere). */
   reporter?: ErrorReporter;
   rateLimit?: boolean;
+  /** How the API calls outside services (sign-in providers). Tests pass a fake. */
+  fetch?: typeof fetch;
 }
 
 export interface AuthContext {
@@ -105,7 +108,7 @@ export interface AuthContext {
 
 declare module "fastify" {
   interface FastifyInstance {
-    deps: Required<Pick<AppDeps, "prisma" | "providers" | "env" | "now">>;
+    deps: Required<Pick<AppDeps, "prisma" | "providers" | "env" | "now">> & { fetch?: typeof fetch };
     /** Work that continues after a response was sent (emails). */
     background: { track: (work: Promise<unknown>) => void; idle: () => Promise<void> };
     authenticate: (request: FastifyRequest, reply?: FastifyReply) => Promise<void>;
@@ -136,7 +139,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     // The largest legitimate body is a 500-person import (well under this).
     bodyLimit: 512 * 1024,
   });
-  app.decorate("deps", { prisma: deps.prisma, providers: deps.providers, env: deps.env, now });
+  app.decorate("deps", { prisma: deps.prisma, providers: deps.providers, env: deps.env, now, fetch: deps.fetch });
   app.decorateRequest("auth", null as unknown as AuthContext);
 
   const pending = new Set<Promise<unknown>>();
@@ -286,6 +289,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       await v1.register(feedbackRoutes);
       await v1.register(metricsRoutes);
       await v1.register(betaRoutes);
+      await v1.register(oauthRoutes);
     },
     { prefix: "/v1" },
   );

@@ -26,6 +26,7 @@ export function toUser(row: UserRow): User {
     discoverable: row.discoverable,
     digestEnabled: row.digestEnabled,
     createdAt: row.createdAt.toISOString(),
+    hasPassword: row.passwordSet,
   };
 }
 

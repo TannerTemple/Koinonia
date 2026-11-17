@@ -42,6 +42,7 @@ import type {
   WeeklyReview,
   FeedbackInput,
   BetaSignupInput,
+  OAuthExchangeInput,
 } from "./schemas";
 import type { AdminMetrics } from "./metrics";
 import { BRAND } from "./brand";
@@ -149,6 +150,8 @@ export function createApiClient(options: ApiClientOptions) {
   return {
     auth: {
       register: (input: RegisterInput) => post<AuthResponse>("/auth/register", input),
+      /** The phone trades the one-time code from a Google/Microsoft/Apple sign-in for a session. */
+      oauthExchange: (input: OAuthExchangeInput) => post<AuthResponse>("/auth/oauth/exchange", input),
       login: (input: LoginInput) => post<AuthResponse>("/auth/login", input),
       logout: (input: LogoutInput = {}) => post<void>("/auth/logout", input),
       /** Always succeeds, whether or not the email has an account. */

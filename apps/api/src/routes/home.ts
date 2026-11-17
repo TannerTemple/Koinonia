@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { featuresFrom, type PublicConfig } from "@koinonia/shared";
+import { callbackBase, enabledProviders } from "../signin/providers";
 import { buildHome } from "../services/home";
 import { buildWeeklyReview } from "../services/review";
 
@@ -11,7 +12,8 @@ export async function homeRoutes(app: FastifyInstance) {
 
   // Public, and nothing secret: which optional features are on, so the sign-in screen can
   // decide whether to greet someone by name before they are signed in.
-  app.get("/config", async (): Promise<PublicConfig> => ({ features }));
+  const signIn = { providers: enabledProviders(app.deps.env), startBase: callbackBase(app.deps.env) };
+  app.get("/config", async (): Promise<PublicConfig> => ({ features, signIn }));
 
   app.get("/review/weekly", { preHandler: app.authenticate }, async (request) =>
     buildWeeklyReview(app.deps.prisma, request.auth.user.id, request.auth.today),

@@ -19,7 +19,7 @@ import { badRequest, conflict, forbidden, parse, tooMany, unauthorized } from ".
 import { safeError } from "../lib/log";
 import { toUser } from "../lib/serialize";
 
-async function createSession(prisma: PrismaClient, userId: string, now: Date): Promise<string> {
+export async function createSession(prisma: PrismaClient, userId: string, now: Date): Promise<string> {
   const token = newToken();
   await prisma.session.create({
     data: {
@@ -222,7 +222,7 @@ export async function authRoutes(app: FastifyInstance) {
       prisma.user.update({
         where: { id: user.id },
         // Using an emailed link also proves the address is theirs.
-        data: { passwordHash: await hashPassword(input.password), emailVerifiedAt: user.emailVerifiedAt ?? now() },
+        data: { passwordHash: await hashPassword(input.password), passwordSet: true, emailVerifiedAt: user.emailVerifiedAt ?? now() },
       }),
       // Whoever knew the old password is signed out everywhere.
       prisma.session.deleteMany({ where: { userId: user.id } }),
@@ -266,12 +266,13 @@ export async function authRoutes(app: FastifyInstance) {
   app.post("/me/password", { preHandler: app.authenticate, ...strict }, async (request, reply) => {
     const input = parse(changePasswordSchema, request.body);
     const { user, sessionId } = request.auth;
-    if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+    // An account made with Google, Microsoft or Apple has no password to check yet: this sets one.
+    if (user.passwordSet && !(await verifyPassword(input.currentPassword ?? "", user.passwordHash))) {
       throw badRequest("Your current password isn't right.", { currentPassword: "Incorrect" });
     }
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: await hashPassword(input.newPassword) },
+      data: { passwordHash: await hashPassword(input.newPassword), passwordSet: true },
     });
     // Sign out everywhere else.
     await prisma.session.deleteMany({ where: { userId: user.id, id: { not: sessionId } } });
@@ -280,8 +281,10 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.delete("/me", { preHandler: app.authenticate, ...strict }, async (request, reply) => {
     const input = parse(deleteAccountSchema, request.body);
-    if (!(await verifyPassword(input.password, request.auth.user.passwordHash))) {
-      throw badRequest("That password isn't right.", { password: "Incorrect" });
+    // Without a password (signed up with Google, Microsoft or Apple), typing DELETE confirms instead.
+    const confirmed = request.auth.user.passwordSet ? await verifyPassword(input.password, request.auth.user.passwordHash) : input.password.trim().toUpperCase() === "DELETE";
+    if (!confirmed) {
+      throw badRequest(request.auth.user.passwordSet ? "That password isn't right." : "Type DELETE to confirm.", { password: "Incorrect" });
     }
     // Everything the account owns goes with it (the database cascades from the user row);
     // the sign-in lockout counter is keyed by email, so it is removed by hand.

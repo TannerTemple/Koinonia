@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { LAST_SIGN_IN_KEY, rememberSignIn } from "@koinonia/shared";
+import { LAST_SIGN_IN_KEY, rememberSignIn, type LastSignIn } from "@koinonia/shared";
 import { kv } from "./storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthResponse, User } from "@koinonia/shared";
@@ -9,7 +9,8 @@ import { clearReminders, currentPushToken } from "./notifications";
 interface AuthState {
   /** undefined while the stored token is being checked */
   user: User | null | undefined;
-  signIn: (auth: AuthResponse) => Promise<void>;
+  /** `method`: how they signed in, remembered for "Used last time" (default: email). */
+  signIn: (auth: AuthResponse, method?: LastSignIn["method"]) => Promise<void>;
   signOut: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -44,10 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       setUser,
-      signIn: async (auth) => {
+      signIn: async (auth, method = "email") => {
         await tokenStore.set(auth.token);
         // So the sign-in screen can say "welcome back" next time on this phone. Never the password.
-        await kv.set(LAST_SIGN_IN_KEY, rememberSignIn(auth.user));
+        await kv.set(LAST_SIGN_IN_KEY, rememberSignIn(auth.user, method));
         queryClient.clear();
         setUser(auth.user);
       },

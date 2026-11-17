@@ -80,7 +80,7 @@ describe("Today's reasons to come back", () => {
     expect((await api.call("GET", "/home")).body.keep.features).toEqual(ALL_FEATURES_ON);
     const res = await ctx.app.inject({ url: "/v1/config" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ features: ALL_FEATURES_ON });
+    expect(res.json()).toEqual({ features: ALL_FEATURES_ON, signIn: { providers: [], startBase: "http://localhost:4000" } });
   });
 
   it("switches off what FEATURES_OFF names, and does not even look up memories", async () => {

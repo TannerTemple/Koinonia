@@ -123,7 +123,8 @@ export const updateMeSchema = z
 export type UpdateMeInput = z.input<typeof updateMeSchema>;
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1).max(200),
+  /** Required unless the account has no password yet (made with Google, Microsoft or Apple). */
+  currentPassword: z.string().max(200).optional(),
   newPassword: z.string().min(8, "Use at least 8 characters").max(200),
 });
 export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
@@ -161,6 +162,8 @@ export interface User {
   discoverable: boolean;
   digestEnabled: boolean;
   createdAt: string;
+  /** False for accounts made with Google, Microsoft or Apple until a password is set. */
+  hasPassword: boolean;
 }
 
 export interface AuthResponse {
@@ -574,3 +577,28 @@ export interface AdminBetaSignup {
   device: BetaDevice;
   createdAt: string;
 }
+
+// ---- Sign in with Google, Microsoft, Apple -----------------------------------------------
+
+export const SIGN_IN_PROVIDERS = ["apple", "google", "microsoft"] as const;
+export type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
+export const SIGN_IN_PROVIDER_LABELS: Record<SignInProvider, string> = { apple: "Apple", google: "Google", microsoft: "Microsoft" };
+
+/** Why a sign-in with a provider did not finish, as the apps show it. `{provider}` is filled in. */
+export const SIGN_IN_ERRORS: Record<string, string> = {
+  cancelled: "Sign-in was cancelled.",
+  expired: "That took too long, or was started in another browser. Please try again.",
+  email_unverified: "{provider} didn't confirm your email address, so it can't be used to sign in here. Please use another way.",
+  no_email: "{provider} didn't share an email address. Please try again and allow it, or use another way to sign in.",
+  link_unconfirmed: "There's already an account with this email, but its email address was never confirmed. Sign in with your password once and confirm your email; after that this button will work.",
+  disabled: "This account has been disabled.",
+  failed: "Something went wrong signing in with {provider}. Please try again.",
+};
+
+export function signInErrorMessage(code: string | null | undefined, provider: string | null | undefined): string {
+  const label = SIGN_IN_PROVIDER_LABELS[provider as SignInProvider] ?? "That service";
+  return (SIGN_IN_ERRORS[code ?? ""] ?? SIGN_IN_ERRORS.failed!).replace("{provider}", label);
+}
+
+export const oauthExchangeSchema = z.object({ code: z.string().trim().min(20).max(200) });
+export type OAuthExchangeInput = z.input<typeof oauthExchangeSchema>;
