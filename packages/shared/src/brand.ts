@@ -1,21 +1,33 @@
 /**
- * The one place the app's name and wording live. To rename the app, change the values here
- * (and the few native settings listed in docs/RENAME.md that cannot read this file).
+ * The one place the app's name and wording live: ../brand.json. To rename the app, change the
+ * values there and follow docs/RENAME.md. That file is plain JSON so that the things which
+ * cannot run TypeScript (the phone app's native settings, the web build) read the same values.
  */
+import brand from "../brand.json";
+
 export const BRAND = {
   /** The name people see everywhere. */
-  name: "Koinonia",
+  name: brand.name,
+  /** Lower-case, no spaces: file names of exports, the phone app's short name. */
+  slug: brand.slug,
   /** One line under the name. */
-  tagline: "Stay close to the people you mean to stay close to.",
+  tagline: brand.tagline,
   /** A slightly longer description, for the public page and app stores. */
-  description: "Reminders to reach out on the rhythm you choose for each person, notes that remember for you, and a prayer list with one set apart each day.",
+  description: brand.description,
   /** The small line above the tagline on sign-in screens. */
-  origin: "κοινωνία · communion, fellowship",
+  origin: brand.origin,
   /** Same, for places that want capitals. */
-  originCaps: "ΚΟΙΝΩΝΙΑ · COMMUNION, FELLOWSHIP",
-  /** What an invite says. `{url}` is replaced with the public page's address. */
-  inviteMessage: "I've been using Koinonia to stay in touch with people and remember who I'm praying for. Want to try it with me? {url}",
+  originCaps: brand.originCaps,
+  /** The phone app's identifier in the App Store. Changing it after release makes a NEW app. */
+  bundleId: brand.bundleId,
+  /** The phone app's link scheme (koinonia://...). */
+  urlScheme: brand.urlScheme,
+  /** Who emails come from when EMAIL_FROM is not set: "Koinonia <hello@example.com>". */
+  emailFrom: `${brand.emailSenderName} <${brand.emailSenderAddress}>`,
+  /** Addresses used on your own computer when nothing else is configured. */
+  defaultWebUrl: brand.defaultWebUrl,
+  defaultApiUrl: brand.defaultApiUrl,
 } as const;
 
 /** The text someone shares to invite a friend. */
-export const inviteText = (webUrl: string): string => BRAND.inviteMessage.replace("{url}", `${webUrl.replace(/\/+$/, "")}/beta`);
+export const inviteText = (webUrl: string): string => brand.inviteMessage.replace("{name}", brand.name).replace("{url}", `${webUrl.replace(/\/+$/, "")}/beta`);

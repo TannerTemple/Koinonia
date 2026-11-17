@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { addDays, cadenceLabel, dayInTimezone, nextBirthday, type CalendarFeed } from "@koinonia/shared";
+import { BRAND, addDays, cadenceLabel, dayInTimezone, nextBirthday, type CalendarFeed } from "@koinonia/shared";
 import { hashToken, newToken } from "../lib/crypto";
 import { notFound } from "../lib/errors";
 import { toContact } from "../lib/serialize";
@@ -68,9 +68,9 @@ export async function calendarRoutes(app: FastifyInstance) {
     const lines = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Koinonia//Reach-outs//EN",
+      `PRODID:-//${BRAND.name}//Reach-outs//EN`,
       "CALSCALE:GREGORIAN",
-      "X-WR-CALNAME:Koinonia",
+      `X-WR-CALNAME:${BRAND.name}`,
       "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
     ];
     for (const row of contacts) {

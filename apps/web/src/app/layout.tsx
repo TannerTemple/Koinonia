@@ -1,10 +1,11 @@
+import { BRAND } from "@koinonia/shared";
 import type { Metadata, Viewport } from "next";
 import { themeCss, themeScript } from "@/lib/theme";
 import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: { default: "Koinonia", template: "%s · Koinonia" },
+  title: { default: `${BRAND.name}`, template: `%s · ${BRAND.name}` },
   description: "Stay close to the people who matter. Reminders to reach out, notes to remember, a list of who to pray for.",
 };
 

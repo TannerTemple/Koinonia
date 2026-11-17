@@ -23,9 +23,10 @@ export const BACKUP_RETENTION = "[BACKUP RETENTION, e.g. 30 days]";
 
 /** Companies that process data on the operator's behalf. Keep this list true. */
 export const PROCESSORS: { name: string; purpose: string }[] = [
-  { name: "[HOSTING PROVIDER, e.g. Render]", purpose: "runs the Koinonia server" },
+  { name: "[HOSTING PROVIDER, e.g. Render]", purpose: `runs the ${BRAND.name} server` },
   { name: "[DATABASE PROVIDER, e.g. Neon]", purpose: "stores the database" },
   { name: "[WEB HOST, e.g. Vercel]", purpose: "serves the web app" },
   { name: "Resend", purpose: "delivers email (password reset, email confirmation, daily reminders)" },
   { name: "Expo and Apple Push Notification service", purpose: "deliver push notifications, if you turn them on" },
-];
+];import { BRAND } from "@koinonia/shared";
+

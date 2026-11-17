@@ -43,6 +43,6 @@ export function explain(err) {
   if (code === "P1001") return "The database server cannot be reached. Check the address; a free Neon database can also take a few seconds to wake, so try once more.";
   if (code === "P1000") return "The database refused the password. Copy the address again from Neon with \"Show password\" on.";
   if (code === "P1003") return "That database does not exist on the server. Check the name after the last / in the address.";
-  if (code === "P2021" || code === "P2022") return "The database has no Koinonia tables yet (or old ones). Apply migrations first: deploy the API once, or run  pnpm db:migrate  with DATABASE_URL set to this database.";
+  if (code === "P2021" || code === "P2022") return "The database has no tables for this app yet (or old ones). Apply migrations first: deploy the API once, or run  pnpm db:migrate  with DATABASE_URL set to this database.";
   return `Unexpected error: ${String(err?.message ?? err).split("\n").filter(Boolean).pop()}`;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND } from "@koinonia/shared";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Search, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -19,7 +20,7 @@ function Result({ result }: { result: UserSearchResult }) {
       <Avatar name={result.name} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">{result.name}</p>
-        <p className="truncate text-sm text-muted">{result.email ?? result.phone ?? "Koinonia member"}</p>
+        <p className="truncate text-sm text-muted">{result.email ?? result.phone ?? `${BRAND.name} member`}</p>
       </div>
       {added ? (
         <Badge tone="forest">
@@ -48,14 +49,14 @@ export default function FindPeoplePage() {
     enabled: q.length >= 2,
   });
 
-  const invite = `I'm using Koinonia to stay in touch with the people who matter to me. Join me: ${typeof window === "undefined" ? "" : window.location.origin}/register`;
+  const invite = `I'm using ${BRAND.name} to stay in touch with the people who matter to me. Join me: ${typeof window === "undefined" ? "" : window.location.origin}/register`;
 
   return (
     <>
       <Link href="/people" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-text">
         <ArrowLeft className="size-4" aria-hidden /> People
       </Link>
-      <PageHeader title="Find people on Koinonia" subtitle="Search by name, or by exact email or phone number." />
+      <PageHeader title={`Find people on ${BRAND.name}`} subtitle="Search by name, or by exact email or phone number." />
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
         <Input type="search" aria-label="Search members" autoFocus placeholder="Maria Lopez, maria@example.com or (555) 010-2000" value={input} onChange={(e) => setInput(e.target.value)} className="pl-9" />
@@ -76,13 +77,13 @@ export default function FindPeoplePage() {
       ) : (
         <EmptyState
           title="No one by that name yet"
-          body="They may not be on Koinonia. You can still add them yourself, or send them an invitation."
+          body={`They may not be on ${BRAND.name}. You can still add them yourself, or send them an invitation.`}
           action={
             <div className="flex flex-wrap justify-center gap-2">
               <Link href="/people/new">
                 <Button variant="secondary">Add them manually</Button>
               </Link>
-              <a href={`mailto:?subject=${encodeURIComponent("Join me on Koinonia")}&body=${encodeURIComponent(invite)}`}>
+              <a href={`mailto:?subject=${encodeURIComponent(`Join me on ${BRAND.name}`)}&body=${encodeURIComponent(invite)}`}>
                 <Button>Invite by email</Button>
               </a>
             </div>

@@ -1,6 +1,6 @@
 import type { AuthTokenKind, PrismaClient, User } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import {
+import { BRAND,
   changePasswordSchema,
   deleteAccountSchema,
   forgotPasswordSchema,
@@ -67,11 +67,11 @@ export async function authRoutes(app: FastifyInstance) {
     const message =
       kind === "PASSWORD_RESET"
         ? {
-            subject: "Reset your Koinonia password",
+            subject: `Reset your ${BRAND.name} password`,
             text: [
               `Hi ${first},`,
               "",
-              "Someone asked to reset the password for this Koinonia account. If it was you, open this link within one hour:",
+              `Someone asked to reset the password for this ${BRAND.name} account. If it was you, open this link within one hour:`,
               "",
               `${webUrl}/reset-password?token=${token}`,
               "",
@@ -83,7 +83,7 @@ export async function authRoutes(app: FastifyInstance) {
             ].join("\n"),
           }
         : {
-            subject: "Confirm your email for Koinonia",
+            subject: `Confirm your email for ${BRAND.name}`,
             text: [
               `Hi ${first},`,
               "",

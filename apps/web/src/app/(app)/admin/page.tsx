@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FEEDBACK_KIND_LABELS, type AdminUser } from "@koinonia/shared";
+import { BRAND, FEEDBACK_KIND_LABELS, type AdminUser } from "@koinonia/shared";
 import { Badge, Button, Card, ErrorState, FormError, Input, PageHeader, SectionTitle, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
@@ -77,7 +77,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Admin" subtitle="How Koinonia is being used, and who is using it." />
+      <PageHeader title="Admin" subtitle={`How ${BRAND.name} is being used, and who is using it.`} />
       <section>
         <SectionTitle>At a glance</SectionTitle>
         <p className="mb-3">

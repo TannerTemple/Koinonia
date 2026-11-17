@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Body, Button, Field, FormError, Screen, Title, fieldErrors } from "@/components/ui";
@@ -28,7 +29,7 @@ export default function ForgotPasswordScreen() {
     return (
       <Screen>
         <Title>Check your email</Title>
-        <Body muted>If {email.trim()} has a Koinonia account, a reset email is on its way. It has a link, and a code you can paste here. Both work for one hour.</Body>
+        <Body muted>If {email.trim()} has a {BRAND.name} account, a reset email is on its way. It has a link, and a code you can paste here. Both work for one hour.</Body>
         <Button label="I have a reset code" onPress={() => router.push("/reset-password")} />
         <Button variant="ghost" label="Back to sign in" onPress={() => router.dismissTo("/login")} />
       </Screen>

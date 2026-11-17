@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import { loadEnv } from "../env";
 import { createProviders } from "../providers";
 
@@ -17,8 +18,10 @@ console.log(`Email provider: ${env.EMAIL_PROVIDER} (from ${env.EMAIL_FROM})`);
 try {
   await providers.email.send({
     to,
-    subject: "Koinonia test email",
-    text: "If you are reading this, Koinonia can send email.\n\nNothing else to do.",
+    subject: `${BRAND.name} test email`,
+    text: `If you are reading this, ${BRAND.name} can send email.
+
+Nothing else to do.`,
   });
   console.log(env.EMAIL_PROVIDER === "mock" ? "Mock provider: nothing was really sent. Set EMAIL_PROVIDER=resend to send for real." : "Accepted by Resend. Check the inbox (and spam).");
 } catch (err) {

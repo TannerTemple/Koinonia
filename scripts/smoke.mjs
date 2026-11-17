@@ -7,6 +7,9 @@
 // It creates one throwaway account (smoke-...@example.com), uses it, and deletes it again.
 // Prints PASS or FAIL per check, with a one-line fix on failure. Exit code 0 = all passed.
 
+import { readFileSync } from "node:fs";
+
+const brand = JSON.parse(readFileSync(new URL("../packages/shared/brand.json", import.meta.url), "utf8"));
 const [apiArg, webArg] = process.argv.slice(2);
 const clean = (v) => v?.trim().replace(/\/+$/, "");
 const api = clean(apiArg);
@@ -72,13 +75,13 @@ let personId = null;
 let created = false;
 let proxied = true;
 
-console.log(`\nKoinonia smoke test\n  API: ${api}\n  Web: ${web ?? "(not given; web checks skipped)"}\n`);
+console.log(`\n${brand.name} smoke test\n  API: ${api}\n  Web: ${web ?? "(not given; web checks skipped)"}\n`);
 
 const up = await check("API is up (/health)", async () => {
   const started = Date.now();
   const r = await call(api, "/health");
   if (r.status !== 200) throw fail(`answered ${r.status}`, "your API host's logs (Render: Logs; Azure: Container App > Log stream). If the last deploy failed, the log's final lines say which setting is wrong.");
-  if (r.json?.status !== "ok" && r.json?.ok !== true) throw fail("something answered, but it is not the Koinonia API", "Check the address: it should be the API, like https://koinonia-api.onrender.com or https://koinonia-api.<something>.azurecontainerapps.io");
+  if (r.json?.status !== "ok" && r.json?.ok !== true) throw fail(`something answered, but it is not the ${brand.name} API`, "Check the address: it should be the API, like https://koinonia-api.onrender.com or https://koinonia-api.<something>.azurecontainerapps.io");
   return `${Date.now() - started} ms`;
 }).catch(() => false);
 
@@ -107,7 +110,7 @@ if (web) {
   await check("Web app loads", async () => {
     const r = await call(web, "/login");
     if (r.status !== 200) throw fail(`answered ${r.status}`, "Read the web app's build or start log (Vercel: Deployments; Azure: Container App > Log stream). On Vercel, Root Directory must be apps/web.");
-    if (!/koinonia/i.test(r.text)) throw fail("a page loaded, but it is not Koinonia", "Check the web address.");
+    if (!r.text.toLowerCase().includes(brand.name.toLowerCase())) throw fail(`a page loaded, but it is not ${brand.name}`, "Check the web address.");
   });
   // On your own computer the web app talks to the API directly; there is no /api forwarding to test.
   const localWeb = ["localhost", "127.0.0.1"].includes(new URL(web).hostname);
@@ -183,7 +186,7 @@ if (created) {
 
 console.log("");
 if (failed === 0) {
-  console.log(paint(32, `ALL ${passed} CHECKS PASSED.`) + (skipped ? ` (${skipped} skipped)` : "") + " Koinonia is working.\n");
+  console.log(paint(32, `ALL ${passed} CHECKS PASSED.`) + (skipped ? ` (${skipped} skipped)` : "") + ` ${brand.name} is working.\n`);
   process.exit(0);
 }
 console.log(paint(31, `${failed} FAILED`) + `, ${passed} passed. Fix the first failure and run it again.\n`);

@@ -3,7 +3,7 @@
 import { Check, ChevronRight, Mail, MessageSquare, Phone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
+import { BRAND,
   CADENCE_PRESETS,
   isCommonCadence,
   CHANNELS,
@@ -181,7 +181,7 @@ export function ReachOutModal({ contact, today, open, onClose }: { contact: Cont
           {(p) => <Textarea {...p} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={500} placeholder="She got the job! Starts in January." />}
         </Field>
         <p className="text-sm text-muted" role="status">
-          {nextDay ? `Koinonia will remind you again on ${formatLongDay(nextDay)}.` : "No reminder is set for them."}
+          {nextDay ? `${BRAND.name} will remind you again on ${formatLongDay(nextDay)}.` : "No reminder is set for them."}
         </p>
         <FormError error={log.error} />
         <div className="flex justify-end gap-2">

@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { useState } from "react";
@@ -35,7 +36,7 @@ export default function LoginScreen() {
         <LinearGradient colors={["#2A4590", "#1B2F66", "#131F47"]} start={{ x: 0.9, y: 0 }} end={{ x: 0.2, y: 1 }} style={{ paddingTop: insets.top + space.xxl, padding: space.xl, gap: space.sm }}>
           <Text style={{ color: c.onHeroMuted, fontSize: 12, fontWeight: "800", letterSpacing: 1.6 }}>ΚΟΙΝΩΝΙΑ · COMMUNION, FELLOWSHIP</Text>
           <Text accessibilityRole="header" style={{ fontFamily: serif, color: c.onHero, fontSize: 40, fontWeight: "700" }}>
-            Koinonia
+            {BRAND.name}
           </Text>
           <Text style={{ color: c.onHeroMuted, fontSize: 18, lineHeight: 25 }}>Stay close to the people you mean to stay close to.</Text>
         </LinearGradient>

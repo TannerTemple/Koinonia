@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Platform, Text, View } from "react-native";
-import { CADENCE_PRESETS, cadenceLabel } from "@koinonia/shared";
+import { BRAND, CADENCE_PRESETS, cadenceLabel } from "@koinonia/shared";
 import { useReminderPermission } from "@/components/reminders";
 import { Button, Card, Chip, ChipRow, Field, FormError, Label, Screen, type IconName } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -127,9 +127,9 @@ export default function WelcomeScreen() {
 
       {step === "welcome" ? (
         <>
-          <Heading title={`Welcome, ${first}.`} body="Koinonia helps you stay close to the people you care about. It does three things." />
+          <Heading title={`Welcome, ${first}.`} body={`${BRAND.name} helps you stay close to the people you care about. It does three things.`} />
           <View style={{ gap: space.lg }}>
-            <Point icon="chatbubbles" tone="primary" title="Reminds you to reach out" body="You choose how often for each person. Koinonia tells you when it's time." />
+            <Point icon="chatbubbles" tone="primary" title="Reminds you to reach out" body={`You choose how often for each person. ${BRAND.name} tells you when it's time.`} />
             <Point icon="create" tone="gold" title="Remembers for you" body="Keep a note on what to ask next time: the new job, the surgery, the kids' names." />
             <Point icon="heart" tone="forest" title="Keeps your prayer list" body="Everyone you said you'd pray for, with one set apart each day." />
           </View>
@@ -152,12 +152,12 @@ export default function WelcomeScreen() {
             title="Get a reminder on your phone?"
             body={
               Platform.OS === "web"
-                ? "On an iPhone, Koinonia can send one notification on the day someone is due. This preview runs in a browser, so there is nothing to turn on here."
-                : "On the day someone is due, Koinonia sends one notification at 9 in the morning. You can pick another time for each person. That's all it uses notifications for."
+                ? `On an iPhone, ${BRAND.name} can send one notification on the day someone is due. This preview runs in a browser, so there is nothing to turn on here.`
+                : `On the day someone is due, ${BRAND.name} sends one notification at 9 in the morning. You can pick another time for each person. That's all it uses notifications for.`
             }
           />
           {reminders.permission === "on" ? (
-            <Point icon="checkmark-circle" tone="forest" title="Reminders are on" body="You'll hear from Koinonia when it's time to reach out." />
+            <Point icon="checkmark-circle" tone="forest" title="Reminders are on" body={`You'll hear from ${BRAND.name} when it's time to reach out.`} />
           ) : reminders.permission === "ask" ? (
             <Button
               icon="notifications"
@@ -171,7 +171,7 @@ export default function WelcomeScreen() {
               }}
             />
           ) : reminders.permission === "off" ? (
-            <Point icon="notifications-off" tone="gold" title="Notifications are off for Koinonia" body="You can allow them later in the Settings app. Today will still show who is due." />
+            <Point icon="notifications-off" tone="gold" title={`Notifications are off for ${BRAND.name}`} body="You can allow them later in the Settings app. Today will still show who is due." />
           ) : null}
           <Button variant={reminders.permission === "ask" ? "ghost" : "primary"} label={reminders.permission === "ask" ? "Not now" : "Continue"} onPress={next} />
         </>
@@ -181,7 +181,7 @@ export default function WelcomeScreen() {
         <>
           <Heading
             title="You're all set."
-            body={count ? `Today will show you who to reach out to. After you talk to someone, tap “I reached out” and Koinonia starts counting again.` : "Add your first person from Today whenever you're ready."}
+            body={count ? `Today will show you who to reach out to. After you talk to someone, tap “I reached out” and ${BRAND.name} starts counting again.` : "Add your first person from Today whenever you're ready."}
           />
           <View style={{ gap: space.lg }}>
             <Point icon="sunny" tone="primary" title="Today" body="Who is due, and who is next." />

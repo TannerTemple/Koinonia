@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { feedbackSchema, FEEDBACK_KIND_LABELS, type AdminFeedback } from "@koinonia/shared";
+import { BRAND, feedbackSchema, FEEDBACK_KIND_LABELS, type AdminFeedback } from "@koinonia/shared";
 import { parse } from "../lib/errors";
 import { safeError } from "../lib/log";
 import { pageOf } from "../lib/page";
@@ -27,7 +27,7 @@ export async function feedbackRoutes(app: FastifyInstance) {
       const send = providers.email
         .send({
           to: env.FEEDBACK_EMAIL,
-          subject: `Koinonia feedback: ${FEEDBACK_KIND_LABELS[input.kind]} (${input.platform} ${input.appVersion})`,
+          subject: `${BRAND.name} feedback: ${FEEDBACK_KIND_LABELS[input.kind]} (${input.platform} ${input.appVersion})`,
           text: [
             input.message,
             "",

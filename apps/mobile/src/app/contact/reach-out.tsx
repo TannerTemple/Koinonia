@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { CHANNELS, CHANNEL_LABELS, computeNextDue, formatLongDay, type Channel } from "@koinonia/shared";
+import { BRAND, CHANNELS, CHANNEL_LABELS, computeNextDue, formatLongDay, type Channel } from "@koinonia/shared";
 import { Body, Button, Chip, ChipRow, DraftNotice, ErrorState, Field, FormError, Label, Loading, Screen, Title } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { api } from "@/lib/api";
@@ -35,7 +35,7 @@ export default function ReachOutScreen() {
     <Screen keyboard>
       <View>
         <Title style={{ fontSize: 26 }}>You reached out to {contact.name.split(" ")[0]}</Title>
-        <Body muted>{nextDay ? `Koinonia will remind you again on ${formatLongDay(nextDay)}.` : "No reminder is set for them."}</Body>
+        <Body muted>{nextDay ? `${BRAND.name} will remind you again on ${formatLongDay(nextDay)}.` : "No reminder is set for them."}</Body>
       </View>
       <View>
         <Label>How?</Label>

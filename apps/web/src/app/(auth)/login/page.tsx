@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND } from "@koinonia/shared";
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Field, FormError, Input, fieldErrors } from "@/components/ui";
@@ -56,7 +57,7 @@ export default function LoginPage() {
       </p>
       <p className="text-center text-sm">
         <Link href="/beta" className="font-semibold text-primary underline-offset-2 hover:underline">
-          What is Koinonia?
+          What is {BRAND.name}?
         </Link>
       </p>
     </form>

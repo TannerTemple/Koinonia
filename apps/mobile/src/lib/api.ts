@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { createApiClient } from "@koinonia/shared";
+import { BRAND, createApiClient } from "@koinonia/shared";
 
 const TOKEN_KEY = "koinonia.token";
 let cachedToken: string | null | undefined;
@@ -36,9 +36,9 @@ export function onUnauthorized(handler: () => void) {
   unauthorizedHandler = handler;
 }
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? BRAND.defaultApiUrl;
 /** Where the web app lives; the privacy policy and terms are pages there. */
-export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? BRAND.defaultWebUrl).replace(/\/+$/, "");
 
 /** Whether the last request reached the server. Screens subscribe to show an offline notice. */
 let reachable = true;

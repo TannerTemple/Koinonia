@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Contact, LegalSection, LegalTitle } from "@/components/legal";
@@ -5,7 +6,7 @@ import { BACKUP_RETENTION, CONTACT_EMAIL, LAST_UPDATED, OPERATOR, PROCESSORS } f
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "What Koinonia stores about you and the people you add, who can see it, and how to delete it.",
+  description: `What ${BRAND.name} stores about you and the people you add, who can see it, and how to delete it.`,
 };
 
 export default function PrivacyPage() {
@@ -13,18 +14,18 @@ export default function PrivacyPage() {
     <>
       <LegalTitle title="Privacy Policy" updated={LAST_UPDATED}>
         <p>
-          Koinonia helps you stay in touch with people and pray for them. To do that it stores things you would not want strangers to read: who matters to you, what you note about them, and what
+          {BRAND.name} helps you stay in touch with people and pray for them. To do that it stores things you would not want strangers to read: who matters to you, what you note about them, and what
           you pray for. This page says exactly what is stored, who can see it, and how to remove it.
         </p>
         <p>
-          Koinonia is run by {OPERATOR} (&ldquo;we&rdquo;). Questions and requests: <Contact email={CONTACT_EMAIL} />.
+          {BRAND.name} is run by {OPERATOR} (&ldquo;we&rdquo;). Questions and requests: <Contact email={CONTACT_EMAIL} />.
         </p>
       </LegalTitle>
 
       <LegalSection id="short" title="The short version">
         <Bullets>
           <li>We store what you type in, so the app can show it back to you and remind you. Nothing more.</li>
-          <li>We do not sell your information, show ads, or track you across other apps or websites. There is no analytics or advertising code in Koinonia.</li>
+          <li>We do not sell your information, show ads, or track you across other apps or websites. There is no analytics or advertising code in {BRAND.name}.</li>
           <li>Your notes, your prayer intentions and your list of people are visible only to you inside the app.</li>
           <li>You can delete your account, and everything in it, yourself at any time.</li>
         </Bullets>
@@ -54,10 +55,10 @@ export default function PrivacyPage() {
         <h3 className="text-lg font-semibold">About the people you add</h3>
         <p>
           For each person you choose to keep up with: their name and, if you enter them, their phone number, email address, how you know them, their birthday, and how often you want to be
-          reminded. Koinonia also records each time you say you reached out (the day, how, and any summary you write).
+          reminded. {BRAND.name} also records each time you say you reached out (the day, how, and any summary you write).
         </p>
         <p>
-          <strong>Importing contacts.</strong> On iPhone, Koinonia reads your address book only after you allow it and only while you are on the import screen. The list is shown on your phone, and
+          <strong>Importing contacts.</strong> On iPhone, {BRAND.name} reads your address book only after you allow it and only while you are on the import screen. The list is shown on your phone, and
           only the people you tick are sent to our server. Your address book is never uploaded as a whole. On the web, a contacts file you choose is read in your browser and, again, only the
           people you tick are sent.
         </p>
@@ -85,7 +86,7 @@ export default function PrivacyPage() {
           <li>Your location.</li>
           <li>Your whole address book, your messages, your call history, or the content of any call, text or email you make from the app. The call, text and email buttons simply open your phone&rsquo;s own apps.</li>
           <li>Advertising identifiers, or any data for tracking you across other companies&rsquo; apps and websites.</li>
-          <li>Payment details. Koinonia is free.</li>
+          <li>Payment details. {BRAND.name} is free.</li>
         </Bullets>
       </LegalSection>
 
@@ -113,12 +114,12 @@ export default function PrivacyPage() {
             <strong>You.</strong> Everything in your account is private to your account.
           </li>
           <li>
-            <strong>Other members, in one limited way.</strong> Someone signed in to Koinonia can look you up by typing the start of your name, your exact email address, or your exact phone
+            <strong>Other members, in one limited way.</strong> Someone signed in to {BRAND.name} can look you up by typing the start of your name, your exact email address, or your exact phone
             number, and will see your name so they can add you to their own list. They never see your people, notes, intentions or activity, and a search by name does not reveal your email or
             phone. Turn this off in Settings under &ldquo;Let friends find me&rdquo;.
           </li>
           <li>
-            <strong>Administrators</strong> of this Koinonia service can see a list of accounts (name, email, phone number if given, when last active, and how many people and intentions each has) and can disable an
+            <strong>Administrators</strong> of this {BRAND.name} service can see a list of accounts (name, email, phone number if given, when last active, and how many people and intentions each has) and can disable an
             account. The admin screens do not show the content of anyone&rsquo;s notes, people or intentions.
           </li>
           <li>
@@ -136,18 +137,18 @@ export default function PrivacyPage() {
           </li>
         </Bullets>
         <p>
-          Koinonia is not end-to-end encrypted. Information is encrypted while it travels between your device and our server, and stored in our database, where the people who operate the
+          {BRAND.name} is not end-to-end encrypted. Information is encrypted while it travels between your device and our server, and stored in our database, where the people who operate the
           service could technically access it. We do not look at your content except when you ask us for help or when the law requires it.
         </p>
       </LegalSection>
 
       <LegalSection id="others" title="Information about other people">
         <p>
-          Much of what you put into Koinonia is about someone else: a friend&rsquo;s phone number, a note about their new job, a prayer for their health. You decide what to record, and you are
+          Much of what you put into {BRAND.name} is about someone else: a friend&rsquo;s phone number, a note about their new job, a prayer for their health. You decide what to record, and you are
           responsible for having a good reason to keep it. Please record only what you would be comfortable with that person knowing you had written down.
         </p>
         <p>
-          If you believe someone has stored information about you in Koinonia and you want it removed, write to <Contact email={CONTACT_EMAIL} />. We will work with the account holder, or
+          If you believe someone has stored information about you in {BRAND.name} and you want it removed, write to <Contact email={CONTACT_EMAIL} />. We will work with the account holder, or
           remove it ourselves where the law requires.
         </p>
       </LegalSection>
@@ -171,7 +172,7 @@ export default function PrivacyPage() {
           Deleted data is removed from the live database at once. Copies may remain in our database provider&rsquo;s backups for up to {BACKUP_RETENTION} before they are overwritten; they are
           not used for anything in the meantime. Technical logs expire on our hosting provider&rsquo;s schedule.
         </p>
-        <p>We keep your data for as long as your account exists. If you simply stop using Koinonia, your data stays until you delete it or ask us to.</p>
+        <p>We keep your data for as long as your account exists. If you simply stop using {BRAND.name}, your data stays until you delete it or ask us to.</p>
       </LegalSection>
 
       <LegalSection id="rights" title="Your choices and rights">
@@ -200,7 +201,7 @@ export default function PrivacyPage() {
 
       <LegalSection id="security" title="How we protect it">
         <Bullets>
-          <li>Connections to Koinonia are encrypted (HTTPS).</li>
+          <li>Connections to {BRAND.name} are encrypted (HTTPS).</li>
           <li>Passwords are stored only as salted one-way hashes. Sign-in tokens, password reset links and the calendar link are stored only as hashes too.</li>
           <li>On the web, your session is kept in a cookie that page scripts cannot read. On iPhone it is kept in the system Keychain.</li>
           <li>Every request is checked so that an account can only read and change its own data.</li>
@@ -218,14 +219,14 @@ export default function PrivacyPage() {
 
       <LegalSection id="children" title="Children">
         <p>
-          Koinonia is not meant for children under 13 (or under 16 where local law sets that age), and we do not knowingly collect their information. If you believe a child has created an
+          {BRAND.name} is not meant for children under 13 (or under 16 where local law sets that age), and we do not knowingly collect their information. If you believe a child has created an
           account, tell us and we will delete it.
         </p>
       </LegalSection>
 
       <LegalSection id="where" title="Where data is kept">
         <p>
-          Koinonia&rsquo;s server and database are located in [HOSTING REGION]. If you use Koinonia from another country, your information is transferred to and stored there. Where the law
+          {BRAND.name}&rsquo;s server and database are located in [HOSTING REGION]. If you use {BRAND.name} from another country, your information is transferred to and stored there. Where the law
           requires safeguards for such transfers, we rely on [TRANSFER MECHANISM, e.g. standard contractual clauses offered by our providers].
         </p>
       </LegalSection>

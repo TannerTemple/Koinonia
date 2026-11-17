@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { FEEDBACK_KINDS, FEEDBACK_KIND_LABELS, type FeedbackKind } from "@koinonia/shared";
+import { BRAND, FEEDBACK_KINDS, FEEDBACK_KIND_LABELS, type FeedbackKind } from "@koinonia/shared";
 import { Button, Card, Field, FormError, PageHeader, Textarea, fieldErrors } from "@/components/ui";
 import { api } from "@/lib/api";
 import { APP_VERSION } from "@/lib/version";
 
 const PROMPTS: Record<FeedbackKind, string> = {
   PROBLEM: "What were you trying to do, and what happened instead?",
-  IDEA: "What would make Koinonia better for you?",
+  IDEA: `What would make ${BRAND.name} better for you?`,
   OTHER: "What's on your mind?",
 };
 

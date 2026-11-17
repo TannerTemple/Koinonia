@@ -44,6 +44,7 @@ import type {
   BetaSignupInput,
 } from "./schemas";
 import type { AdminMetrics } from "./metrics";
+import { BRAND } from "./brand";
 
 export class ApiError extends Error {
   constructor(
@@ -107,7 +108,7 @@ export function createApiClient(options: ApiClientOptions) {
       if (controller?.signal.aborted) {
         throw new ApiError(0, "TIMEOUT", "That took too long. Check your connection and try again.");
       }
-      throw new ApiError(0, "NETWORK", "Can't reach Koinonia right now. Check your connection.");
+      throw new ApiError(0, "NETWORK", `Can't reach ${BRAND.name} right now. Check your connection.`);
     } finally {
       if (timer) clearTimeout(timer);
     }

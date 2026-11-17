@@ -248,13 +248,13 @@ function ExportData() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
-        Download a copy of everything you&rsquo;ve put into Koinonia: your people, notes, reach-outs and prayer list. The spreadsheet files open in Excel, Numbers and Google Sheets.
+        Download a copy of everything you&rsquo;ve put into {BRAND.name}: your people, notes, reach-outs and prayer list. The spreadsheet files open in Excel, Numbers and Google Sheets.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"
           loading={busy === "all"}
-          onClick={() => run("all", "Everything", async () => ({ name: `koinonia-${today}.json`, text: JSON.stringify(await api.me.exportAll(), null, 2), type: "application/json" }))}
+          onClick={() => run("all", "Everything", async () => ({ name: `${BRAND.slug}-${today}.json`, text: JSON.stringify(await api.me.exportAll(), null, 2), type: "application/json" }))}
         >
           Everything (one file)
         </Button>
@@ -263,7 +263,7 @@ function ExportData() {
             key={t.key}
             variant="ghost"
             loading={busy === t.key}
-            onClick={() => run(t.key, t.label, async () => ({ name: `koinonia-${t.key}-${today}.csv`, text: await api.me.exportCsv(t.key), type: "text/csv" }))}
+            onClick={() => run(t.key, t.label, async () => ({ name: `${BRAND.slug}-${t.key}-${today}.csv`, text: await api.me.exportCsv(t.key), type: "text/csv" }))}
           >
             {t.label} (spreadsheet)
           </Button>

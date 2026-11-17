@@ -6,8 +6,17 @@
 // hosts with an ordinary Postgres they are the same thing, so when DIRECT_URL is missing this
 // script uses DATABASE_URL for it instead of making everyone set both.
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+
+// The app's name, for messages. The file is not there inside the production image or during
+// install, and a message is not worth failing over.
+let brand = { name: "The API" };
+try {
+  brand = JSON.parse(readFileSync(new URL("../../../packages/shared/brand.json", import.meta.url), "utf8"));
+} catch {
+  /* keep the fallback */
+}
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 if (process.env.DIRECT_URL?.trim()) process.env.DIRECT_URL_WAS_SET = "1";
@@ -20,7 +29,7 @@ else {
 // Catch the two classic Neon mistakes before Prisma prints something cryptic.
 if (process.argv[2] === "migrate") {
   const fail = (text) => {
-    console.error(`\nKoinonia cannot apply database migrations: ${text}\n`);
+    console.error(`\n${brand.name} cannot apply database migrations: ${text}\n`);
     process.exit(1);
   };
   const clean = (v) => v?.trim().replace(/^(["'])(.*)\1$/, "$2").trim();
@@ -55,7 +64,7 @@ if (process.argv[2] === "migrate" && process.argv[3] === "deploy") {
     console.error(
       [
         "",
-        "Koinonia cannot apply database migrations. The usual causes:",
+        `${brand.name} cannot apply database migrations. The usual causes:`,
         "  - P1001 (can't reach the server): the host in DIRECT_URL is wrong, or the address was cut off when pasted.",
         "  - P1000 (authentication failed): the password in DIRECT_URL is wrong. Copy it again from Neon with \"Show password\" on.",
         "  - P1003 (database does not exist): the name after the last / in DIRECT_URL is wrong.",

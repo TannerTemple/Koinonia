@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import Constants from "expo-constants";
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Text, View } from "react-native";
@@ -77,8 +78,8 @@ export function ReminderPrompt({ people }: { people: number }) {
       </Text>
       <Text style={{ fontSize: 16, lineHeight: 23, color: c.textMuted }}>
         {permission === "ask"
-          ? "On the day someone is due, Koinonia sends one notification at 9 in the morning (you can pick another time for each person). That's all it uses notifications for."
-          : "Notifications are turned off for Koinonia. To get a reminder on the day someone is due, allow them in Settings."}
+          ? `On the day someone is due, ${BRAND.name} sends one notification at 9 in the morning (you can pick another time for each person). That's all it uses notifications for.`
+          : `Notifications are turned off for ${BRAND.name}. To get a reminder on the day someone is due, allow them in Settings.`}
       </Text>
       <View style={{ flexDirection: "row", gap: space.sm, marginTop: space.xs }}>
         {permission === "ask" ? (

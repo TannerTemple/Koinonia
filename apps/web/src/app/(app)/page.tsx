@@ -3,7 +3,7 @@
 import { ArrowRight, Cake, Check, ChevronRight, Flame, HandHeart, MessagesSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
+import { BRAND, formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
 import { ReachOutCard } from "@/components/contacts";
 import { IntentionModal, PrayTodayCard } from "@/components/prayer";
 import { Avatar, Button, Card, ErrorState, Spinner } from "@/components/ui";
@@ -58,7 +58,7 @@ function GettingStartedCard({ home, onAddPrayer }: { home: Home; onAddPrayer: ()
     {
       done: steps.reachedOut,
       title: "After you talk to someone, press “I reached out”",
-      hint: "Koinonia starts counting again and reminds you next time.",
+      hint: `${BRAND.name} starts counting again and reminds you next time.`,
       action: null,
     },
   ];

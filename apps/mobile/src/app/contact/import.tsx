@@ -3,7 +3,7 @@ import * as Contacts from "expo-contacts/legacy";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
-import { CADENCE_PRESETS, chunk, parseVCards, type ImportResult } from "@koinonia/shared";
+import { BRAND, CADENCE_PRESETS, chunk, parseVCards, type ImportResult } from "@koinonia/shared";
 import { Avatar, Body, Button, Chip, ChipRow, EmptyState, FormError, Label, Loading, Rows, Screen } from "@/components/ui";
 import { api } from "@/lib/api";
 import { toImportables, type DeviceContact, type Importable } from "@/lib/device-contacts";
@@ -117,11 +117,11 @@ export default function ImportScreen() {
       <Screen>
         <EmptyState
           icon="lock-closed"
-          title="Koinonia can't see your contacts"
+          title={`${BRAND.name} can't see your contacts`}
           body={
             state.canAskAgain
-              ? "Koinonia only reads your address book when you choose to import, and only sends the people you pick."
-              : "Access is turned off. Open Settings, choose Koinonia, and allow Contacts. Your address book is only read when you choose to import."
+              ? `${BRAND.name} only reads your address book when you choose to import, and only sends the people you pick.`
+              : `Access is turned off. Open Settings, choose ${BRAND.name}, and allow Contacts. Your address book is only read when you choose to import.`
           }
           action={
             <View style={{ gap: space.sm }}>
@@ -210,7 +210,7 @@ export default function ImportScreen() {
         {state.limited ? (
           <Pressable accessibilityRole="button" onPress={() => void Linking.openSettings()} style={{ flexDirection: "row", gap: space.sm, alignItems: "center", padding: space.md, borderRadius: radius.md, backgroundColor: c.primarySoft }}>
             <Ionicons name="information-circle-outline" size={20} color={c.primaryStrong} />
-            <Text style={{ flex: 1, fontSize: 14, color: c.primaryStrong }}>You&rsquo;ve shared only some contacts with Koinonia. Tap to share more in Settings.</Text>
+            <Text style={{ flex: 1, fontSize: 14, color: c.primaryStrong }}>You&rsquo;ve shared only some contacts with {BRAND.name}. Tap to share more in Settings.</Text>
           </Pressable>
         ) : null}
         <View>

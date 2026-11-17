@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { CHANNEL_LABELS, INTENTION_KIND_LABELS, type DataExport } from "@koinonia/shared";
+import { BRAND, CHANNEL_LABELS, INTENTION_KIND_LABELS, type DataExport } from "@koinonia/shared";
 import { toCsv, type CsvValue } from "../lib/csv";
 import { notFound } from "../lib/errors";
 
@@ -77,7 +77,7 @@ export async function exportRoutes(app: FastifyInstance) {
 
   app.get("/me/export", limited, async (request, reply) => {
     const data = await collect(request.auth.user.id);
-    reply.header("Content-Disposition", `attachment; filename="koinonia-${stamp(data)}.json"`);
+    reply.header("Content-Disposition", `attachment; filename="${BRAND.slug}-${stamp(data)}.json"`);
     return data;
   });
 
@@ -103,7 +103,7 @@ export async function exportRoutes(app: FastifyInstance) {
     }
     return reply
       .header("Content-Type", "text/csv; charset=utf-8")
-      .header("Content-Disposition", `attachment; filename="koinonia-${table}-${stamp(data)}.csv"`)
+      .header("Content-Disposition", `attachment; filename="${BRAND.slug}-${table}-${stamp(data)}.csv"`)
       .send(toCsv(headers, rows));
   });
 }

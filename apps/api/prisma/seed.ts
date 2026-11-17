@@ -5,7 +5,7 @@
  * Everything is dated relative to today, so the demo always looks current.
  */
 import { PrismaClient, type Channel, type IntentionKind } from "@prisma/client";
-import { addDays, computeNextDue, dayInTimezone } from "@koinonia/shared";
+import { BRAND, addDays, computeNextDue, dayInTimezone } from "@koinonia/shared";
 import { hashPassword } from "../src/lib/crypto";
 
 const prisma = new PrismaClient();
@@ -127,7 +127,7 @@ async function main() {
   await prisma.user.deleteMany({ where: { email: { endsWith: "@koinonia.app" } } });
 
   await prisma.user.create({
-    data: { email: "admin@koinonia.app", name: "Koinonia Admin", role: "ADMIN", timezone: TZ, emailVerifiedAt: new Date(), passwordHash: await hashPassword("koinonia-admin") },
+    data: { email: "admin@koinonia.app", name: `${BRAND.name} Admin`, role: "ADMIN", timezone: TZ, emailVerifiedAt: new Date(), passwordHash: await hashPassword("koinonia-admin") },
   });
   // A few other members, so "Find people" and the admin screen have something to show.
   for (const [name, email, phone] of [

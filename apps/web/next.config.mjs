@@ -6,6 +6,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Shown on feedback messages so a report can be matched to the code that was running.
+// The one place names and default addresses live.
+const brand = JSON.parse(readFileSync(new URL("../../packages/shared/brand.json", import.meta.url), "utf8"));
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 const commit = (process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT)?.slice(0, 7);
 const appVersion = commit ? `${pkg.version} (${commit})` : pkg.version;
@@ -17,7 +19,7 @@ const production = process.env.NODE_ENV === "production";
 
 // Where the browser sends API calls. With a proxy target, that is this site's own /api,
 // so API_PROXY_TARGET is the only variable a Vercel project needs.
-const apiUrl = tidy(process.env.NEXT_PUBLIC_API_URL) ?? (apiProxyTarget ? "/api" : "http://localhost:4000");
+const apiUrl = tidy(process.env.NEXT_PUBLIC_API_URL) ?? (apiProxyTarget ? "/api" : brand.defaultApiUrl);
 const apiOrigin = /^https?:\/\//.test(apiUrl) ? new URL(apiUrl).origin : "";
 
 // A hosted build with the wrong address looks fine and then cannot sign anyone in.
@@ -41,7 +43,7 @@ function buildProblem() {
 }
 const problem = buildProblem();
 if (problem) {
-  throw new Error(`\n\nKoinonia web cannot be built: ${problem}\nOn Vercel: Project > Settings > Environment Variables, then Deployments > Redeploy. In Docker: pass --build-arg API_PROXY_TARGET=https://...\n`);
+  throw new Error(`\n\n${brand.name} web cannot be built: ${problem}\nOn Vercel: Project > Settings > Environment Variables, then Deployments > Redeploy. In Docker: pass --build-arg API_PROXY_TARGET=https://...\n`);
 }
 
 // Next.js needs inline scripts and styles, so this policy cannot stop every injected script.

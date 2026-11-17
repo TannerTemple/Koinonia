@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import { buildApp } from "./app";
 import { prisma } from "./db";
 import { EnvError, loadEnv, productionWarnings, type Env } from "./env";
@@ -38,7 +39,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 try {
   await app.listen({ port: env.PORT, host: env.HOST });
 } catch (err) {
-  console.error(`\nKoinonia API cannot start: port ${env.PORT} could not be opened (${safeError(err).message ?? "unknown error"}). Is another copy already running?\n`);
+  console.error(`\n${BRAND.name} API cannot start: port ${env.PORT} could not be opened (${safeError(err).message ?? "unknown error"}). Is another copy already running?\n`);
   process.exit(1);
 }
 if (env.NODE_ENV === "production") {

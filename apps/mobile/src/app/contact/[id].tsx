@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, Share, Text, View } from "react-native";
-import {
+import { BRAND,
   birthdayLabel,
   CHANNEL_LABELS,
   MESSAGE_STARTERS,
@@ -180,7 +180,7 @@ export default function ContactScreen() {
           {contact.groups.map((g) => (
             <Badge key={g} tone="primary" label={g} />
           ))}
-          {contact.linkedUserId ? <Badge tone="forest" label="On Koinonia" /> : null}
+          {contact.linkedUserId ? <Badge tone="forest" label={`On ${BRAND.name}`} /> : null}
           {contact.archived ? <Badge label="Archived" /> : null}
         </View>
         <Body muted style={{ fontSize: 14 }}>

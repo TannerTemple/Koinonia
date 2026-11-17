@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { TextInput, View } from "react-native";
-import { PEOPLE_PAGE, filterPeople, groupsInUse, type PeopleFilter } from "@koinonia/shared";
+import { BRAND, PEOPLE_PAGE, filterPeople, groupsInUse, type PeopleFilter } from "@koinonia/shared";
 import { ContactRow } from "@/components/domain";
 import { Body, Button, Chip, ChipRow, EmptyState, ErrorState, Loading, Rows, Screen, Title } from "@/components/ui";
 import { useContacts, useRefresh, useToday } from "@/lib/hooks";
@@ -82,7 +82,7 @@ export default function PeopleScreen() {
 
       <View style={{ gap: space.sm }}>
         <Button variant="secondary" icon="download-outline" label="Import from my contacts" onPress={() => router.push("/contact/import")} />
-        {hasPeople ? <Button variant="secondary" icon="search" label="Find people on Koinonia" onPress={() => router.push("/contact/find")} /> : null}
+        {hasPeople ? <Button variant="secondary" icon="search" label={`Find people on ${BRAND.name}`} onPress={() => router.push("/contact/find")} /> : null}
         {data && hasPeople ? (
           <Body muted style={{ textAlign: "center", fontSize: 13 }}>
             {data.length} {data.length === 1 ? "person" : "people"}

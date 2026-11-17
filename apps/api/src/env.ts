@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import { z } from "zod";
 
 const bool = z
@@ -14,8 +15,8 @@ const schema = z.object({
   /** Optional: report unexpected errors to Sentry. Unset = nothing is sent anywhere. */
   SENTRY_DSN: z.string().optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-  CORS_ORIGINS: z.string().default("http://localhost:3000,http://localhost:8081"),
-  WEB_URL: z.string().default("http://localhost:3000"),
+  CORS_ORIGINS: z.string().default(`${BRAND.defaultWebUrl},http://localhost:8081`),
+  WEB_URL: z.string().default(BRAND.defaultWebUrl),
   API_PUBLIC_URL: z.string().optional(),
   /**
    * How many reverse proxies sit in front of the API: "false"/0 for none, a number for that
@@ -44,7 +45,7 @@ const schema = z.object({
   /** Which email service sends messages. "mock" records them and sends nothing. */
   EMAIL_PROVIDER: z.enum(["mock", "resend"]).default("mock"),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Koinonia <hello@example.com>"),
+  EMAIL_FROM: z.string().default(BRAND.emailFrom),
   EMAIL_REPLY_TO: z.string().optional(),
   /** Where "Send feedback" messages are emailed. Unset = they are only saved (Admin > Feedback). */
   FEEDBACK_EMAIL: z.string().trim().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "must be an email address, like you@example.com").optional(),
@@ -140,7 +141,7 @@ export class EnvError extends Error {
   constructor(readonly problems: string[]) {
     super(
       [
-        "Koinonia API cannot start: " + (problems.length === 1 ? "one setting is" : `${problems.length} settings are`) + " missing or wrong.",
+        `${BRAND.name} API cannot start: ` + (problems.length === 1 ? "one setting is" : `${problems.length} settings are`) + " missing or wrong.",
         "",
         ...problems.map((p) => `  - ${p}`),
         "",
@@ -180,11 +181,11 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const cross: { path: string[]; message: string }[] = [];
   crossChecks(
     {
-      CORS_ORIGINS: input.CORS_ORIGINS ?? "http://localhost:3000",
-      WEB_URL: input.WEB_URL ?? "http://localhost:3000",
+      CORS_ORIGINS: input.CORS_ORIGINS ?? BRAND.defaultWebUrl,
+      WEB_URL: input.WEB_URL ?? BRAND.defaultWebUrl,
       EMAIL_PROVIDER: input.EMAIL_PROVIDER ?? "mock",
       RESEND_API_KEY: input.RESEND_API_KEY,
-      EMAIL_FROM: input.EMAIL_FROM ?? "Koinonia <hello@example.com>",
+      EMAIL_FROM: input.EMAIL_FROM ?? BRAND.emailFrom,
     },
     { addIssue: (issue) => cross.push(issue) },
   );

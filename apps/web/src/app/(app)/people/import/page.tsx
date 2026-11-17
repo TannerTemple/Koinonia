@@ -3,7 +3,7 @@
 import { CheckCircle2, FileUp } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { CADENCE_PRESETS, chunk, parseVCards, type ImportCandidate, type ImportResult } from "@koinonia/shared";
+import { BRAND, CADENCE_PRESETS, chunk, parseVCards, type ImportCandidate, type ImportResult } from "@koinonia/shared";
 import { Avatar, Button, Card, EmptyState, FormError, Input, PageHeader, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAction } from "@/lib/hooks";
@@ -97,7 +97,7 @@ export default function ImportPeoplePage() {
       <Card className="space-y-3 p-5">
         <p className="text-sm text-muted">
           Export your contacts as a vCard (.vcf) file: in iCloud Contacts choose Select All, then Export vCard; in Google Contacts choose Export, then vCard. The file is read in your browser;
-          only the people you pick are sent to Koinonia.
+          only the people you pick are sent to {BRAND.name}.
         </p>
         <input ref={fileInput} type="file" accept=".vcf,text/vcard,text/x-vcard" className="sr-only" aria-label="Contacts file" onChange={(e) => void readFile(e.target.files?.[0])} />
         <Button variant={people ? "secondary" : "primary"} onClick={() => fileInput.current?.click()}>

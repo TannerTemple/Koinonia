@@ -13,6 +13,7 @@
     "db:seed": "pnpm --filter @koinonia/api db:seed",
     "db:seed:prod": "pnpm --filter @koinonia/api db:seed:prod",
     "make-admin": "pnpm --filter @koinonia/api make-admin",
+    "rename:check": "node scripts/rename-check.mjs",
     "smoke": "node scripts/smoke.mjs",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",

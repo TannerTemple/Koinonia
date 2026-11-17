@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -31,7 +32,7 @@ export function OfflineNotice() {
       accessibilityRole="alert"
       style={{ position: "absolute", left: space.md, right: space.md, bottom: insets.bottom + 76, flexDirection: "row", alignItems: "center", gap: space.md, paddingLeft: space.lg, borderRadius: 14, backgroundColor: c.text }}
     >
-      <Text style={{ flex: 1, paddingVertical: space.md, fontSize: 15, lineHeight: 20, color: c.bg }}>Can&rsquo;t reach Koinonia. Check your connection.</Text>
+      <Text style={{ flex: 1, paddingVertical: space.md, fontSize: 15, lineHeight: 20, color: c.bg }}>Can&rsquo;t reach {BRAND.name}. Check your connection.</Text>
       <Pressable accessibilityRole="button" onPress={() => void queryClient.invalidateQueries()} style={{ minHeight: 48, justifyContent: "center", paddingHorizontal: space.lg }}>
         <Text style={{ fontSize: 15, fontWeight: "800", color: c.bg }}>Try again</Text>
       </Pressable>

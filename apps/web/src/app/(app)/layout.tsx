@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND } from "@koinonia/shared";
 import { HandHeart, Home, Settings, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -97,7 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <nav aria-label="Main" className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
         <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
           <Logo />
-          <span className="font-display text-xl font-semibold">Koinonia</span>
+          <span className="font-display text-xl font-semibold">{BRAND.name}</span>
         </Link>
         <ul className="space-y-1">
           {items.map(({ href, label, icon: Icon }) => (

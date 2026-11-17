@@ -1,3 +1,4 @@
+import { BRAND } from "@koinonia/shared";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { LEGAL_DRAFT } from "@/lib/legal";
@@ -8,9 +9,9 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     <div className="min-h-dvh">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <Link href="/" className="flex items-center gap-3" aria-label="Koinonia home">
+          <Link href="/" className="flex items-center gap-3" aria-label={`${BRAND.name} home`}>
             <Logo size={30} />
-            <span className="font-display text-xl font-semibold">Koinonia</span>
+            <span className="font-display text-xl font-semibold">{BRAND.name}</span>
           </Link>
           <nav aria-label="Legal" className="flex gap-5 text-sm font-semibold text-primary">
             <Link href="/privacy" className="underline-offset-2 hover:underline">

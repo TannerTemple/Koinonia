@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND } from "@koinonia/shared";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
@@ -53,7 +54,7 @@ export default function VerifyEmailPage() {
           </div>
         )}
         <Link href="/" className="inline-block font-semibold text-primary underline-offset-2 hover:underline">
-          Go to Koinonia
+          Go to {BRAND.name}
         </Link>
       </div>
     </main>

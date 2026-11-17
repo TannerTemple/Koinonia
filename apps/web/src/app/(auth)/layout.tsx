@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND } from "@koinonia/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -18,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <aside className="hero-blue flex flex-col justify-between gap-10 p-8 text-on-hero lg:p-14">
         <div className="flex items-center gap-3">
           <Logo size={36} />
-          <span className="font-display text-2xl font-semibold">Koinonia</span>
+          <span className="font-display text-2xl font-semibold">{BRAND.name}</span>
         </div>
         <div className="max-w-md">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-on-hero-muted">κοινωνία · communion, fellowship</p>

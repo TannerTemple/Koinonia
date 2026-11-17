@@ -35,7 +35,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Koinonia reads your contacts only when you choose to import people you want to stay in touch with."
+          "contactsPermission": "{name} reads your contacts only when you choose to import people you want to stay in touch with."
         }
       ],
       [

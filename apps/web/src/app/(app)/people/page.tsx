@@ -3,7 +3,7 @@
 import { FileUp, Plus, Search, UserSearch, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PEOPLE_PAGE, dayInTimezone, filterPeople, groupsInUse, type PeopleFilter } from "@koinonia/shared";
+import { BRAND, PEOPLE_PAGE, dayInTimezone, filterPeople, groupsInUse, type PeopleFilter } from "@koinonia/shared";
 import { ContactList } from "@/components/contacts";
 import { Button, EmptyState, ErrorState, Input, PageHeader, Spinner } from "@/components/ui";
 import { useUser } from "@/lib/auth";
@@ -91,7 +91,7 @@ export default function PeoplePage() {
           <EmptyState
             icon={<Users className="size-6" />}
             title="No one here yet"
-            body="Add the people you want to stay close to, or import them from a contacts file. On your phone, the Koinonia app can import them straight from your address book."
+            body={`Add the people you want to stay close to, or import them from a contacts file. On your phone, the ${BRAND.name} app can import them straight from your address book.`}
             action={
               <Link href="/people/new">
                 <Button>Add your first person</Button>

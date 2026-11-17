@@ -4,7 +4,7 @@ import { Check, HandHeart, MessagesSquare, NotebookPen, Plus } from "lucide-reac
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CADENCE_PRESETS, cadenceLabel } from "@koinonia/shared";
+import { BRAND, CADENCE_PRESETS, cadenceLabel } from "@koinonia/shared";
 import { Logo } from "@/components/logo";
 import { Button, Card, Field, FormError, Input, Select, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -193,7 +193,7 @@ export default function WelcomePage() {
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2.5">
           <Logo size={30} />
-          <span className="font-display text-xl font-semibold">Koinonia</span>
+          <span className="font-display text-xl font-semibold">{BRAND.name}</span>
         </span>
         {step !== "done" ? (
           <button type="button" onClick={finish} className="min-h-11 rounded-lg px-2 text-sm font-semibold text-muted underline-offset-2 hover:underline">
@@ -205,9 +205,9 @@ export default function WelcomePage() {
 
       {step === "welcome" ? (
         <>
-          <Heading title={`Welcome, ${user.name.split(" ")[0]}.`} body="Koinonia helps you stay close to the people you care about. It does three things." />
+          <Heading title={`Welcome, ${user.name.split(" ")[0]}.`} body={`${BRAND.name} helps you stay close to the people you care about. It does three things.`} />
           <ul className="space-y-5">
-            <Point icon={<MessagesSquare className="size-5" />} tone="bg-primary-soft text-primary" title="Reminds you to reach out" body="You choose how often for each person. Koinonia tells you when it's time." />
+            <Point icon={<MessagesSquare className="size-5" />} tone="bg-primary-soft text-primary" title="Reminds you to reach out" body={`You choose how often for each person. ${BRAND.name} tells you when it's time.`} />
             <Point icon={<NotebookPen className="size-5" />} tone="bg-gold-soft text-gold" title="Remembers for you" body="Keep a note on what to ask next time: the new job, the surgery, the kids' names." />
             <Point icon={<HandHeart className="size-5" />} tone="bg-forest-soft text-forest" title="Keeps your prayer list" body="Everyone you said you'd pray for, with one set apart each day." />
           </ul>
@@ -231,7 +231,7 @@ export default function WelcomePage() {
 
       {step === "prayer" ? (
         <>
-          <Heading title="Anything you want to pray for?" body="Add one thing now if you like. Each day Koinonia sets one apart for you." />
+          <Heading title="Anything you want to pray for?" body={`Add one thing now if you like. Each day ${BRAND.name} sets one apart for you.`} />
           <AddPrayer />
           <div>
             <Button onClick={next}>Continue</Button>
@@ -243,9 +243,9 @@ export default function WelcomePage() {
         <>
           <Heading
             title="You're all set."
-            body={count ? "Today shows who to reach out to. After you talk to someone, press “I reached out” and Koinonia starts counting again." : "Add your first person from Today whenever you're ready."}
+            body={count ? `Today shows who to reach out to. After you talk to someone, press “I reached out” and ${BRAND.name} starts counting again.` : "Add your first person from Today whenever you're ready."}
           />
-          <p className="text-muted">Want reminders on your phone? The Koinonia iPhone app sends one on the day someone is due. On the web, turn on the daily email in Settings.</p>
+          <p className="text-muted">Want reminders on your phone? The {BRAND.name} iPhone app sends one on the day someone is due. On the web, turn on the daily email in Settings.</p>
           <div>
             <Button onClick={finish}>Go to Today</Button>
           </div>

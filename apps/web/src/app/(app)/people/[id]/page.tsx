@@ -4,7 +4,7 @@ import { ArrowLeft, Cake, CalendarClock, Check, Copy, Pencil, Pin, Plus, Trash2 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import {
+import { BRAND,
   CHANNEL_LABELS,
   MESSAGE_STARTERS,
   cadenceLabel,
@@ -266,7 +266,7 @@ export default function PersonPage() {
                     {g}
                   </Badge>
                 ))}
-                {contact.linkedUserId ? <Badge tone="forest">On Koinonia</Badge> : null}
+                {contact.linkedUserId ? <Badge tone="forest">On {BRAND.name}</Badge> : null}
               </div>
             </div>
             <button

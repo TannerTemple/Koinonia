@@ -1,7 +1,7 @@
 import { File, Paths } from "expo-file-system";
 import { useState } from "react";
 import { Platform, Share, Text, View } from "react-native";
-import { EXPORT_TABLES } from "@koinonia/shared";
+import { BRAND, EXPORT_TABLES } from "@koinonia/shared";
 import { Body, Button, FormError, Screen, Title } from "@/components/ui";
 import { api } from "@/lib/api";
 import { space, useTheme } from "@/lib/theme";
@@ -59,12 +59,12 @@ export default function ExportScreen() {
   return (
     <Screen>
       <Title>Your data</Title>
-      <Body muted>A copy of everything you&rsquo;ve put into Koinonia: your people, notes, reach-outs and prayer list. It is yours to keep.</Body>
+      <Body muted>A copy of everything you&rsquo;ve put into {BRAND.name}: your people, notes, reach-outs and prayer list. It is yours to keep.</Body>
       <Button
         icon="download-outline"
         label="Everything (one file)"
         loading={busy === "all"}
-        onPress={() => run("all", "Everything", async () => ({ name: `koinonia-${today}.json`, text: JSON.stringify(await api.me.exportAll(), null, 2), type: "application/json" }))}
+        onPress={() => run("all", "Everything", async () => ({ name: `${BRAND.slug}-${today}.json`, text: JSON.stringify(await api.me.exportAll(), null, 2), type: "application/json" }))}
       />
       <View style={{ gap: space.sm }}>
         <Text style={{ fontSize: 15, fontWeight: "700", color: c.textMuted }}>Or as spreadsheets</Text>
@@ -74,7 +74,7 @@ export default function ExportScreen() {
             variant="secondary"
             label={t.label}
             loading={busy === t.key}
-            onPress={() => run(t.key, t.label, async () => ({ name: `koinonia-${t.key}-${today}.csv`, text: await api.me.exportCsv(t.key), type: "text/csv" }))}
+            onPress={() => run(t.key, t.label, async () => ({ name: `${BRAND.slug}-${t.key}-${today}.csv`, text: await api.me.exportCsv(t.key), type: "text/csv" }))}
           />
         ))}
       </View>

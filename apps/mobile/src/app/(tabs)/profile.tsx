@@ -3,7 +3,7 @@ import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Linking, Share, Switch, Text, View } from "react-native";
-import { inviteText, type Streak } from "@koinonia/shared";
+import { BRAND, inviteText, type Streak } from "@koinonia/shared";
 import { Avatar, Body, Button, Card, Field, FormError, LegalLinks, Screen, SectionTitle, Title, fieldErrors, type IconName } from "@/components/ui";
 import { WEB_URL, api } from "@/lib/api";
 import { showDialog } from "@/lib/dialog";
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
 
   const turnOnNotifications = async () => {
     if (await reminders.turnOn()) return;
-    showDialog("Notifications are off", "Turn them on for Koinonia in Settings to get reminders.", [
+    showDialog("Notifications are off", `Turn them on for ${BRAND.name} in Settings to get reminders.`, [
       { text: "Not now", style: "cancel" },
       { text: "Open Settings", onPress: () => void Linking.openSettings() },
     ]);
@@ -132,7 +132,7 @@ export default function ProfileScreen() {
             label="Notifications on this iPhone"
             description="One reminder on the day someone is due (9am unless you pick another time for them), and for your note follow-ups."
             value={notifications}
-            onChange={(v) => (v ? void turnOnNotifications() : showDialog("Turn off in Settings", "To stop reminders, turn off notifications for Koinonia in Settings.", [{ text: "OK" }, { text: "Open Settings", onPress: () => void Linking.openSettings() }]))}
+            onChange={(v) => (v ? void turnOnNotifications() : showDialog("Turn off in Settings", `To stop reminders, turn off notifications for ${BRAND.name} in Settings.`, [{ text: "OK" }, { text: "Open Settings", onPress: () => void Linking.openSettings() }]))}
           />
           <View style={{ height: 1, backgroundColor: c.border }} />
           <ToggleRow

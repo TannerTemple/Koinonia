@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
-import { dueLabel, formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
+import { BRAND, dueLabel, formatDay, formatLongDay, gettingStarted, greetingFor, reachOutSummary, relativeDay, type Contact, type Home, type Note } from "@koinonia/shared";
 import { PrayTodayCard, ReachOutCard } from "@/components/domain";
 import { Avatar, Body, Button, Card, ErrorState, Loading, Rows, Screen, type IconName } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -58,7 +58,7 @@ function GettingStartedCard({ home }: { home: Home }) {
     {
       done: steps.reachedOut,
       title: "After you talk to someone, tap “I reached out”",
-      hint: "Koinonia starts counting again and reminds you next time.",
+      hint: `${BRAND.name} starts counting again and reminds you next time.`,
     },
   ];
   const next = rows.findIndex((r) => !r.done);

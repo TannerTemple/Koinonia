@@ -1,5 +1,5 @@
 import type { PrismaClient, PushDevice, User } from "@prisma/client";
-import { dayInTimezone, dueLabel, hourInTimezone } from "@koinonia/shared";
+import { BRAND, dayInTimezone, dueLabel, hourInTimezone } from "@koinonia/shared";
 import type { Env } from "../env";
 import type { Providers } from "../providers";
 import { safeError } from "../lib/log";
@@ -82,19 +82,19 @@ async function sendDigest(
         ? ["Follow-ups:", ...followUps.map((n) => `  • ${n.contactName}: ${n.body}`), ""]
         : []),
       ...(home.prayer.intention ? [`Pray today for: ${home.prayer.intention.title}`, ""] : []),
-      `Open Koinonia: ${env.WEB_URL}`,
+      `Open ${BRAND.name}: ${env.WEB_URL}`,
     ];
 
     const results = await Promise.allSettled([
       providers.email.send({ to: user.email, subject: headline, text: lines.join("\n") }),
       user.devices.length
         ? providers.push
-            .send({ tokens: user.devices.map((d) => d.token), title: "Koinonia", body: headline, data: { url: "/" } })
+            .send({ tokens: user.devices.map((d) => d.token), title: `${BRAND.name}`, body: headline, data: { url: "/" } })
             // A phone that deleted the app or turned notifications off: stop sending to it.
             .then(({ invalidTokens }) => (invalidTokens.length ? prisma.pushDevice.deleteMany({ where: { userId: user.id, token: { in: invalidTokens } } }) : undefined))
         : Promise.resolve(),
       env.DIGEST_SMS && user.phone
-        ? providers.sms.send({ to: user.phone, body: `Koinonia: ${headline}. ${env.WEB_URL}` })
+        ? providers.sms.send({ to: user.phone, body: `${BRAND.name}: ${headline}. ${env.WEB_URL}` })
         : Promise.resolve(),
     ]);
     for (const r of results) if (r.status === "rejected") console.error("[digest] delivery failed:", JSON.stringify(safeError(r.reason)));

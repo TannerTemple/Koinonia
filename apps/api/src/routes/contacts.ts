@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import {
+import { BRAND,
   addDays,
   createContactSchema,
   importContactsSchema,
@@ -25,7 +25,7 @@ export async function contactRoutes(app: FastifyInstance) {
     const other = await prisma.user.findFirst({
       where: { id: linkedUserId, discoverable: true, disabledAt: null, NOT: { id: selfId } },
     });
-    if (!other) throw badRequest("That Koinonia member can't be linked.");
+    if (!other) throw badRequest(`That ${BRAND.name} member can't be linked.`);
   }
 
   app.get<{ Querystring: { q?: string; archived?: string; limit?: string; offset?: string } }>("/contacts", async (request, reply) => {

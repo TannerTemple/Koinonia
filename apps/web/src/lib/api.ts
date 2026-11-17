@@ -1,11 +1,11 @@
-import { createApiClient } from "@koinonia/shared";
+import { BRAND, createApiClient } from "@koinonia/shared";
 
 let unauthorizedHandler: (() => void) | null = null;
 export function onUnauthorized(handler: () => void) {
   unauthorizedHandler = handler;
 }
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? BRAND.defaultApiUrl;
 
 /**
  * The web session is an httpOnly cookie set by the API, so no script on the page (ours or
