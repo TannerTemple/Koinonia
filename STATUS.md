@@ -1,18 +1,14 @@
 # Koinonia — Status
 
-_Last updated: end of the seventh unattended round (deploy-night hardening, smoke test, admin and seed scripts, TONIGHT.md, known gaps closed, feedback screen)._
+_Last updated: end of the eighth unattended round (Azure, beta metrics, beta kit, one-place naming, retention merged with switches, security review 2, sign in with Google/Microsoft/Apple, legal pages)._
 
-> Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it.
+> Everything is pushed to `claude/great-turing-vdjm45`; the open pull request against `main` includes it. The retention work from `claude/retention-ideas` is now merged into it.
 >
-> **Deploying tonight? Open [docs/TONIGHT.md](docs/TONIGHT.md) and follow it top to bottom.**
-
-> **Experiment, not on this branch:** `claude/retention-ideas` adds reasons to come back (a forgiving prayer streak, weekly reach-out rhythm, memories, a verse for the day, totals, "Used last time" on sign-in). See `docs/RETENTION.md` on that branch. No pull request has been opened for it.
->
-> **Hosting on Azure instead of Render/Vercel:** the guides are written for Neon, Render and Vercel. The same pieces map to Azure (the API's Docker image on Container Apps or App Service, Azure Database for PostgreSQL, the web app on App Service or Static Web Apps) with the same variables, but no Azure guide has been written or tried. One difference: set `API_PUBLIC_URL` yourself, because only Render fills it in.
+> **Hosting on Azure:** follow [docs/DEPLOY_AZURE.md](docs/DEPLOY_AZURE.md). (The Render/Vercel route in [docs/TONIGHT.md](docs/TONIGHT.md) still works.)
 
 ## After `git pull`, run exactly this
 
-There is **one new database migration** this round (`feedback`: one new table) and one newly declared dependency (`expo-file-system`, already present inside Expo), so run `pnpm install` and `pnpm db:migrate`. `pnpm db:seed` is optional and only refreshes the demo accounts on your own computer.
+There are **three new database migrations** this round (`usage_counts`, `beta_signups`, `sign_in_providers`) and dependency changes (Vitest 4, `expo-web-browser`, security overrides), so run `pnpm install` and `pnpm db:migrate`. Nothing new is required in `apps/api/.env`. Optional: to try "Continue with Google/Microsoft/Apple" without any accounts, add `OAUTH_MOCK=true` and `SIGNIN_PROVIDERS=google,microsoft,apple` to `apps/api/.env` and restart `pnpm dev`.
 
 ```bash
 pnpm install
@@ -42,7 +38,28 @@ cp .env.example apps/api/.env
 
 `pnpm db:seed` only replaces the demo accounts (`@koinonia.app`); accounts you registered yourself are kept. Nothing new is required in `apps/api/.env`. Optional settings added this round, all off unless set: `PUSH_PROVIDER=expo` (real push) and `SENTRY_DSN` (error reporting); see `.env.example`.
 
-## What changed in this round (seventh)
+## What changed in this round (eighth)
+
+| Step | Result |
+| --- | --- |
+| 1. Azure | [docs/DEPLOY_AZURE.md](docs/DEPLOY_AZURE.md): two Container Apps (API and web) on the pay-per-use plan that scales to zero, a container registry, and either Azure PostgreSQL or Neon, with a cost and trade-off table, every variable, an `az` command and a success check per step, health probes, updating and rollback, and what to check about Azure for Students (credit, expiry, regions, whether the free PostgreSQL year applies). The web app now has its own Dockerfile (64 MB self-contained server). |
+| 2. Beta metrics | Web → Admin → **Beta metrics**: sign-ups per week, activation (3 people in week 1), back in week 1 and week 4, weekly active users, and what people do and which screens they open. Counts only; no outside tracker. How to read it: [docs/METRICS.md](docs/METRICS.md). |
+| 3. Beta kit | A public page at `/beta` (what the app is, and "Ask for an invite" that stores an email only with consent), the list under Admin with "Copy iPhone emails", "Invite a friend" in Settings and Profile, and [docs/BETA.md](docs/BETA.md): invite email, adding testers in TestFlight, five feedback questions, and a script for watching someone sign up. |
+| 4. Naming in one place | Name, tagline, bundle identifier, link scheme, default addresses and email sender live in `packages/shared/brand.json`. A trial rename to "Koino" changed the web app and the phone settings with nothing left behind, then was put back. `pnpm rename:check Koinonia` finds stragglers. [docs/RENAME.md](docs/RENAME.md) lists the few things outside that file (above all: decide the bundle identifier before the first TestFlight build). |
+| 5. Retention merged | All of [docs/RETENTION.md](docs/RETENTION.md) is in: forgiving prayer streak, weeks in a row, milestones, memories, a word for today, totals, the 8pm nudge, "Used last time". Each has its own switch: list names in the API's `FEATURES_OFF` to turn them off (no rebuild). |
+| 6. Security review 2 | [docs/REVIEW2.md](docs/REVIEW2.md). Fixed: web visitors sharing one rate limit (new optional `PROXY_SECRET`), the member list being browsable by name fragment (search now needs a first name and the start of a last name), and every dependency advisory (`pnpm audit`: none). New tests sweep every route for missing sign-in and admin checks. Two accepted low risks are explained. |
+| 7. Google, Microsoft, Apple | "Continue with ..." on sign-in and create-account, web and iPhone, **off until you switch each on** (`SIGNIN_PROVIDERS` plus its keys). Links to an existing account by verified email only. "Used last time" remembers the method. [docs/SIGNIN_SETUP.md](docs/SIGNIN_SETUP.md) says exactly what to create at each company. |
+| 8. Legal pages | Privacy policy and terms now cover outside sign-in, feedback, the invite list, anonymous counts and the sign-in memory, as well as contacts, prayers, notes about others, export and deletion. Your name, contact email and seven other blanks are web settings, **highlighted on the page** until filled ([docs/LEGAL.md](docs/LEGAL.md)). |
+
+**How this round was tested**
+
+- 313 automated tests (API 217 plus 2 opt-in live email tests skipped by default, shared 72, mobile 22), all passing. New ones cover the metrics (and that no personal data is in them), the invite list, the feature switches, every route's access rules, per-visitor limits, and outside sign-in against fake providers that sign real tokens (26 tests: PKCE, wrong key, wrong app, wrong nonce, expired, replayed, wrong browser, unverified email, Microsoft work accounts, Apple's form post and client secret, the phone's one-time code).
+- In a real browser on web and the phone preview: the full first-run walks, drafts, feedback, people list, bad network, retention, beta page and invite list, the metrics page, and outside sign-in end to end with the pretend providers (new account, sign out, "Used last time", same account again, refused email, cancel).
+- The production path again: both images' steps replayed by hand, all 8 migrations applied to an empty PostgreSQL the way the container does it, `pnpm smoke` passing all 14 checks through the new `/api` forwarding with `PROXY_SECRET` set, and the iOS bundle building.
+
+**Not tried, because it cannot be here:** Azure itself, `docker build`, the real Google, Microsoft and Apple, and the iPhone app on a device.
+
+## What changed in the seventh round
 
 | Step | Result |
 | --- | --- |
@@ -212,6 +229,12 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 
 ## Stubbed, unfinished, or not verified
 
+- **Azure has not been tried.** [docs/DEPLOY_AZURE.md](docs/DEPLOY_AZURE.md) is from Azure's documentation and the CLI as I know it; the commands were not run against Azure, and prices are estimates. Each step ends with a check, and the guide gives the portal route where a command might be refused.
+- **Google, Microsoft and Apple sign-in have not talked to the real companies.** Tested against fakes that behave like them, and in the browser with the pretend providers. On the iPhone they need a real build (Expo Go cannot receive the app's link). App Review may ask for Apple's native button instead of the web sheet (not built; noted in SIGNIN_SETUP.md).
+- **Metrics start counting when this version is deployed**; screens and actions before that are not counted. Weeks are Monday to Sunday in UTC.
+- **The beta form does not confirm the email address**, so someone could add another person's address; you read the list before inviting anyone (REVIEW2.md, item 8).
+- **Sign-up still says when an email already has an account** (accepted and rate-limited; REVIEW2.md, item 7).
+
 - **The iPhone app has still never run on a simulator or device.** It typechecks, bundles for iOS, and every flow passes in a browser preview. [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md) is the 10-minute list of what only a phone can prove.
 - **Notifications are untested on a device.** The planning (who, which day, what time, badge number) is covered by unit tests; the actual scheduling, the system prompt, the badge and tap-to-open (including when the app was closed) are sections 3 and 4 of the phone checklist.
 - **Sentry and Expo push have never talked to the real services** (the build environment cannot reach them); both are covered with the network stubbed. Same as Resend.
@@ -224,13 +247,13 @@ Tests: 140 now (API 95, shared 31, mobile 14).
 - **Nothing has been deployed.** DEPLOY.md and `render.yaml` have not been followed on real Neon, Render or Vercel accounts (none may be created here). `render.yaml` was checked for valid syntax only. A pooled Neon connection has not been tried.
 - **The Docker image was not built.** Two attempts failed at `apt-get` because the build environment blocks Debian's package mirrors. The same steps (clean filtered install, build, migrations through `DIRECT_URL`, production start, both health checks) were run successfully outside Docker.
 - **The Resend adapter has never talked to Resend.** It is covered by 9 tests with the network stubbed; the build environment cannot reach api.resend.com. Run the opt-in live test (command at the top of `apps/api/test/resend.test.ts`) or `email:test` once you have a key.
-- **The privacy policy and terms are drafts, not legal advice.** They show a "Draft" banner and [BRACKETED] placeholders (operator name, contact address, governing law, hosting region, backup retention, liability cap) until you fill in `apps/web/src/lib/legal.ts`, have them reviewed, and set `LEGAL_DRAFT = false`.
+- **The privacy policy and terms are drafts, not legal advice.** They show a "Draft" banner and highlighted blanks until you fill in the settings in [docs/LEGAL.md](docs/LEGAL.md), have them reviewed, and set `NEXT_PUBLIC_LEGAL_FINAL=true`.
 - **No EAS build or App Store submission has been made.** `eas.json` and the commands in APP_STORE.md are untested, and `eas.json` holds placeholder server addresses.
 - **Screen labels on Neon, Render, Vercel, Resend, Expo and App Store Connect are from memory** and change often; prices and free-tier terms too.
 - **Other native-only features are untested at runtime:** reading the address book for contact import, Keychain storage (sign-in and drafts), haptics, the native tab bar.
 - **Email, SMS and push run on mocks by default.** Email switches to Resend with `EMAIL_PROVIDER=resend`. The Twilio and Expo push adapters are written and unit-tested with the network stubbed, but have never been called for real.
 - **Daily digest is off by default** (`DIGEST_ENABLED=false`).
-- **No Sign in with Apple / Google. No way to change your email address. Web import reads vCard only.**
+- **No way to change your email address. Web import reads vCard only.**
 - **"Remind me later" offers fixed choices** ("Not today" = tomorrow, and "Next week" on a person's page), not a date picker.
 - **Admin is web only.**
 - **Android** is configured but untried.
@@ -289,15 +312,18 @@ On a physical phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your com
 
 ## What you need to do next
 
-1. **Tonight: follow [docs/TONIGHT.md](docs/TONIGHT.md)** top to bottom. It starts with merging the pull request and ends with the app open in Expo Go.
-2. **Then real email** ([docs/DEPLOY.md](docs/DEPLOY.md), "Real email"), so "Forgot password" works; set `FEEDBACK_EMAIL` at the same time if you want feedback in your inbox.
-3. **Build for TestFlight** with [docs/APP_STORE.md](docs/APP_STORE.md), then run [docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md) (10 minutes) and send me the numbers of anything that fails.
-4. **Finish the legal pages**: fill in `apps/web/src/lib/legal.ts`, have them reviewed, set `LEGAL_DRAFT = false`.
-5. **Turn on two-factor sign-in** on GitHub, Neon, Render, Vercel, Resend, Expo and Apple.
+1. **Pick the name now, if you will change it** ([docs/RENAME.md](docs/RENAME.md)): it is one file today, but the bundle identifier is fixed for good once the first TestFlight build exists.
+2. **Deploy on Azure** with [docs/DEPLOY_AZURE.md](docs/DEPLOY_AZURE.md) (first check what your student subscription includes, as it explains). Then `pnpm smoke` against it.
+3. **Real email** ([docs/DEPLOY.md](docs/DEPLOY.md), "Real email"), so "Forgot password" works; set `FEEDBACK_EMAIL` too.
+4. **Fill in the legal blanks** ([docs/LEGAL.md](docs/LEGAL.md)) and have them reviewed.
+5. **Apple Developer Program**, then TestFlight ([docs/APP_STORE.md](docs/APP_STORE.md)) and the 10-minute phone checklist ([docs/TEST_ON_PHONE.md](docs/TEST_ON_PHONE.md)).
+6. **Sign-in providers**, when you want them: [docs/SIGNIN_SETUP.md](docs/SIGNIN_SETUP.md). Apple's comes with the developer membership.
+7. **Invite testers** with [docs/BETA.md](docs/BETA.md), and read Admin → Beta metrics weekly ([docs/METRICS.md](docs/METRICS.md)).
+8. **Turn on two-factor sign-in** on GitHub, Azure, Resend, Expo, Apple, Google Cloud and Microsoft.
 
 ## Suggested next features
 
-- Sign in with Apple; change email address
+- Change email address; Apple's native sign-in button on iPhone
 - Home-screen widget and lock-screen "who's due" on iOS
 - Share an intention with the person you're praying for ("I prayed for you today")
 - Groups (family, small group) with shared prayer lists

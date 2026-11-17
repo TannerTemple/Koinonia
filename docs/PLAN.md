@@ -172,3 +172,13 @@ counters to drift.
 - [x] iPhone file export, drafts for person and reach-out forms, web reminder time, CI once per change
 - [x] Feedback screen (web and mobile), Admin > Feedback, optional `FEEDBACK_EMAIL`
 - [x] Fresh-clone first-run pass
+
+### 13. Eighth round
+- [x] Azure guide and web Dockerfile
+- [x] Admin beta metrics (counts only)
+- [x] Public /beta page, consented invite list, invite a friend, docs/BETA.md
+- [x] brand.json: one-place naming, rename check
+- [x] Retention merged, each feature behind FEATURES_OFF
+- [x] Security review 2 (docs/REVIEW2.md)
+- [x] Sign in with Google, Microsoft, Apple (off by default)
+- [x] Legal pages finished as drafts with highlighted blanks
